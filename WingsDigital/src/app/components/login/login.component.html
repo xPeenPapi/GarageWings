@@ -1,0 +1,31 @@
+<div class="login-container">
+    <div class="login-illustration">
+        <img src="wings4.jpg" alt="Ilustración de bienvenida">
+    </div>
+
+    <div class="login-form">
+        <div class="form-content">
+            <img src="wings4.jpg" alt="Logo de Garage Sushis and More" class="form-logo">
+            
+            <h2>Bienvenido!!</h2>
+            
+            <div class="input-group">
+                <i class="fas fa-at"></i>
+                <input type="text" placeholder="Usuario" 
+                [(ngModel)]="loginData.usuario" name="usuario">
+
+            </div>
+
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" placeholder="Contraseña"
+                [(ngModel)]="loginData.contrasena" name="contraseña">
+            </div>
+
+            <a href="#" class="forgot-password"></a>
+
+            <button class="login-button" (click)="iniciarSesion()">Iniciar Sesion</button>
+
+        </div>
+    </div>
+</div>

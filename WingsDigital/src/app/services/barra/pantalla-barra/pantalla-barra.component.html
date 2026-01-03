@@ -1,0 +1,108 @@
+<div class="barra-container">
+  <div class="header-pantalla">
+    <h1>🍸 PANTALLA DE BARRA</h1>
+    <button class="btn-salir" (click)="salir()">
+      <i class="fas fa-sign-out-alt"></i> Salir
+    </button>
+  </div>
+
+  <div class="pedidos-grid">
+    
+    <section class="pedido-seccion">
+      <h3 class="seccion-titulo nuevo">
+        <i [class]="iconos.nuevos"></i> 
+        Pendientes ({{ nuevosPedidos.length }})
+      </h3>
+      
+      <div class="lista-pedidos">
+        <div *ngIf="nuevosPedidos.length === 0" class="no-pedidos">Barra limpia ✨</div>
+        
+        <div *ngFor="let pedido of nuevosPedidos" class="pedido-card nuevo">
+          <div class="pedido-header">
+            <h4>Mesa {{ pedido.mesa?.numero || pedido.mesaId }}</h4>
+            <span class="mesero-tag">{{ pedido.mesero?.nombre }}</span>
+          </div>
+          
+          <ul class="items-list">
+            <ng-container *ngFor="let item of pedido.items">
+              <li *ngIf="item.producto?.destino === 'BARRA'">
+                <div class="item-row">
+                  <span class="qty">{{ item.cantidad }}x</span>
+                  <span class="name">{{ item.producto?.nombre }}</span>
+                </div>
+                
+                <div *ngIf="item.notas" class="notas">⚠️ {{ item.notas }}</div>
+                
+                <div *ngIf="item.opcionesElegidas" class="extras">
+                  <div *ngFor="let op of item.opcionesElegidas | keyvalue">
+                    • {{ op.key }}: <strong>{{ formatearOpcion(op.value) }}</strong>
+                  </div>
+                </div>
+              </li>
+            </ng-container>
+          </ul>
+
+          <button class="btn-accion btn-nuevo" (click)="marcarComoPreparando(pedido)">
+            <i [class]="iconos.preparando"></i> Preparar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pedido-seccion">
+      <h3 class="seccion-titulo preparando">
+        <i [class]="iconos.preparando"></i> 
+        Sirviendo ({{ preparandoPedidos.length }})
+      </h3>
+      
+      <div class="lista-pedidos">
+        <div *ngIf="preparandoPedidos.length === 0" class="no-pedidos">Nada en preparación</div>
+        
+        <div *ngFor="let pedido of preparandoPedidos" class="pedido-card preparando">
+          <div class="pedido-header">
+            <h4>Mesa {{ pedido.mesa?.numero }}</h4>
+            <span class="time-tag">En barra</span>
+          </div>
+          
+          <ul class="items-list">
+            <ng-container *ngFor="let item of pedido.items">
+              <li *ngIf="item.producto?.destino === 'BARRA'">
+                <div class="item-row">
+                  <span class="qty">{{ item.cantidad }}x</span>
+                  <span class="name">{{ item.producto?.nombre }}</span>
+                </div>
+                <div *ngIf="item.opcionesElegidas" class="extras">
+                  <div *ngFor="let op of item.opcionesElegidas | keyvalue">
+                    • {{ formatearOpcion(op.value) }}
+                  </div>
+                </div>
+              </li>
+            </ng-container>
+          </ul>
+          
+          <button class="btn-accion btn-preparando" (click)="marcarComoListo(pedido)">
+            <i [class]="iconos.marcarListo"></i> ¡LISTO!
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pedido-seccion">
+      <h3 class="seccion-titulo listo">
+        <i [class]="iconos.listos"></i> 
+        Para Entregar ({{ listosPedidos.length }})
+      </h3>
+      
+      <div class="lista-pedidos">
+        <div *ngFor="let pedido of listosPedidos" class="pedido-card listo">
+          <div class="pedido-header">
+            <h4>Mesa {{ pedido.mesa?.numero }}</h4>
+            <span class="status">✓</span>
+          </div>
+          <div class="pedido-footer">Esperando mesero...</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>

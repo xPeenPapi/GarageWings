@@ -1,0 +1,42 @@
+<div class="modal-overlay">
+  <div class="modal-container">
+    
+    <header class="modal-header">
+      <fa-icon [icon]="faMoneyBill"></fa-icon>
+      <h2>Agregar Adicionales</h2>
+    </header>
+    <p class="modal-subheader">Seleccionar adicionales para tu pedido:</p>
+
+    <div class="lista-items">
+      <div *ngFor="let adicional of listaAdicionales" class="item">
+        <div class="item-info">
+          <span class="nombre">{{ adicional.nombre }}</span>
+          <span class="precio">{{ adicional.precio | currency }}</span>
+        </div>
+        <div class="quantity-selector">
+          <button (click)="decrementar(adicional)" [disabled]="adicional.cantidad === 0">-</button>
+          <span>{{ adicional.cantidad }}</span>
+          <button (click)="incrementar(adicional)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="resumen-section" *ngIf="adicionalesSeleccionados.length > 0">
+      <h4>Adicionales seleccionados:</h4>
+      <div *ngFor="let item of adicionalesSeleccionados" class="resumen-line">
+        <span>{{ item.cantidad }}x {{ item.nombre }}</span>
+        <span>{{ (item.precio * item.cantidad) | currency }}</span>
+      </div>
+      <div class="resumen-total">
+        <span>Total adicional</span>
+        <span>{{ totalAdicional | currency }}</span>
+      </div>
+    </div>
+
+    <footer class="modal-actions">
+      <button class="btn-confirm" (click)="onConfirmar()">Agregar al Pedido</button>
+      <button class="btn-cancel" (click)="onCancelar()">Cancelar</button>
+    </footer>
+
+  </div>
+</div>

@@ -1,0 +1,315 @@
+<ng-container *ngIf="esEscritorio; else vistaMovil">
+
+  <div class="layout-escritorio">
+    
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="perfil-mesero">
+          <div class="perfil-icono"><i class="fas fa-table"></i></div>
+          <div>
+            <h2>Mesero</h2>
+            <p>{{ nombreMesero }}</p>
+            <p class="ubicacion-sucursal">
+              <i class="fas fa-building"></i> Garage Wings
+            </p>
+          </div>
+        </div>
+
+        <nav class="navegacion-principal">
+          <p class="nav-titulo">Flujo de Trabajo</p>
+          <ul>
+            <li [class.activo]="!modoUnion">
+              <a href="javascript:void(0)" (click)="modoUnion ? toggleModoUnion() : null">
+                <i class="fas fa-table"></i> Seleccionar Mesa
+              </a>
+            </li>
+            <li (click)="crearOrdenParaLlevar()">
+              <a href="javascript:void(0)"><i class="fas fa-shopping-bag"></i> Para Llevar</a>
+            </li>
+            <li [class.activo-union]="modoUnion" (click)="toggleModoUnion()">
+              <a href="javascript:void(0)" [style.color]="modoUnion ? '#e67e22' : ''">
+                <i class="fas" [ngClass]="modoUnion ? 'fa-times' : 'fa-link'"></i> 
+                {{ modoUnion ? 'Cancelar Unión' : 'Unir Mesas' }}
+              </a>
+            </li>
+          </ul>
+
+          <div class="mt-4" style="margin-top: 2rem; padding: 0 5px;">
+              <h6 style="color: #adb5bd; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">
+                  <i class="fas fa-motorcycle"></i> En Curso (Llevar)
+              </h6>
+
+              <div class="lista-lateral-container">
+                  <div *ngFor="let orden of ordenesParaLlevarActivas" 
+                       class="item-pedido-lateral" 
+                       (click)="irAPedidoParaLlevar(orden.id)">
+                       <div class="icono-lateral-circle"><i class="fas fa-user"></i></div>
+                       <div class="info-pedido-lateral">
+                           <span class="nombre-cliente-lateral">{{ orden.notaGeneral || orden.nota_general || 'Cliente' }}</span>
+                           <span class="id-pedido-lateral">Pedido #{{ orden.id }}</span>
+                       </div>
+                       <i class="fas fa-chevron-right flecha-lateral"></i>
+                  </div>
+                  <div *ngIf="ordenesParaLlevarActivas.length === 0" style="text-align: center; padding: 15px; color: #adb5bd; font-size: 0.85rem; font-style: italic;">
+                      No hay pedidos activos.
+                  </div>
+              </div>
+          </div>
+        </nav>
+      </div>
+
+      <div class="sidebar-bottom">
+        <button class="btn-logout" (click)="Logout()">
+          <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <main class="contenido-principal">
+      <header class="header-principal">
+        <div>
+            <h1>Garage Wings / 
+                <strong *ngIf="!modoUnion">Selección de Mesa</strong>
+                <strong *ngIf="modoUnion" style="color: #e67e22;">Modo Unión de Mesas</strong>
+            </h1>
+            <p *ngIf="modoUnion" class="instruccion-union">
+                <span *ngIf="!mesaPrincipalUnion">1. Selecciona la <strong>Mesa Principal</strong> (Padre)</span>
+                <span *ngIf="mesaPrincipalUnion">2. Ahora selecciona la <strong>Mesa a Unir</strong> (Hija)</span>
+            </p>
+        </div>
+        
+        <div class="iconos-header">
+          <button class="btn-para-llevar" (click)="crearOrdenParaLlevar()">
+            <i class="fas fa-plus"></i> Para Llevar
+          </button>
+
+          <div class="notificacion-container">
+            <i class="fas fa-bell notificacion-icono" (click)="toggleListaNotificaciones()"></i>
+            <span *ngIf="contadorNotificaciones > 0" class="notificacion-badge">
+              {{ contadorNotificaciones }}
+            </span>
+            
+            <div *ngIf="mostrarListaNotificaciones" class="notificaciones-dropdown">
+              <div class="notificaciones-header">
+                <h4>Pedidos Listos</h4>
+                <button *ngIf="pedidosListos.length > 0" class="btn-limpiar" (click)="limpiarNotificaciones()">
+                  Limpiar
+                </button>
+              </div>
+              <div class="notificaciones-lista">
+                <div *ngIf="pedidosListos.length === 0" class="sin-notificaciones">
+                  <i class="fas fa-inbox"></i> <p>No hay pedidos listos</p>
+                </div>
+                <div *ngFor="let pedido of pedidosListos" class="notificacion-item" (click)="irAMesa(pedido)">
+                  <div class="notificacion-icono-wrapper"><i class="fas fa-check-circle"></i></div>
+                  <div class="notificacion-contenido">
+                    <h5>Mesa {{ pedido.mesaId }} - Listo</h5>
+                    <p>Total: {{ pedido.total | currency }}</p>
+                  </div>
+                  <button class="btn-cerrar-notificacion" (click)="marcarComoVista(pedido); $event.stopPropagation()">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="user-badge"><i class="fas fa-user"></i> <span>{{ nombreMesero }}</span></div>
+        </div>
+      </header>
+
+      <section class="stats-bar">
+        <div class="stat-card" [class.selected]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">
+          <div class="stat-icon icon-total"><i class="fas fa-table"></i></div>
+          <div class="stat-text"><span>Total Mesas</span><strong>{{ totalMesas }}</strong></div>
+        </div>
+        <div class="stat-card" [class.selected]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">
+          <div class="stat-icon icon-disponible"><i class="fas fa-check"></i></div>
+          <div class="stat-text"><span>Disponibles</span><strong>{{ totalDisponibles }}</strong></div>
+        </div>
+        <div class="stat-card" [class.selected]="filtroActual==='OCUPADAS'" (click)="setFiltro('OCUPADAS')">
+          <div class="stat-icon icon-ocupada"><i class="fas fa-users"></i></div>
+          <div class="stat-text"><span>Ocupadas</span><strong>{{ totalOcupadas }}</strong></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-reservada"><i class="fas fa-clock"></i></div>
+          <div class="stat-text"><span>Reservadas</span><strong>{{ totalReservadas }}</strong></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-mis-mesas"><i class="fas fa-user-tag"></i></div>
+          <div class="stat-text"><span>Mis Mesas</span><strong>{{ totalMisMesas }}</strong></div>
+        </div>
+      </section>
+
+      <section class="filtros-container">
+        <h2>Filtros</h2>
+        <div class="search-wrapper">
+          <i class="fas fa-search"></i>
+          <input type="search" placeholder="Buscar por número de mesa o mesero..." [(ngModel)]="textoBusqueda">
+        </div>
+        <button class="btn-filtro" [class.active]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">Todas</button>
+        <button class="btn-filtro" [class.active]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">Libres</button>
+      </section>
+
+      <div class="grid-mesas-escritorio">
+        <div *ngFor="let mesa of mesasFiltradas" 
+             class="mesa-card" 
+             [ngClass]="{
+               'status-disponible': mesa.estado === 'disponible',
+               'status-ocupada': mesa.estado === 'ocupada',
+               'status-union-hija': mesa.mesaPadreId,
+               'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
+               'dimmed-union': modoUnion && mesaPrincipalUnion && mesa.estado !== 'disponible' && mesa.id !== mesaPrincipalUnion.id
+             }"
+             (click)="seleccionarMesa(mesa)">
+             
+          <div class="mesa-grafica-container">
+            <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+          </div>
+          
+          <div class="mesa-info">
+            <div class="mesa-info-header">
+              <h3>
+                Mesa {{mesa.numero}}
+                <i *ngIf="!mesa.mesaPadreId && mesa.estado === 'disponible'" class="fas fa-check-circle texto-disponible"></i>
+                <i *ngIf="!mesa.mesaPadreId && mesa.estado === 'ocupada'" class="fas fa-times-circle texto-ocupada"></i>
+                <i *ngIf="mesa.mesaPadreId" class="fas fa-link texto-unida"></i>
+              </h3>
+            </div>
+            
+            <div class="mesa-card-body">
+              
+              <ng-container *ngIf="mesa.mesaPadreId">
+                  <div class="bloque-unida">
+                      <p class="titulo-unida">UNIDA A MESA {{ obtenerNumeroMesa(mesa.mesaPadreId!) }}</p>
+                      <p class="subtitulo-unida"><i class="fas fa-share"></i> Ver Cuenta Principal</p>
+                  </div>
+              </ng-container>
+
+              <ng-container *ngIf="!mesa.mesaPadreId">
+                  <p><span class="estado-badge" [ngClass]="'badge-' + mesa.estado">{{mesa.estado | titlecase}}</span></p>
+
+                  <ng-container *ngIf="mesa.estado === 'ocupada'">
+                    <p style="display: flex; align-items: center; gap: 6px; color: #555;">
+                      <i class="fas fa-users" style="color: #666;"></i> 
+                      <small>{{mesa.comensales}} comensales</small>
+                    </p>
+                    <p style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;" 
+                       [style.color]="mesa.meseroId === usuarioActualId ? '#2ecc71' : '#555'"
+                       [style.fontWeight]="mesa.meseroId === usuarioActualId ? 'bold' : 'normal'">
+                      <i class="fas fa-user-tie"></i> 
+                      <small>{{ mesa.meseroId === usuarioActualId ? 'Tú' : mesa.mesero }}</small>
+                    </p>
+                    <p style="display: flex; align-items: center; gap: 6px; color: #e67e22;" *ngIf="mesa.horaInicio">
+                      <i class="far fa-clock"></i> 
+                      <small>{{ mesa.tiempoTranscurrido }}</small>
+                    </p>
+                    <div *ngIf="esTiempoExcedido(mesa.horaInicio)" style="margin-top: 5px; color: #c0392b; font-size: 0.8rem; font-weight: bold;">
+                       <i class="fas fa-exclamation-triangle"></i> Tiempo excedido (+2h)
+                    </div>
+                  </ng-container>
+
+                  <p *ngIf="mesa.estado === 'disponible'" style="color: #888;">
+                    <small>Capacidad: {{mesa.capacidad}} pax</small>
+                  </p>
+              </ng-container>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</ng-container>
+
+<ng-template #vistaMovil>
+  <div class="mesas">
+    <header class="header">
+      <img src="wings4.jpg" alt="Logo" class="logo">
+      <div><h1 *ngIf="!modoUnion">Selección</h1><h1 *ngIf="modoUnion" style="color: #e67e22;">Unir Mesas</h1><p>{{ nombreMesero }}</p></div>
+      <div class="notificacion-container-movil"><i class="fas fa-bell notification-icon" (click)="toggleListaNotificaciones()"></i><span *ngIf="contadorNotificaciones > 0" class="notificacion-badge-movil">{{ contadorNotificaciones }}</span></div>
+    </header>
+
+    <div *ngIf="modoUnion" class="banner-movil-union">
+        <span *ngIf="!mesaPrincipalUnion">Toca <strong>Mesa Principal</strong></span>
+        <span *ngIf="mesaPrincipalUnion">Toca <strong>Mesa a Unir</strong></span>
+        <button (click)="toggleModoUnion()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="filter-container"><button class="filter-btn" [class.active]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">Todas</button><button class="filter-btn" [class.active]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">Libres</button><button class="filter-btn" [class.active-union-btn]="modoUnion" (click)="toggleModoUnion()"><i class="fas fa-link"></i> {{ modoUnion ? 'Cancelar' : 'Unir' }}</button><button class="filter-btn btn-llevar-movil" (click)="crearOrdenParaLlevar()"><i class="fas fa-shopping-bag"></i></button></div>
+
+    <div class="tables-container">
+      <ng-container *ngFor="let mesa of mesasFiltradas">
+        <div class="mesa-card-movil" 
+             [ngClass]="{
+                'status-disponible': mesa.estado === 'disponible',
+                'status-ocupada': mesa.estado === 'ocupada',
+                'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
+                'status-union-hija': mesa.mesaPadreId
+             }" 
+             (click)="seleccionarMesa(mesa)">
+          
+          <div *ngIf="mesa.mesaPadreId" class="floating-badge-hija"><i class="fas fa-link"></i></div>
+
+          <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+          <div class="mesa-info-movil">
+            <p *ngIf="mesa.mesaPadreId" style="color: #e67e22; font-weight: bold; font-size: 0.8rem; margin-bottom: 2px;">
+                Unida a M{{ obtenerNumeroMesa(mesa.mesaPadreId!) }}
+            </p>
+            <p *ngIf="!mesa.mesaPadreId"><span class="estado-badge" [ngClass]="'badge-' + mesa.estado">{{mesa.estado | titlecase}}</span></p>
+            <p *ngIf="mesa.mesero && !mesa.mesaPadreId"><strong>{{mesa.mesero}}</strong></p>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+    <button class="logout" (click)="Logout()">Salir</button>
+  </div>
+</ng-template>
+
+<ng-template #mesaGrafica let-mesa>
+  <div *ngIf="mesa.tipo === 'cuadrada'" class="wrapper"><div class="sillas-wrapper"><div class="silla"><div class="parte-superior"></div><div class="parte-inferior"></div></div><div class="silla"><div class="parte-superior"></div><div class="parte-inferior"></div></div></div><div class="mesa"><span class="table-number">{{mesa.numero}}</span><div class="table-capacity"><i class="fas fa-users"></i><span>{{mesa.capacidad}}</span></div></div><div class="sillas-wrapper"><div class="silla" id="mesa-inferior"><div class="parte-superior"></div><div class="parte-inferior"></div></div><div class="silla" id="mesa-inferior"><div class="parte-superior"></div><div class="parte-inferior"></div></div></div></div>
+  <div *ngIf="mesa.tipo === 'rectangular'" class="table-container-2p"><div class="chair-2p"><div class="backrest-2p"></div><div class="seat-2p"></div></div><div class="table-2p"><span class="table-number">{{mesa.numero}}</span><div class="table-capacity"><i class="fas fa-users"></i><span>{{mesa.capacidad}}</span></div></div><div class="chair-2p flipped"><div class="backrest-2p"></div><div class="seat-2p"></div></div></div>
+</ng-template>
+
+<div class="modal-backdrop" *ngIf="modalConfirmacion.visible">
+  <div class="modal-custom">
+    <div class="modal-icon" style="color: #2f9e44;"><i class="fas fa-question-circle"></i></div>
+    <h3>Confirmar Acción</h3>
+    <p>{{ modalConfirmacion.mensaje }}</p>
+    
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="cerrarConfirmacion()">Cancelar</button>
+      <button class="btn-confirm" (click)="ejecutarConfirmacion()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="mostrarModalCliente">
+  <div class="modal-custom">
+    <h3>Nuevo Pedido Para Llevar</h3>
+    <p>Ingresa el nombre del cliente para identificar el pedido.</p>
+    <div class="input-group"><i class="fas fa-user"></i><input type="text" [(ngModel)]="nombreClienteTemp" placeholder="Ej: Juan Pérez" autofocus (keyup.enter)="confirmarParaLlevar()"></div>
+    <div class="modal-actions"><button class="btn-cancel" (click)="cerrarModales()">Cancelar</button><button class="btn-confirm" (click)="confirmarParaLlevar()">Crear Pedido</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="mostrarModalComensales">
+  <div class="modal-custom">
+    <h3>Abrir Mesa {{ mesaSeleccionadaTemp?.numero }}</h3>
+    <p>¿Cuántas personas van a ocupar la mesa?</p>
+    <div class="counter-control"><button (click)="comensalesTemp = comensalesTemp > 1 ? comensalesTemp - 1 : 1"><i class="fas fa-minus"></i></button><span class="count-display">{{ comensalesTemp }}</span><button (click)="comensalesTemp = comensalesTemp + 1"><i class="fas fa-plus"></i></button></div>
+    <div class="modal-actions"><button class="btn-cancel" (click)="cerrarModales()">Cancelar</button><button class="btn-confirm" (click)="confirmarAperturaMesa()">Abrir Mesa</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop alerta-superior" *ngIf="modalAlerta.visible">
+  <div class="modal-custom">
+    <div class="modal-icon" [style.color]="modalAlerta.tipo === 'error' ? '#dc3545' : '#e67e22'">
+        <i class="fas" [ngClass]="modalAlerta.tipo === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'"></i>
+    </div>
+    <h3>{{ modalAlerta.tipo === 'error' ? 'Atención' : 'Información' }}</h3>
+    <p>{{ modalAlerta.mensaje }}</p>
+    <div class="modal-actions">
+      <button class="btn-confirm" (click)="cerrarAlerta()">Entendido</button>
+    </div>
+  </div>
+</div>

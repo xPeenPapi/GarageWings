@@ -1,0 +1,98 @@
+<div class="modal-overlay">
+  <div class="modal-container">
+    
+    <div class="modal-header">
+      <h3>Dividir Cuenta - Mesa {{ orden.mesa }}</h3>
+      <button class="btn-close" (click)="cerrar.emit()">
+        <fa-icon [icon]="iconos.cerrar"></fa-icon>
+      </button>
+    </div>
+
+    <div class="top-stats">
+      <div class="stat-main">
+        <span class="label">Total Original</span>
+        <span class="value">{{ orden.total | currency }}</span>
+      </div>
+      <div class="stat-secondary">
+        <div>Total Asignado: {{ totalAsignado | currency }}</div>
+        <div [class.text-danger]="totalRestante > 0.01">Restante: {{ totalRestante | currency }}</div>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      
+      <div class="section-left">
+        <h4>Productos Disponibles</h4>
+        <div class="products-container">
+          <div *ngFor="let prod of productosDisponibles" 
+               class="product-row"
+               [class.disabled]="prod.cantidadDisponible === 0">
+            <div class="prod-info">
+              <strong>{{ prod.nombre }}</strong>
+              <small>Disponible: {{ prod.cantidadDisponible }} de {{ prod.cantidadOriginal }}</small>
+            </div>
+            <div class="prod-price">{{ prod.precio | currency }}/u</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-right">
+        <div class="clients-header">
+          <h4>Cuentas Divididas ({{ clientes.length }})</h4>
+          
+          <button class="btn-nuevo" 
+                  [disabled]="!hayItemsDisponibles"
+                  (click)="activarCrearCliente()">
+            <fa-icon [icon]="iconos.agregar"></fa-icon> Nuevo Cliente
+          </button>
+        </div>
+
+        <div *ngIf="creandoCliente" class="input-name-box">
+          <input type="text" [(ngModel)]="nombreNuevoCliente" placeholder="Nombre del comensal" autofocus (keyup.enter)="confirmarCliente()">
+          <button class="btn-ok" (click)="confirmarCliente()">OK</button>
+        </div>
+
+        <div class="clients-container">
+          <div *ngIf="clientes.length === 0" class="empty-state">
+            Haz clic en "Nuevo Cliente" para empezar a dividir la cuenta.
+          </div>
+
+          <div *ngFor="let cliente of clientes; let i = index" class="client-card">
+            <div class="client-top">
+              <strong>{{ cliente.nombre }}</strong>
+              <span class="client-total">{{ cliente.total | currency }}</span>
+            </div>
+            
+            <ul class="client-items">
+              <li *ngFor="let item of cliente.items; let j = index">
+                {{ item.cantidad }}x {{ item.nombre }}
+                <fa-icon [icon]="iconos.borrar" class="trash-icon" (click)="removerItemDeCliente(i, j)"></fa-icon>
+              </li>
+            </ul>
+
+            <div class="assign-area">
+              <small>Asignar:</small>
+              <div class="chips">
+                <button *ngFor="let prod of productosDisponibles" 
+                        [disabled]="prod.cantidadDisponible === 0"
+                        (click)="asignarProducto(prod, i)">
+                  + {{ prod.nombre }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="cerrar.emit()">Cancelar</button>
+      <button class="btn-confirm" 
+              [disabled]="totalRestante > 0.01"
+              (click)="confirmarDivision()">
+        <fa-icon [icon]="iconos.confirmar"></fa-icon> Confirmar División ({{ clientes.length }} cuentas)
+      </button>
+    </div>
+
+  </div>
+</div>

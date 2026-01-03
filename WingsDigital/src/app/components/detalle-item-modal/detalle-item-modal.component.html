@@ -1,0 +1,61 @@
+<div class="modal-overlay" *ngIf="mostrar" (click)="cerrarModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    
+    <div class="modal-header">
+      <h3>{{ producto?.nombre }}</h3>
+      <button class="btn-cerrar" (click)="cerrarModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="descripcion">{{ producto?.descripcion }}</p>
+      
+      <div *ngIf="producto?.configuracion">
+        <div *ngFor="let grupo of producto?.configuracion" class="grupo-opciones">
+          <h4>
+            {{ grupo.titulo }} 
+            <span *ngIf="grupo.obligatorio" class="obligatorio">*</span>
+          </h4>
+          
+          <div class="opciones-lista">
+            <div *ngFor="let op of grupo.opciones" class="opcion-item">
+              <label>
+                <input 
+                  [type]="grupo.tipo" 
+                  [name]="grupo.titulo" 
+                  [value]="op.nombre"
+                  (change)="onOpcionChange(grupo.titulo, op.nombre, grupo.tipo, $event)">
+                
+                <span class="nombre-opcion">{{ op.nombre }}</span>
+                <span class="precio-opcion" *ngIf="op.precio > 0">+{{ op.precio | currency }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controles-finales">
+        <div class="notas-section">
+          <label>Notas para cocina:</label>
+          <input type="text" [(ngModel)]="notas" placeholder="Ej: Sin cebolla, Salsa aparte...">
+        </div>
+
+        <div class="cantidad-section">
+          <button class="btn-cantidad" (click)="disminuir()">-</button>
+          <span class="numero-cantidad">{{ cantidad }}</span>
+          <button class="btn-cantidad" (click)="aumentar()">+</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <div class="precio-total">
+        Total: {{ precioTotal | currency }}
+      </div>
+      <button class="btn-confirmar" (click)="confirmarSeleccion()">
+        Agregar al Pedido
+      </button>
+    </div>
+
+  </div>
+</div>

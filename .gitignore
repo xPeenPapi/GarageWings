@@ -1,0 +1,7 @@
+node_modules/
+*.rar
+*.zip
+.env
+dist/
+build/
+*.log

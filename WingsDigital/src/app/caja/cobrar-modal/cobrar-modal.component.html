@@ -1,0 +1,84 @@
+<div class="modal-overlay">
+  <div class="pay-card">
+    
+    <div class="pay-header">
+      <div class="header-info">
+        <h3>Mesa {{ orden.mesa }}</h3>
+        <span class="cliente-badge" *ngIf="orden.clienteNombre">
+          <fa-icon [icon]="iconos.user"></fa-icon> {{ orden.clienteNombre }}
+        </span>
+      </div>
+      <button class="close-btn" (click)="cancelar.emit()">&times;</button>
+    </div>
+
+    <div class="pay-body">
+      
+      <div class="amount-display">
+        <span class="label">Total a Pagar</span>
+        <h1 class="amount">{{ totalFinal | currency }}</h1>
+        <small class="subtext" *ngIf="propinaMonto > 0">
+          (Incluye {{ propinaMonto | currency }} de propina)
+        </small>
+      </div>
+
+      <div class="tip-section">
+        <label>Propina Sugerida</label>
+        <div class="tip-options">
+          <button [class.active]="propinaPorcentaje === 0" (click)="setPropina(0)">0%</button>
+          <button [class.active]="propinaPorcentaje === 10" (click)="setPropina(10)">10%</button>
+          <button [class.active]="propinaPorcentaje === 15" (click)="setPropina(15)">15%</button>
+          <button [class.active]="propinaPorcentaje === 20" (click)="setPropina(20)">20%</button>
+          <div class="manual-tip">
+            <span>$</span>
+            <input type="number" [(ngModel)]="propinaMonto" (input)="onPropinaManualChange()" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+
+      <div class="payment-method">
+        <label>Método de Pago</label>
+        <div class="select-wrapper">
+          <select [(ngModel)]="metodoPago">
+            <option value="Efectivo">💵 Efectivo</option>
+            <option value="Tarjeta">💳 Tarjeta</option>
+            <option value="Transferencia">📱 Transferencia</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="cash-calculator" *ngIf="metodoPago === 'Efectivo'">
+        <div class="calc-row">
+          <div class="calc-input-group">
+            <label>Dinero Recibido</label>
+            <div class="input-big-wrapper">
+              <span>$</span>
+              <input type="number" 
+                     [(ngModel)]="montoRecibido" 
+                     placeholder="0.00" 
+                     autofocus>
+            </div>
+          </div>
+          <div class="calc-result-group">
+            <label>Su Cambio</label>
+            <div class="change-amount" [class.negative]="cambio < 0">
+              {{ cambio | currency }}
+            </div>
+          </div>
+        </div>
+        <p class="error-msg" *ngIf="cambio < 0">⚠️ Faltan {{ (cambio * -1) | currency }}</p>
+      </div>
+
+    </div>
+
+    <div class="pay-footer">
+      <button class="btn-cancel" (click)="cancelar.emit()">Cancelar</button>
+      
+      <button class="btn-confirm" 
+              [disabled]="metodoPago === 'Efectivo' && cambio < 0"
+              (click)="onConfirmar()">
+        Confirmar Cobro
+      </button>
+    </div>
+
+  </div>
+</div>

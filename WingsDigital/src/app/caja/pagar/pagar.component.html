@@ -1,0 +1,298 @@
+<div class="pantalla-no-turno" *ngIf="!turnoAbierto">
+  <div class="contenido-bloqueo">
+    <div class="icono-reloj-grande">
+      <fa-icon [icon]="iconos.reloj"></fa-icon>
+    </div>
+    <h2>No hay turno activo</h2>
+    <p>Debes abrir un turno para comenzar a procesar pagos.</p>
+    
+    <button class="btn-abrir-turno-grande" (click)="iniciarApertura()">
+      <fa-icon [icon]="iconos.cajaRegistradora"></fa-icon> Abrir Turno
+    </button>
+
+    <div class="mt-4" style="margin-top: 2rem;">
+        <button class="btn-salir-sistema" (click)="cerrarSesion()">
+            <fa-icon [icon]="iconos.cerrarSesion"></fa-icon> Salir del Sistema
+        </button>
+    </div>
+
+  </div>
+</div>
+
+<div class="dashboard-caja" *ngIf="turnoAbierto">
+  
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="perfil-usuario">
+        <div class="perfil-icono"><fa-icon [icon]="iconos.cajero"></fa-icon></div>
+        <div><h2>Cajero</h2><p>{{ cajero.nombre }}</p></div>
+      </div>
+      <p class="ubicacion-sucursal">Garage Wings Centro</p>
+      
+      <nav class="navegacion-principal">
+        <p class="nav-titulo">Filtros de Vista</p>
+        <ul>
+          <li [class.activo]="activeFilter === 'todos'" (click)="filtrarVista('todos')">
+            <a><fa-icon [icon]="iconos.ordenes"></fa-icon> Todas las Órdenes</a>
+          </li>
+          <li [class.activo]="activeFilter === 'pendientes'" (click)="filtrarVista('pendientes')">
+            <a><fa-icon [icon]="iconos.reloj"></fa-icon> Pendientes <span class="badge-rojo">{{ pendienteCobro | currency }}</span></a>
+          </li>
+          <li [class.activo]="activeFilter === 'pagadas'" (click)="filtrarVista('pagadas')">
+            <a><fa-icon [icon]="iconos.check"></fa-icon> Pagadas</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="turno-actual-detallado">
+      <h4>Resumen del Turno</h4>
+      <p class="inicio-turno">Iniciado: {{ cajero.turnoDesde | date:'shortTime' }}</p>
+      
+      <div class="desglose-ventas">
+        <div class="venta-item">
+          <span><fa-icon [icon]="iconos.efectivo" class="txt-success"></fa-icon> Efectivo</span>
+          <strong>{{ ventasEfectivo | currency }}</strong>
+        </div>
+        <div class="venta-item">
+          <span><fa-icon [icon]="iconos.tarjeta" class="txt-primary"></fa-icon> Tarjeta</span>
+          <strong>{{ ventasTarjeta | currency }}</strong>
+        </div>
+        <div class="venta-item">
+          <span><fa-icon [icon]="iconos.transferencia" class="txt-info"></fa-icon> Transferencia</span>
+          <strong>{{ ventasTransferencia | currency }}</strong>
+        </div>
+         <div class="venta-item" *ngIf="ventasOtros > 0">
+          <span><fa-icon [icon]="iconos.otros" class="txt-secondary"></fa-icon> Otros</span>
+          <strong>{{ ventasOtros | currency }}</strong>
+        </div>
+      </div>
+
+      <div class="total-separator"></div>
+
+      <div class="venta-item propinas-row">
+        <span><fa-icon [icon]="iconos.wallet" class="txt-warning"></fa-icon> Propinas</span>
+        <strong>{{ propinasTurno | currency }}</strong>
+      </div>
+      
+      <div class="total-gran-row">
+        <span>Total Caja:</span>
+        <span class="gran-total">{{ ventasTurno + propinasTurno | currency }}</span>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="alert-caja-abierta">
+          <small><fa-icon [icon]="iconos.alerta"></fa-icon> Caja Abierta</small>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="main-header">
+      <p>Garage Wings / <strong>Dashboard de Caja</strong></p>
+      <div class="header-icons"><fa-icon [icon]="iconos.reloj"></fa-icon><span>Turno activo: {{ cajero.turnoDesde | date:'shortTime' }}</span></div>
+    </header>
+
+    <div class="panel-caja">
+      <div class="panel-header">
+        <div class="panel-info"><h3>Panel de Caja</h3><p>Gestión de cobros</p></div>
+        <div class="panel-acciones">
+          <button class="btn-accion-header btn-cerrar-turno-top" (click)="cerrarTurno()">
+            <fa-icon [icon]="iconos.cajaRegistradora"></fa-icon> Cerrar Turno
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat-card"><fa-icon [icon]="iconos.ventas" class="stat-icon ventas"></fa-icon><div><span>Ventas Totales</span><strong>{{ ventasTurno | currency }}</strong></div></div>
+        <div class="stat-card"><fa-icon [icon]="iconos.pendiente" class="stat-icon pendiente"></fa-icon><div><span>Pendiente Cobro</span><strong class="texto-naranja">{{ pendienteCobro | currency }}</strong></div></div>
+        <div class="stat-card"><fa-icon [icon]="iconos.procesadas" class="stat-icon procesadas"></fa-icon><div><span>Órdenes Procesadas</span><strong>{{ ordenesProcesadas }}</strong></div></div>
+      </div>
+
+      <div class="main-actions">
+        <button class="btn-main-action" [class.activo]="activeTab === 'pedidos'" (click)="cambiarTab('pedidos')">Pedidos</button>
+        <button class="btn-main-action" [class.activo]="activeTab === 'dividir'" (click)="cambiarTab('dividir')">Dividir Cuentas</button>
+        <button class="btn-main-action" [class.activo]="activeTab === 'unir'" (click)="cambiarTab('unir')">Unir Mesas</button>
+      </div>
+
+      <div class="order-lists-grid" *ngIf="activeTab === 'pedidos'">
+        
+        <section *ngIf="activeFilter === 'todos' || activeFilter === 'pendientes'">
+          <h4 class="list-title">Listos para Cobrar ({{ listosParaCobrar.length }})</h4>
+          <div *ngIf="listosParaCobrar.length === 0" class="no-ordenes">No hay órdenes pendientes.</div>
+          
+          <div *ngFor="let orden of listosParaCobrar" class="order-card" [class.divided-card]="orden.subcuentas && orden.subcuentas.length > 0">
+            
+            <div class="order-header">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h4>{{ orden.mesa }}</h4>
+                <span *ngIf="orden.subcuentas && orden.subcuentas.length > 0" class="badge-subcuentas">Dividida</span>
+              </div>
+              <span class="order-total">{{ orden.total | currency }}</span>
+            </div>
+            <p class="order-meta"><fa-icon [icon]="iconos.mesero"></fa-icon> {{ orden.mesero }} • {{ orden.hora }}</p>
+
+            <ng-container *ngIf="!orden.subcuentas || orden.subcuentas.length === 0">
+              <ul class="order-items">
+                <li *ngFor="let item of orden.items"><strong>{{ item.cantidad }}x</strong> {{ item.nombre }}</li>
+              </ul>
+              <div class="order-actions">
+                <button class="btn-cobrar" (click)="cobrar(orden)"><fa-icon [icon]="iconos.cobrar"></fa-icon> Cobrar Total</button>
+              </div>
+            </ng-container>
+
+            <div *ngIf="orden.subcuentas && orden.subcuentas.length > 0" class="cuentas-divididas-container">
+              <p class="lbl-sub">Cuentas Divididas:</p>
+              
+              <div *ngFor="let sub of orden.subcuentas" class="sub-card-clean">
+                <div class="sub-card-top">
+                  <strong>{{ sub.nombre }}</strong>
+                  <span class="badge-total-simple">{{ sub.total | currency }}</span>
+                </div>
+                
+                <div class="sub-items-simple">
+                  <div *ngFor="let item of sub.items">{{ item.cantidad }}x {{ item.nombre }}</div>
+                </div>
+                
+                <button class="btn-cobrar-wide-red" 
+                        [disabled]="sub.pagado" 
+                        [style.background-color]="sub.pagado ? '#e0e0e0' : '#e56b6f'"
+                        [style.cursor]="sub.pagado ? 'default' : 'pointer'"
+                        (click)="!sub.pagado && onCobrarClienteIndividual(sub, orden)">
+                  <fa-icon [icon]="sub.pagado ? iconos.check : iconos.wallet"></fa-icon>
+                  {{ sub.pagado ? 'PAGADO' : 'Cobrar ' + (sub.total | currency) }}
+                </button>
+              </div>
+
+              <div class="pendiente-footer" style="margin-top: 10px; text-align: center;">
+                  <button class="btn-outline" style="width: 100%; border-style: dashed; justify-content: center;" 
+                          (click)="cobrar(orden)">
+                      <fa-icon [icon]="iconos.cobrar"></fa-icon> Ver General / Cobrar Todo
+                  </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <section *ngIf="activeFilter === 'todos' || activeFilter === 'pagadas'">
+          <h4 class="list-title"><fa-icon [icon]="iconos.check"></fa-icon> Pagados Hoy ({{ pagadosHoy.length }})</h4>
+          <div *ngIf="pagadosHoy.length === 0" class="no-ordenes">No hay órdenes pagadas hoy.</div>
+          <div *ngFor="let orden of pagadosHoy" class="order-card pagado" style="opacity: 0.8;">
+            <div class="order-header">
+              <h4>{{ orden.mesa }}</h4>
+              <span class="badge-metodo" *ngIf="orden.metodoPago">{{ orden.metodoPago }}</span>
+              <span class="order-total">{{ orden.total | currency }}</span>
+            </div>
+            <p class="order-meta"><fa-icon [icon]="iconos.check"></fa-icon> Pagado a las {{ orden.hora }}</p>
+            <p class="order-meta" *ngIf="orden.propina && orden.propina > 0">
+              <fa-icon [icon]="iconos.wallet" class="txt-warning"></fa-icon> Propina: {{ orden.propina | currency }}
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div class="view-container" *ngIf="activeTab === 'dividir'">
+         <div class="clean-list">
+          <div *ngFor="let orden of listosParaCobrar" class="clean-card split-layout">
+            <div class="card-info"><h4>{{ orden.mesa }}</h4><span>{{ orden.items.length }} productos • {{ orden.total | currency }}</span></div>
+            <button class="btn-outline" (click)="ejecutarDividir(orden)"><fa-icon [icon]="iconos.dividir"></fa-icon> Dividir</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-container" *ngIf="activeTab === 'unir'">
+         <div class="tab-header-actions">
+          <div class="tab-text"><h3>Unir Mesas</h3><p>{{ obtenerMesasSeleccionadas().length }} seleccionadas</p></div>
+          <button class="btn-pink-solid" [disabled]="obtenerMesasSeleccionadas().length < 2" (click)="ejecutarUnirMesas()"><fa-icon [icon]="iconos.flechaUnir"></fa-icon> Unir Mesas</button>
+        </div>
+        <div class="clean-list">
+          <div *ngFor="let orden of listosParaCobrar" class="clean-card merge-layout" (click)="toggleSeleccionMesa(orden)">
+            <div class="card-info"><h4>{{ orden.mesa }}</h4><span>{{ orden.total | currency }}</span></div>
+            <div class="checkbox-custom" [class.checked]="orden.seleccionada"><fa-icon [icon]="iconos.check" *ngIf="orden.seleccionada"></fa-icon></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay-confirm" *ngIf="mostrarModalApertura">
+  <div class="confirm-box" style="width: 400px;">
+    <div class="confirm-icon" style="color: #2f9e44;">
+      <fa-icon [icon]="iconos.cajaRegistradora"></fa-icon>
+    </div>
+    <h3>Apertura de Caja</h3>
+    <p>Ingresa el <strong>Fondo de Caja</strong> (Dinero inicial/Morralla) para iniciar el turno.</p>
+    
+    <div class="input-group-moneda">
+      <span class="signo-pesos">$</span>
+      <input type="number" [(ngModel)]="montoInicial" placeholder="0.00" autofocus (keyup.enter)="confirmarAperturaCaja()">
+    </div>
+
+    <div class="confirm-actions" style="margin-top: 20px;">
+      <button class="btn-confirm-cancel" (click)="mostrarModalApertura = false">Cancelar</button>
+      <button class="btn-confirm-ok" style="background-color: #2f9e44;" (click)="confirmarAperturaCaja()">
+        Abrir Turno
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay-confirm modal-cierre-overlay" *ngIf="mostrarModalCierreTurno">
+  <div class="modal-cierre-container">
+    <div class="modal-cierre-header">
+      <h3>Resumen de Cierre de Turno</h3>
+      <p>Confirma los montos antes de cerrar.</p>
+    </div>
+    
+    <div class="modal-cierre-body">
+      <ul class="resumen-cierre-list">
+        <li>
+          <span><fa-icon [icon]="iconos.efectivo" class="txt-success"></fa-icon> Efectivo en Caja</span>
+          <strong>{{ ventasEfectivo | currency }}</strong>
+        </li>
+        <li>
+          <span><fa-icon [icon]="iconos.tarjeta" class="txt-primary"></fa-icon> Vouchers Tarjeta</span>
+          <strong>{{ ventasTarjeta | currency }}</strong>
+        </li>
+        <li>
+          <span><fa-icon [icon]="iconos.transferencia" class="txt-info"></fa-icon> Transferencias</span>
+          <strong>{{ ventasTransferencia | currency }}</strong>
+        </li>
+        <li class="separator"></li>
+        <li>
+          <span><fa-icon [icon]="iconos.wallet" class="txt-warning"></fa-icon> Total Propinas</span>
+          <strong>{{ propinasTurno | currency }}</strong>
+        </li>
+        <li class="gran-total-li">
+          <span>TOTAL VENTAS + PROPINAS</span>
+          <strong class="gran-total-amount">{{ ventasTurno + propinasTurno | currency }}</strong>
+        </li>
+      </ul>
+    </div>
+
+    <div class="modal-cierre-footer">
+      <button class="btn-cancelar-cierre" (click)="mostrarModalCierreTurno = false">Cancelar</button>
+      <button class="btn-confirmar-cierre" (click)="confirmarCierreTurno()">
+        <fa-icon [icon]="iconos.cerrarTurno"></fa-icon> Cerrar Turno e Imprimir
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay-confirm" *ngIf="mostrarConfirmacion">
+  <div class="confirm-box">
+    <div class="confirm-icon"><fa-icon [icon]="iconos.alerta"></fa-icon></div>
+    <h3>Aviso</h3>
+    <p>{{ mensajeConfirmacion }}</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" (click)="cancelarConfirmacion()">Cancelar</button>
+      <button class="btn-confirm-ok" (click)="confirmarAccion()">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<app-cobrar-modal *ngIf="mostrarModalCobro" [orden]="ordenParaCobrar" (confirmar)="procesarPago($event)" (cancelar)="cerrarModalCobro()"></app-cobrar-modal>
+<app-dividir-cuenta-modal *ngIf="mostrarModalDividir && ordenParaDividir" [orden]="ordenParaDividir" (cerrar)="cerrarModalDividir()" (confirmar)="procesarDivision($event)" (cobrarClienteIndividual)="onCobrarClienteIndividual($any($event), ordenParaDividir!)"></app-dividir-cuenta-modal>
