@@ -12,34 +12,49 @@ export interface Mesa {
   mesero?: string;
   posX?: number;
   posY?: number;
+  // Propiedades opcionales para la lógica visual
+  mesaPadreId?: number | null;
+  meseroId?: number | null;
+  meseroNombre?: string | null;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class MesaService {
-  // ⚠️ CORRECCIÓN IMPORTANTE: Agregamos '/api' para coincidir con el backend
+  // ⚠️ Asegúrate de que esta URL coincida con tu backend
   private apiUrl = 'http://localhost:3000/api/mesas'; 
 
   constructor(private http: HttpClient) {}
 
-  // Helper para obtener el token (si tu backend pide auth)
+  // Helper para obtener el token (Autorización)
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     });
   }
 
+  // Obtener todas las mesas
   getMesas(): Observable<Mesa[]> {
-    // Enviamos headers por si el backend protege la ruta
     return this.http.get<Mesa[]>(this.apiUrl, { headers: this.getHeaders() });
   }
 
+  // Actualizar estado (Ocupar, Liberar, Unir)
   actualizarEstadoMesa(id: number, estado: string, mesero?: string): Observable<Mesa> {
     return this.http.patch<Mesa>(
       `${this.apiUrl}/${id}/estado`, 
       { estado, mesero },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // ✅ NUEVO MÉTODO: Transferir cuenta de una mesa a otra
+  transferirMesa(origenId: number, destinoId: number): Observable<any> {
+    return this.http.post<any>(
+      `${this.apiUrl}/transferir`, 
+      { origenId, destinoId },
       { headers: this.getHeaders() }
     );
   }

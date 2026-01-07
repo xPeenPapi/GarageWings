@@ -47,8 +47,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   public esEscritorio = false;
   public mesaId: number | null = null;
   public ordenId: number | null = null;
-  
-  // ✅ VARIABLE NUEVA: Guarda el nombre en memoria hasta que se envíe a cocina
   public nombreClienteTemporal: string = ''; 
 
   // Usuario
@@ -63,7 +61,11 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   // Datos del menú
   public categorias: Categoria[] = [];
   public productos: Producto[] = [];
+  public productosOriginales: Producto[] = [];
   public itemsFiltrados: Producto[] = [];
+  
+  // ✅ Búsqueda
+  public busqueda: string = '';
   
   // CARRITO (Local)
   public pedido: any[] = [];
@@ -71,8 +73,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   // ITEMS EN COCINA (Backend)
   public ordenActiva: any = null; 
   public itemsEnCocina: any[] = []; 
-  
-  // Variable crítica para habilitar el botón "Pedir Cuenta"
   public hayConsumo = false; 
 
   public totalItems = 0;
@@ -133,7 +133,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
             if(params['mesaId']) this.mesaId = Number(params['mesaId']);
             if(params['ordenId']) this.ordenId = Number(params['ordenId']);
             
-            // ✅ CAPTURAMOS EL NOMBRE (Si viene del modal anterior)
             if(params['nombreCliente']) {
                 this.nombreClienteTemporal = params['nombreCliente'];
                 console.log('📝 Nombre temporal capturado:', this.nombreClienteTemporal);
@@ -142,7 +141,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
             if (this.mesaId) {
                this.recargarDatosMesa();
             } else if (this.ordenId) {
-                // Solo cargamos si YA existe un ID (si es nuevo pedido para llevar, no cargamos nada aun)
                 this.cargarOrdenPorId();
             }
         });
@@ -169,19 +167,16 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   // =========================================================
-  // CARGA DE DATOS (CORREGIDO: FILTRO DE SESIÓN)
+  // CARGA DE DATOS
   // =========================================================
 
   recargarDatosMesa() {
     if (!this.mesaId) return;
 
-    // Actualizamos visualmente
     this.mesaService.actualizarEstadoMesa(this.mesaId!, 'ocupada', this.nombreMesero).subscribe();
 
     this.pedidosService.getPedidosPorMesa(this.mesaId!).subscribe({
         next: (ordenes: any[]) => {
-            
-            // Filtro Crítico: Solo sesión actual
             const ordenesActivas = ordenes.filter((o: any) => 
                 o.estado !== 'CANCELADA' && 
                 o.estado !== 'PAGADA' && 
@@ -219,7 +214,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ CARGA POR ID (PARA LLEVAR)
   cargarOrdenPorId() {
       if(!this.ordenId) return;
       
@@ -230,7 +224,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
           this.mesaId = orden.mesaId || null; 
 
           const items = orden.items || [];
-          
           this.hayConsumo = items.length > 0;
           
           if (orden.estado === 'POR_COBRAR' || orden.estado === 'PAGADA' || orden.estado === 'CERRADA') {
@@ -258,9 +251,39 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.productosService.getProductos().subscribe({
       next: (productos: any) => {
         this.productos = productos;
+        this.productosOriginales = productos;
       },
       error: (error: any) => console.error('❌ Error productos:', error)
     });
+  }
+
+  // ✅ BÚSQUEDA
+  buscarProductos(termino: string): void {
+    this.busqueda = termino.toLowerCase().trim();
+    
+    if (this.busqueda === '') {
+      if (this.vistaActual === 'items' && this.categoriaSeleccionada) {
+        const catId = this.categorias.find(c => c.nombre === this.categoriaSeleccionada)?.id;
+        if (catId) {
+          this.itemsFiltrados = this.productos.filter(p => p.categoriaId === catId);
+        }
+      }
+      return;
+    }
+
+    const resultados = this.productosOriginales.filter(p => 
+      p.nombre.toLowerCase().includes(this.busqueda) ||
+      (p.descripcion && p.descripcion.toLowerCase().includes(this.busqueda))
+    );
+
+    if (resultados.length > 0) {
+      this.itemsFiltrados = resultados;
+      this.vistaActual = 'items';
+      this.vistaMovilActual = 'items';
+      this.categoriaSeleccionada = `Resultados (${resultados.length})`;
+    } else {
+      alert('No se encontraron productos');
+    }
   }
 
   // =========================================================
@@ -331,7 +354,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCocina = true;
   }
 
-  // ✅✅✅ LÓGICA CORREGIDA PARA EVITAR DUPLICADOS ✅✅✅
   procesarConfirmacionCocina(): void {
     if (!this.empleadoId) return;
 
@@ -343,7 +365,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
       opcionesElegidas: item.opcionesElegidas || null 
     }));
 
-    // Usamos 'any' para armar el DTO dinámicamente
     const pedidoDto: any = {
       mesa_id: this.mesaId,
       empleado_id: this.empleadoId,
@@ -351,14 +372,9 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
       items: itemsDto,
     };
 
-    // 🧠 LÓGICA INTELIGENTE:
     if (this.ordenId) {
-        // CASO 1: YA EXISTE LA ORDEN (Es un segundo pedido o estamos editando)
-        // Mandamos el ID para que el Backend use la misma fila
         pedidoDto.orden_id = this.ordenId; 
     } else {
-        // CASO 2: ES LA PRIMERA VEZ (No hay ID, es pedido nuevo para llevar)
-        // Mandamos el nombre temporal para que el Backend cree la fila
         pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
     }
 
@@ -368,18 +384,13 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
       next: (ordenCreada: any) => {
         alert(`✅ Pedido enviado a cocina`);
         
-        // ¡IMPORTANTE! Guardamos el ID que nos devolvió el backend.
-        // Así, el próximo envío entrará en el CASO 1 (orden existente)
         this.ordenId = ordenCreada.id;
         this.ordenActiva = ordenCreada;
-        
-        // Limpiamos el nombre temporal ya que se guardó en BD
         this.nombreClienteTemporal = '';
 
         if (this.mesaId) {
             this.recargarDatosMesa();
         } else {
-            // Actualizamos la lista de cocina (combina lo nuevo con lo viejo si el backend lo devuelve completo)
             this.itemsEnCocina = ordenCreada.items || [];
             this.hayConsumo = true; 
         }
@@ -413,7 +424,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
   confirmarPedirCuenta() {
     const idParaCuenta = this.ordenId; 
-    
     if (!idParaCuenta) return;
 
     this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
@@ -421,7 +431,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
             this.mostrarModalCuenta = false;
             alert('Cuenta solicitada a caja.');
             
-            // Limpieza visual inmediata
             this.itemsEnCocina = [];
             if(this.ordenActiva) this.ordenActiva.estado = 'POR_COBRAR';
 
@@ -552,9 +561,15 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.categoriaSeleccionada = catEncontrada ? catEncontrada.nombre : 'Menú';
     this.vistaActual = 'items';
     this.vistaMovilActual = 'items';
+    this.busqueda = '';
   }
 
-  volverACategorias() { this.vistaActual = 'categorias'; this.vistaMovilActual = 'categorias'; }
+  volverACategorias() { 
+    this.vistaActual = 'categorias'; 
+    this.vistaMovilActual = 'categorias';
+    this.busqueda = '';
+  }
+  
   volverResumenMovil() { this.vistaMovilActual = 'resumen'; }
   agregarItem() { this.vistaMovilActual = 'categorias'; }
   

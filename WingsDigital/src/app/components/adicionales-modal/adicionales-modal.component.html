@@ -7,7 +7,17 @@
     </header>
     <p class="modal-subheader">Seleccionar adicionales para tu pedido:</p>
 
-    <div class="lista-items">
+    <!-- ✅ Indicador de carga -->
+    <div *ngIf="cargando" class="loading-container" style="text-align: center; padding: 40px;">
+      <p>Cargando adicionales...</p>
+    </div>
+
+    <!-- ✅ Mensaje si no hay adicionales -->
+    <div *ngIf="!cargando && listaAdicionales.length === 0" class="no-adicionales" style="text-align: center; padding: 40px; color: #999;">
+      <p>No hay adicionales disponibles</p>
+    </div>
+
+    <div class="lista-items" *ngIf="!cargando && listaAdicionales.length > 0">
       <div *ngFor="let adicional of listaAdicionales" class="item">
         <div class="item-info">
           <span class="nombre">{{ adicional.nombre }}</span>
@@ -34,7 +44,9 @@
     </div>
 
     <footer class="modal-actions">
-      <button class="btn-confirm" (click)="onConfirmar()">Agregar al Pedido</button>
+      <button class="btn-confirm" (click)="onConfirmar()" [disabled]="cargando">
+        Agregar al Pedido
+      </button>
       <button class="btn-cancel" (click)="onCancelar()">Cancelar</button>
     </footer>
 

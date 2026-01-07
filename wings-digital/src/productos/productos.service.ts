@@ -6,28 +6,39 @@ import { DestinoProducto } from '@prisma/client';
 export class ProductosService {
   constructor(private prisma: PrismaService) {}
 
-  // 1. Obtener todos los productos (General)
   async findAll() {
     return this.prisma.producto.findMany({
       include: { categoria: true }
     });
   }
 
-  // 2. Obtener todas las categorías (Para el menú lateral)
-  // ✅ CORREGIDO: Renombrado de 'findAllCategories' a 'findAllCategorias'
-  async findAllCategorias() {
-    return this.prisma.categoria.findMany({
+  // ✅ MODIFICADO: Agregamos _count para arreglar el "0 elementos"
+async findAllCategorias() {
+    console.log("🔍 Buscando categorías..."); // Log de inicio
+
+    const categorias = await this.prisma.categoria.findMany({
       include: { 
-        // Incluimos productos para saber cuántos elementos tiene cada cat
+        // 1. Traer productos (Le quité el filtro 'disponible' temporalmente para probar)
         productos: {
-          where: { disponibilidad: { some: { disponible: true } } } 
-        } 
+            select: { id: true, nombre: true } // Solo traemos lo básico para no saturar
+        },
+        // 2. CONTADOR
+        _count: {
+          select: { productos: true }
+        }
       }
     });
+
+    // 🚨 ESTO ES LO IMPORTANTE:
+    // Mira tu terminal del servidor (pantalla negra) cuando recargues la página.
+    // Deberías ver algo como: "Categoria: Bar, Conteo: 4"
+    categorias.forEach(cat => {
+        console.log(`📊 Categoría: ${cat.nombre} | Productos encontrados (Array): ${cat.productos.length} | Contador Prisma (_count): ${cat._count?.productos}`);
+    });
+
+    return categorias;
   }
 
-  // 3. Obtener productos de una categoría específica
-  // ✅ CORREGIDO: Agregado este método que faltaba
   async findByCategoria(categoriaId: number) {
     const productos = await this.prisma.producto.findMany({
       where: { categoriaId: categoriaId },
@@ -36,7 +47,6 @@ export class ProductosService {
     return productos;
   }
 
-  // 4. Obtener un producto individual
   async findOne(id: number) {
     const producto = await this.prisma.producto.findUnique({
       where: { id },
@@ -47,7 +57,6 @@ export class ProductosService {
     return producto;
   }
 
-  // 5. Crear producto
   async create(data: any) {
     return this.prisma.producto.create({
       data: {
@@ -59,6 +68,32 @@ export class ProductosService {
         empresaId: data.empresaId, 
         categoriaId: data.categoriaId,
         configuracion: data.configuracion || undefined
+      }
+    });
+  }
+
+  // ✅ Obtener adicionales
+  async getAdicionales() {
+    const categoria = await this.prisma.categoria.findFirst({
+      where: { nombre: 'Adicionales' }
+    });
+    
+    if (!categoria) {
+      return [];
+    }
+    
+    return this.prisma.producto.findMany({
+      where: { 
+        categoriaId: categoria.id
+      },
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        precioBase: true
+      },
+      orderBy: {
+        nombre: 'asc'
       }
     });
   }

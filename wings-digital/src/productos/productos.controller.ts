@@ -1,3 +1,4 @@
+
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { ProductosService } from './productos.service';
 
@@ -15,11 +16,15 @@ export class ProductosController {
     return this.productosService.findAll();
   }
 
-  // ⚠️ IMPORTANTE: Esta ruta debe ir ANTES de @Get(':id')
-  // Si la pones después, NestJS pensará que "categorias" es un ID y fallará.
   @Get('categorias')
   findAllCategorias() {
     return this.productosService.findAllCategorias();
+  }
+
+  // ✅ NUEVO: Endpoint para adicionales
+  @Get('adicionales')
+  getAdicionales() {
+    return this.productosService.getAdicionales();
   }
 
   @Get('categoria/:id')

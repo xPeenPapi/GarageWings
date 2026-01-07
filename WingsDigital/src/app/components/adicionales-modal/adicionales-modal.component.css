@@ -11,18 +11,21 @@
   justify-content: center;
   align-items: center;
   z-index: 2000;
+  padding: 20px; /* ✅ Espaciado para móviles */
+  overflow-y: auto; /* ✅ Permite scroll si el modal es más alto que la pantalla */
 }
 
 .modal-container {
   background-color: white;
-  padding: 24px;
+  padding: 0; /* ✅ Quitamos padding para controlar mejor las secciones */
   border-radius: 16px;
   width: 90%;
-  max-width: 400px;
+  max-width: 500px;
+  max-height: 90vh; /* ✅ Máximo 90% de altura de pantalla */
   box-shadow: 0 5px 20px rgba(0,0,0,0.25);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  margin: auto; /* ✅ Centrado vertical automático */
 }
 
 .modal-header {
@@ -30,45 +33,110 @@
   align-items: center;
   gap: 12px;
   color: #333;
+  padding: 20px 24px; /* ✅ Padding solo en header */
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+  border-radius: 16px 16px 0 0;
+  flex-shrink: 0; /* ✅ No se comprime */
 }
 
 .modal-header h2 {
   font-size: 22px;
   margin: 0;
+  font-weight: 600;
 }
 
 .modal-header fa-icon {
   font-size: 24px;
-  color: #555;
+  color: #f39c12;
 }
 
 .modal-subheader {
-  margin: -8px 0 8px 0;
+  margin: 0;
+  padding: 12px 24px;
   color: #666;
+  font-size: 14px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0; /* ✅ No se comprime */
 }
 
+/* ✅ INDICADOR DE CARGA */
+.loading-container {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.no-adicionales {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+/* ✅ LISTA CON SCROLL */
 .lista-items {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 16px 24px;
+  overflow-y: auto; /* ✅ Scroll interno */
+  max-height: 400px; /* ✅ Altura máxima */
+  flex: 1; /* ✅ Toma el espacio disponible */
+}
+
+/* ✅ Estilos del scrollbar (opcional, para que se vea mejor) */
+.lista-items::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lista-items::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.lista-items::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.lista-items::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #eee;
   border-radius: 8px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.item:hover {
+  border-color: #f39c12;
+  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.1);
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
 }
 
 .item-info .nombre {
   font-weight: 500;
+  font-size: 15px;
+  color: #333;
 }
 
 .item-info .precio {
   font-size: 14px;
-  color: #888;
+  color: #27ae60;
+  font-weight: 600;
 }
 
 .quantity-selector {
@@ -78,82 +146,218 @@
 }
 
 .quantity-selector button {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 1px solid #ddd;
-  background-color: #f7f7f7;
-  color: #e53935; /* Rojo para los botones */
+  border: 2px solid #f39c12;
+  background-color: white;
+  color: #f39c12;
   font-size: 20px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: all 0.2s;
+}
+
+.quantity-selector button:hover:not(:disabled) {
+  background-color: #f39c12;
+  color: white;
+  transform: scale(1.1);
+}
+
+.quantity-selector button:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .quantity-selector button:disabled {
   background-color: #f9f9f9;
+  border-color: #ddd;
   color: #ccc;
   cursor: not-allowed;
 }
 
 .quantity-selector span {
   font-size: 18px;
-  font-weight: 500;
-  min-width: 20px;
+  font-weight: 600;
+  min-width: 30px;
   text-align: center;
+  color: #333;
 }
 
+/* ✅ RESUMEN CON SCROLL SI ES NECESARIO */
 .resumen-section {
-  border-top: 1px solid #eee;
-  padding-top: 16px;
+  border-top: 2px solid #eee;
+  padding: 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #f8f9fa;
+  flex-shrink: 0; /* ✅ No se comprime */
+  max-height: 200px; /* ✅ Altura máxima */
+  overflow-y: auto; /* ✅ Scroll si hay muchos items */
 }
 
 .resumen-section h4 {
   margin: 0 0 8px 0;
   font-size: 14px;
   color: #555;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.resumen-line, .resumen-total {
+.resumen-line {
   display: flex;
   justify-content: space-between;
-  font-size: 15px;
+  font-size: 14px;
+  color: #666;
+  padding: 4px 0;
 }
 
 .resumen-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
   font-weight: bold;
   margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  color: #333;
 }
 
+/* ✅ BOTONES FIJOS ABAJO */
 .modal-actions {
   display: flex;
   gap: 12px;
-  margin-top: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  background: white;
+  border-radius: 0 0 16px 16px;
+  flex-shrink: 0; /* ✅ No se comprime */
 }
 
 .modal-actions button {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
   border-radius: 8px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: none;
+  transition: all 0.3s;
 }
 
 .btn-confirm {
-  background-color: #eb5757; /* Tono de rojo/rosa */
+  background-color: #27ae60;
   color: white;
-  border-color: #eb5757;
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background-color: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+}
+
+.btn-confirm:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-confirm:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-cancel {
   background-color: #fff;
   color: #333;
-  border: 1px solid #ccc;
+  border: 2px solid #ddd;
+}
+
+.btn-cancel:hover {
+  background-color: #f8f9fa;
+  border-color: #bdc3c7;
+}
+
+/* ✅ RESPONSIVE PARA MÓVILES */
+@media (max-width: 600px) {
+  .modal-container {
+    width: 95%;
+    max-height: 85vh;
+    border-radius: 12px;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+  }
+
+  .modal-subheader {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+
+  .lista-items {
+    padding: 12px 20px;
+    max-height: 300px;
+  }
+
+  .item {
+    padding: 12px;
+  }
+
+  .item-info .nombre {
+    font-size: 14px;
+  }
+
+  .item-info .precio {
+    font-size: 13px;
+  }
+
+  .quantity-selector button {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .quantity-selector span {
+    font-size: 16px;
+    min-width: 25px;
+  }
+
+  .resumen-section {
+    padding: 12px 20px;
+    max-height: 150px;
+  }
+
+  .modal-actions {
+    padding: 12px 20px;
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    padding: 12px;
+    font-size: 15px;
+  }
+}
+
+/* ✅ ANIMACIÓN DE ENTRADA */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-container {
+  animation: modalFadeIn 0.3s ease-out;
 }

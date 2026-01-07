@@ -1332,6 +1332,62 @@ body {
     font-size: 3rem;
     margin-bottom: 15px;
 }
+/* ========================================= */
+/* ✅ ESTADO SUCIA SUTIL (VERSIÓN LIGERA)    */
+/* ========================================= */
+
+/* 1. La tarjeta en sí: Fondo blanco pero con borde café distintivo */
+.mesa-card.status-sucia {
+    background-color: #ffffff !important; /* Vuelve al blanco */
+    border: 2px solid #8d6e63 !important; /* Borde café medio */
+    box-shadow: 0 2px 8px rgba(141, 110, 99, 0.15); /* Sombra suave café */
+}
+
+/* 2. Asegurar que el título y número vuelvan a ser oscuros */
+.mesa-card.status-sucia .mesa-info h3,
+.mesa-card.status-sucia .mesa-info h3 i {
+    color: #8d6e63 !important; /* El título e icono principal en café */
+}
+.mesa-card.status-sucia .table-number {
+    color: #5d4037 !important; /* Número de mesa café oscuro */
+}
+
+/* 3. El Badge (Etiqueta) "Sucia" */
+.mesa-card.status-sucia .estado-badge {
+    background-color: #8d6e63; /* Fondo café */
+    color: #fff; /* Texto blanco */
+}
+
+/* 4. Colorear los gráficos (Mesa y Sillas) sutilmente */
+.mesa-card.status-sucia .silla .parte-inferior,
+.mesa-card.status-sucia .silla .parte-superior,
+.mesa-card.status-sucia .mesa,
+.mesa-card.status-sucia .table-2p,
+.mesa-card.status-sucia .backrest-2p,
+.mesa-card.status-sucia .seat-2p {
+    background-color: #efebe9 !important; /* Relleno café muy clarito */
+    border-color: #8d6e63 !important; /* Bordes del dibujo en café */
+}
+
+/* 5. Textos de ayuda específicos (Requiere Limpieza) */
+/* Necesitamos ser específicos para sobrescribir los estilos en línea del HTML si los hubiera */
+.mesa-card.status-sucia p[style*="color: white"],
+.mesa-card.status-sucia p[style*="color: #e0e0e0"] {
+     color: #8d6e63 !important; /* Cambiarlos a café */
+}
+
+/* ========================================= */
+/* MÓVIL: Estilo Sucia Sutil                 */
+/* ========================================= */
+.mesa-card-movil.status-sucia {
+    background-color: #ffffff !important;
+    border-left: 5px solid #8d6e63 !important; /* Solo la barra lateral café */
+}
+
+.mesa-card-movil.status-sucia .estado-badge {
+    background-color: #8d6e63;
+    color: white;
+}
 
 /* Ajuste para móviles */
 @media (max-width: 480px) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, ParseIntPipe, Post } from '@nestjs/common';
 import { MesaService } from './mesa.service';
 import { EstadoMesa } from '@prisma/client';
 
@@ -22,5 +22,11 @@ export class MesasController {
     @Body('estado') estado: EstadoMesa,
   ) {
     return this.mesasService.actualizarEstado(id, estado);
+  }
+
+  // ✅ ESTO ES LO QUE FALTABA:
+  @Post('transferir')
+  transferirMesa(@Body() body: { origenId: number; destinoId: number }) {
+    return this.mesasService.transferirMesa(body.origenId, body.destinoId);
   }
 }

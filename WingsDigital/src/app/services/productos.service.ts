@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
-// ✅ INTERFACES NECESARIAS (Sin esto, AggPedidoComponent da error)
 export interface OpcionPersonalizacion {
   titulo: string;
   tipo: 'radio' | 'checkbox';
@@ -15,7 +15,8 @@ export interface Categoria {
   nombre: string;
   descripcion?: string;
   iconoColor?: string;
-  elementos?: number;
+  imagenUrl?: string; // ✅ NUEVO: Para que Angular reconozca la imagen
+  elementos?: number; // Este lo llenaremos manualmente con el map
   productos?: any[];
 }
 
@@ -29,8 +30,6 @@ export interface Producto {
   categoriaId: number;
   destino: 'COCINA' | 'BARRA';
   configuracion?: OpcionPersonalizacion[];
-  
-  // Auxiliares para frontend
   cantidad?: number;
   notas?: string;
   opcionesElegidas?: any;
@@ -52,17 +51,38 @@ export class ProductosService {
     });
   }
 
-  // Obtener productos
   getProductos(): Observable<Producto[]> {
     return this.http.get<Producto[]>(`${this.apiUrl}/productos`, { headers: this.getHeaders() });
   }
 
-  // Obtener categorías
+  // ✅ MODIFICADO: Transformamos la respuesta para arreglar el conteo y la imagen
   getCategorias(): Observable<Categoria[]> {
-    // Si tu backend usa una ruta simple, prueba esta:
-    // return this.http.get<Categoria[]>(`${this.apiUrl}/categorias`, { headers: this.getHeaders() });
-    
-    // Si tu backend usa estructura anidada, usa esta:
-    return this.http.get<Categoria[]>(`${this.apiUrl}/productos/categorias`, { headers: this.getHeaders() });
+    return this.http.get<any[]>(`${this.apiUrl}/productos/categorias`, { headers: this.getHeaders() }).pipe(
+      map(respuesta => {
+        return respuesta.map(cat => ({
+          id: cat.id,
+          nombre: cat.nombre,
+          descripcion: cat.descripcion,
+          iconoColor: cat.iconoColor,
+          imagenUrl: cat.imagenUrl, // Mapeamos la imagen nueva
+          
+          // 🔥 AQUÍ ARREGLAMOS EL "0 ELEMENTOS":
+          // Si el backend manda "_count", usamos eso. Si no, 0.
+          elementos: cat._count ? cat._count.productos : 0,          
+          productos: cat.productos
+        }));
+      })
+    );
+  }
+
+  // ✅ Obtener adicionales
+  getAdicionales(): Observable<Producto[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/productos/adicionales`, { headers: this.getHeaders() }).pipe(
+      map(adicionales => adicionales.map(a => ({
+        ...a,
+        precio: a.precioBase,
+        cantidad: 0
+      })))
+    );
   }
 }

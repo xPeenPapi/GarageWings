@@ -88,7 +88,7 @@
               </div>
             </div>
           </div>
-          </div>
+        </div>
         
         <div class="pedido-info">
           <span><i class="fas fa-shopping-cart"></i> {{ totalItems }} nuevos / {{ itemsEnCocina.length }} en cocina</span>
@@ -123,9 +123,11 @@
                 
                 <div class="item-acciones">
                   <button class="btn-accion" (click)="editarItemDelPedido(itemEnPedido)">
-                    <i class="fas fa-pen-to-square"></i> </button>
+                    <i class="fas fa-pen-to-square"></i>
+                  </button>
                   <button class="btn-accion btn-rojo" (click)="eliminarDelPedido(itemEnPedido.id)">
-                    <i class="fas fa-trash-can"></i> </button>
+                    <i class="fas fa-trash-can"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -180,7 +182,8 @@
       <div class="panel-menu">
         <div class="items-header" *ngIf="vistaActual === 'items'; else menuHeaderNormal">
           <button class="btn-volver" (click)="volverACategorias()"><i class="fas fa-arrow-left"></i> Volver</button>
-          <h4>{{ categoriaSeleccionada }}</h4> </div>
+          <h4>{{ categoriaSeleccionada }}</h4>
+        </div>
         <ng-template #menuHeaderNormal>
           <div class="menu-header"><h3><i class="fas fa-utensils"></i> Menú</h3></div>
         </ng-template>
@@ -188,18 +191,42 @@
         <div class="menu-filtros">
           <div class="search-wrapper">
             <i class="fas fa-search"></i>
-            <input type="search" placeholder="Buscar elementos del menú...">
+            <input type="search" 
+                   placeholder="Buscar elementos del menú..."
+                   [(ngModel)]="busqueda"
+                   (keyup.enter)="buscarProductos(busqueda)"
+                   (input)="busqueda === '' && vistaActual === 'items' ? volverACategorias() : null">
           </div>
-          <button class="btn-filtro-menu">Todas <i class="fas fa-chevron-down"></i></button>
+          <button class="btn-filtro-menu" *ngIf="busqueda" (click)="buscarProductos(busqueda)">
+            <i class="fas fa-search"></i> Buscar
+          </button>
         </div>
         
         <ng-container *ngIf="vistaActual === 'categorias'">
           <div class="grid-menu-categorias" *ngIf="categorias && categorias.length > 0; else noCategorias">
             <div *ngFor="let categoria of categorias" class="categoria-card" (click)="filtrarPorCategoria(categoria.id)">
-              <div class="categoria-icono" [style.background-color]="categoria.iconoColor"></div>
-              <h4>{{ categoria.nombre }}</h4>
-              <p>{{ categoria.descripcion }}</p>
-              <span class="elementos-count">{{ categoria.elementos }} elementos</span>
+              
+              <div class="categoria-imagen-wrapper" 
+                   style="height: 120px; display: flex; align-items: center; justify-content: center; padding: 10px;">
+                   
+                   <img *ngIf="categoria.imagenUrl" [src]="categoria.imagenUrl" 
+                        style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" 
+                        alt="{{categoria.nombre}}">
+                   
+                   <div *ngIf="!categoria.imagenUrl" 
+                        [style.background-color]="categoria.iconoColor || '#3498db'"
+                        style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                        <i class="fas fa-utensils" style="font-size: 2rem; color: white;"></i>
+                   </div>
+              </div>
+
+              <div class="categoria-info" style="padding: 0 10px 15px 10px; text-align: center;">
+                  <h4 style="margin: 0 0 5px 0;">{{ categoria.nombre }}</h4>
+                  <span class="elementos-count" style="font-size: 0.8rem; background: #f1f1f1; padding: 3px 10px; border-radius: 12px; color: #666;">
+                      {{ categoria.elementos || 0 }} elementos
+                  </span>
+              </div>
+
             </div>
           </div>
           <ng-template #noCategorias><p>Cargando categorías...</p></ng-template>
@@ -289,7 +316,13 @@
       </div>
       
       <div class="orden-contenido">
-        <button class="btn agregar-btn" (click)="agregarItem()"><i class="fas fa-plus"></i><span>Agregar</span></button>
+        <button class="btn agregar-btn" (click)="agregarItem()">
+          <i class="fas fa-plus"></i><span>Agregar</span>
+        </button>
+        
+        <button class="btn adicionales-btn-movil" (click)="abrirModalAdicionales()">
+          <i class="fas fa-concierge-bell"></i><span>Adicionales</span>
+        </button>
         
         <button class="btn enviar-btn" 
                 style="background-color: #27ae60;" 
@@ -298,7 +331,7 @@
             <i class="fas fa-file-invoice-dollar"></i><span>Cuenta</span>
         </button>
 
-        <button class="btn enviar-btn" [disabled]="pedido.length === 0" (click)="abrirModalCocina()" >
+        <button class="btn enviar-btn" [disabled]="pedido.length === 0" (click)="abrirModalCocina()">
             <i class="fas fa-paper-plane"></i><span>Enviar</span>
         </button>
         
@@ -343,9 +376,11 @@
 
               <div class="item-acciones">
                 <button class="btn-accion" (click)="editarItemDelPedido(itemEnPedido)">
-                  <i class="fas fa-pen-to-square"></i> </button>
+                  <i class="fas fa-pen-to-square"></i>
+                </button>
                 <button class="btn-accion btn-rojo" (click)="eliminarDelPedido(itemEnPedido.id)">
-                  <i class="fas fa-trash-can"></i> </button>
+                  <i class="fas fa-trash-can"></i>
+                </button>
               </div>
             </div>
 
@@ -372,8 +407,10 @@
       </header>
       <div class="lista-movil">
         <div *ngFor="let categoria of categorias" class="item-lista-movil" (click)="filtrarPorCategoria(categoria.id)">
+          <img *ngIf="categoria.imagenUrl" [src]="categoria.imagenUrl" style="width: 40px; height: 40px; border-radius: 5px; object-fit: cover; margin-right: 10px;">
+          
           <span>{{ categoria.nombre }}</span>
-          <i class="fas fa-chevron-right"></i>
+          <i class="fas fa-chevron-right" style="margin-left: auto;"></i>
         </div>
       </div>
     </ng-container>

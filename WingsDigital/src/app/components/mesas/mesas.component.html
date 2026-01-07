@@ -18,18 +18,27 @@
         <nav class="navegacion-principal">
           <p class="nav-titulo">Flujo de Trabajo</p>
           <ul>
-            <li [class.activo]="!modoUnion">
-              <a href="javascript:void(0)" (click)="modoUnion ? toggleModoUnion() : null">
+            <li [class.activo]="!modoUnion && !modoTransferencia">
+              <a href="javascript:void(0)" (click)="(!modoUnion && !modoTransferencia) ? null : (modoUnion ? toggleModoUnion() : toggleModoTransferencia())">
                 <i class="fas fa-table"></i> Seleccionar Mesa
               </a>
             </li>
+            
             <li (click)="crearOrdenParaLlevar()">
               <a href="javascript:void(0)"><i class="fas fa-shopping-bag"></i> Para Llevar</a>
             </li>
+            
             <li [class.activo-union]="modoUnion" (click)="toggleModoUnion()">
               <a href="javascript:void(0)" [style.color]="modoUnion ? '#e67e22' : ''">
                 <i class="fas" [ngClass]="modoUnion ? 'fa-times' : 'fa-link'"></i> 
                 {{ modoUnion ? 'Cancelar Unión' : 'Unir Mesas' }}
+              </a>
+            </li>
+
+            <li [class.activo-transferencia]="modoTransferencia" (click)="toggleModoTransferencia()">
+              <a href="javascript:void(0)" [style.color]="modoTransferencia ? '#17a2b8' : ''">
+                <i class="fas" [ngClass]="modoTransferencia ? 'fa-times' : 'fa-exchange-alt'"></i> 
+                {{ modoTransferencia ? 'Cancelar Cambio' : 'Cambiar Mesa' }}
               </a>
             </li>
           </ul>
@@ -69,12 +78,19 @@
       <header class="header-principal">
         <div>
             <h1>Garage Wings / 
-                <strong *ngIf="!modoUnion">Selección de Mesa</strong>
-                <strong *ngIf="modoUnion" style="color: #e67e22;">Modo Unión de Mesas</strong>
+                <strong *ngIf="!modoUnion && !modoTransferencia">Selección de Mesa</strong>
+                <strong *ngIf="modoUnion" style="color: #e67e22;">Modo Unión</strong>
+                <strong *ngIf="modoTransferencia" style="color: #17a2b8;">Cambio de Mesa</strong>
             </h1>
+            
             <p *ngIf="modoUnion" class="instruccion-union">
                 <span *ngIf="!mesaPrincipalUnion">1. Selecciona la <strong>Mesa Principal</strong> (Padre)</span>
                 <span *ngIf="mesaPrincipalUnion">2. Ahora selecciona la <strong>Mesa a Unir</strong> (Hija)</span>
+            </p>
+
+            <p *ngIf="modoTransferencia" class="instruccion-union" style="color: #17a2b8;">
+                <span *ngIf="!mesaOrigenTransferencia">1. Selecciona la mesa <strong>OCUPADA</strong> que deseas mover</span>
+                <span *ngIf="mesaOrigenTransferencia">2. Selecciona la mesa <strong>LIBRE</strong> de destino</span>
             </p>
         </div>
         
@@ -130,10 +146,11 @@
           <div class="stat-icon icon-ocupada"><i class="fas fa-users"></i></div>
           <div class="stat-text"><span>Ocupadas</span><strong>{{ totalOcupadas }}</strong></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-reservada"><i class="fas fa-clock"></i></div>
-          <div class="stat-text"><span>Reservadas</span><strong>{{ totalReservadas }}</strong></div>
+        <div class="stat-card" [class.selected]="filtroActual==='SUCIAS'" (click)="setFiltro('SUCIAS')">
+          <div class="stat-icon" style="background-color: #efebe9; color: #795548;"><i class="fas fa-broom"></i></div>
+          <div class="stat-text"><span>Sucias</span><strong>{{ totalSucias }}</strong></div>
         </div>
+        
         <div class="stat-card">
           <div class="stat-icon icon-mis-mesas"><i class="fas fa-user-tag"></i></div>
           <div class="stat-text"><span>Mis Mesas</span><strong>{{ totalMisMesas }}</strong></div>
@@ -148,6 +165,7 @@
         </div>
         <button class="btn-filtro" [class.active]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">Todas</button>
         <button class="btn-filtro" [class.active]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">Libres</button>
+        <button class="btn-filtro" [class.active]="filtroActual==='SUCIAS'" (click)="setFiltro('SUCIAS')">Sucias</button>
       </section>
 
       <div class="grid-mesas-escritorio">
@@ -156,9 +174,12 @@
              [ngClass]="{
                'status-disponible': mesa.estado === 'disponible',
                'status-ocupada': mesa.estado === 'ocupada',
+               'status-sucia': mesa.estado === 'sucia',
                'status-union-hija': mesa.mesaPadreId,
                'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
-               'dimmed-union': modoUnion && mesaPrincipalUnion && mesa.estado !== 'disponible' && mesa.id !== mesaPrincipalUnion.id
+               'dimmed-union': modoUnion && mesaPrincipalUnion && mesa.estado !== 'disponible' && mesa.id !== mesaPrincipalUnion.id,
+               'mesa-origen-transferencia': mesaOrigenTransferencia && mesa.id === mesaOrigenTransferencia.id,
+               'dimmed-transferencia': modoTransferencia && mesaOrigenTransferencia && mesa.estado !== 'disponible' && mesa.id !== mesaOrigenTransferencia.id
              }"
              (click)="seleccionarMesa(mesa)">
              
@@ -172,6 +193,9 @@
                 Mesa {{mesa.numero}}
                 <i *ngIf="!mesa.mesaPadreId && mesa.estado === 'disponible'" class="fas fa-check-circle texto-disponible"></i>
                 <i *ngIf="!mesa.mesaPadreId && mesa.estado === 'ocupada'" class="fas fa-times-circle texto-ocupada"></i>
+                
+                <i *ngIf="mesa.estado === 'sucia'" class="fas fa-broom" style="color: white;"></i>
+                
                 <i *ngIf="mesa.mesaPadreId" class="fas fa-link texto-unida"></i>
               </h3>
             </div>
@@ -208,6 +232,13 @@
                     </div>
                   </ng-container>
 
+                  <ng-container *ngIf="mesa.estado === 'sucia'">
+                      <p style="color: white; font-weight: 500; margin-top: 5px;">
+                          <i class="fas fa-hand-sparkles"></i> Requiere Limpieza
+                      </p>
+                      <p style="color: #e0e0e0; font-size: 0.8rem;">Toque para liberar</p>
+                  </ng-container>
+
                   <p *ngIf="mesa.estado === 'disponible'" style="color: #888;">
                     <small>Capacidad: {{mesa.capacidad}} pax</small>
                   </p>
@@ -235,7 +266,27 @@
         <button (click)="toggleModoUnion()"><i class="fas fa-times"></i></button>
     </div>
 
-    <div class="filter-container"><button class="filter-btn" [class.active]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">Todas</button><button class="filter-btn" [class.active]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">Libres</button><button class="filter-btn" [class.active-union-btn]="modoUnion" (click)="toggleModoUnion()"><i class="fas fa-link"></i> {{ modoUnion ? 'Cancelar' : 'Unir' }}</button><button class="filter-btn btn-llevar-movil" (click)="crearOrdenParaLlevar()"><i class="fas fa-shopping-bag"></i></button></div>
+    <div *ngIf="modoTransferencia" class="banner-movil-union" style="background-color: #e3f2fd; color: #17a2b8;">
+        <span *ngIf="!mesaOrigenTransferencia">Toca mesa <strong>OCUPADA</strong></span>
+        <span *ngIf="mesaOrigenTransferencia">Toca mesa <strong>LIBRE</strong></span>
+        <button (click)="toggleModoTransferencia()" style="color: #17a2b8;"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="filter-container">
+        <button class="filter-btn" [class.active]="filtroActual==='TODAS'" (click)="setFiltro('TODAS')">Todas</button>
+        <button class="filter-btn" [class.active]="filtroActual==='DISPONIBLES'" (click)="setFiltro('DISPONIBLES')">Libres</button>
+        <button class="filter-btn" [class.active]="filtroActual==='SUCIAS'" (click)="setFiltro('SUCIAS')">Sucias</button>
+        
+        <button class="filter-btn" [class.active-union-btn]="modoUnion" (click)="toggleModoUnion()">
+            <i class="fas fa-link"></i> {{ modoUnion ? 'Cancel' : 'Unir' }}
+        </button>
+        
+        <button class="filter-btn" [class.active-transfer-btn]="modoTransferencia" (click)="toggleModoTransferencia()" style="color: #17a2b8; border-color: #17a2b8;">
+            <i class="fas fa-exchange-alt"></i>
+        </button>
+
+        <button class="filter-btn btn-llevar-movil" (click)="crearOrdenParaLlevar()"><i class="fas fa-shopping-bag"></i></button>
+    </div>
 
     <div class="tables-container">
       <ng-container *ngFor="let mesa of mesasFiltradas">
@@ -243,8 +294,10 @@
              [ngClass]="{
                 'status-disponible': mesa.estado === 'disponible',
                 'status-ocupada': mesa.estado === 'ocupada',
+                'status-sucia': mesa.estado === 'sucia',
+                'status-union-hija': mesa.mesaPadreId,
                 'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
-                'status-union-hija': mesa.mesaPadreId
+                'mesa-origen-transferencia': mesaOrigenTransferencia && mesa.id === mesaOrigenTransferencia.id
              }" 
              (click)="seleccionarMesa(mesa)">
           

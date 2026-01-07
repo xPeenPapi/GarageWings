@@ -1,9 +1,8 @@
 import { PrismaClient, RolEmpleado, EstadoMesa, DestinoProducto } from '@prisma/client';
 
-// SIN BCRYPT: Las contraseñas se guardarán tal cual ('123')
 const prisma = new PrismaClient();
 
-// LISTA DE PRODUCTOS
+// LISTA DE PRODUCTOS (INCLUYE ADICIONALES)
 const productosData = [
     { nombre: 'Cerveza Corona', descripcion: '355ml', precio: 45.00, categoria: 'Bar' },
     { nombre: 'Cerveza Tecate', descripcion: '355ml', precio: 45.00, categoria: 'Bar' },
@@ -59,12 +58,23 @@ const productosData = [
     { nombre: 'Papas Sazonadas', descripcion: 'Gajos de papa con especias', precio: 90.00, categoria: 'Entradas' },
     { nombre: 'Papas a la Francesa', descripcion: '', precio: 80.00, categoria: 'Entradas' },
     { nombre: 'Boneless', descripcion: '200g, salsa a elegir', precio: 150.00, categoria: 'Entradas' },
+    // ✅ ADICIONALES
+    { nombre: 'Aderezo Ranch', descripcion: 'Porción extra', precio: 15.00, categoria: 'Adicionales' },
+    { nombre: 'Aderezo Blue Cheese', descripcion: 'Porción extra', precio: 15.00, categoria: 'Adicionales' },
+    { nombre: 'Salsa BBQ', descripcion: 'Porción extra', precio: 10.00, categoria: 'Adicionales' },
+    { nombre: 'Salsa Buffalo', descripcion: 'Porción extra', precio: 10.00, categoria: 'Adicionales' },
+    { nombre: 'Papas Fritas Extra', descripcion: 'Porción adicional', precio: 30.00, categoria: 'Adicionales' },
+    { nombre: 'Aros de Cebolla', descripcion: 'Porción adicional', precio: 35.00, categoria: 'Adicionales' },
+    { nombre: 'Queso Extra', descripcion: 'Porción adicional', precio: 20.00, categoria: 'Adicionales' },
+    { nombre: 'Tocino Extra', descripcion: 'Porción adicional', precio: 25.00, categoria: 'Adicionales' },
+    { nombre: 'Champiñones Extra', descripcion: 'Porción adicional', precio: 20.00, categoria: 'Adicionales' },
+    { nombre: 'Jalapeños', descripcion: 'Porción adicional', precio: 10.00, categoria: 'Adicionales' },
 ];
 
 async function main() {
-  console.log('🌱 Iniciando Seed "Garage Wings" (Texto Plano)...');
+  console.log('🌱 Iniciando Seed "Garage Wings" (con Adicionales)...');
 
-  const passwordSimple = '123'; // Contraseña directa
+  const passwordSimple = '123';
 
   // 1. EMPRESA Y SUCURSAL
   const empresa = await prisma.empresa.upsert({
@@ -73,108 +83,183 @@ async function main() {
     create: { nombre: 'Garage Wings', logoUrl: 'assets/wings3.jpg' }
   });
 
-  const sucursal = await prisma.sucursal.create({
-    data: {
-      nombre: 'Sucursal Centro',
-      empresaId: empresa.id,
-      direccion: 'Av. Principal 123'
+  // Verificar si ya existe la sucursal
+  let sucursal = await prisma.sucursal.findFirst({
+    where: { empresaId: empresa.id }
+  });
+
+  if (!sucursal) {
+    sucursal = await prisma.sucursal.create({
+      data: {
+        nombre: 'Sucursal Centro',
+        empresaId: empresa.id,
+        direccion: 'Av. Principal 123'
+      }
+    });
+    console.log('✅ Sucursal creada');
+  } else {
+    console.log('⏭️  Sucursal ya existe');
+  }
+
+  // 2. EMPLEADOS (con verificación)
+  const empleados = [
+    { nombre: 'Carlos', email: 'mesero@garage.com', password: passwordSimple, rol: RolEmpleado.MESERO },
+    { nombre: 'Chef Luigi', email: 'cocina@garage.com', password: passwordSimple, rol: RolEmpleado.COCINA },
+    { nombre: 'Barman Moe', email: 'barra@garage.com', password: passwordSimple, rol: RolEmpleado.BARRA },
+    { nombre: 'Caja', email: 'caja@garage.com', password: passwordSimple, rol: RolEmpleado.CAJA },
+  ];
+
+  for (const emp of empleados) {
+    const existe = await prisma.empleado.findUnique({ where: { email: emp.email } });
+    if (!existe) {
+      await prisma.empleado.create({
+        data: {
+          ...emp,
+          sucursalId: sucursal.id,
+          empresaId: empresa.id
+        }
+      });
+      console.log(`✅ Empleado creado: ${emp.nombre}`);
+    } else {
+      console.log(`⏭️  Empleado ya existe: ${emp.nombre}`);
     }
-  });
+  }
 
-  // 2. EMPLEADOS
-  await prisma.empleado.createMany({
-    data: [
-      { nombre: 'Carlos', email: 'mesero@garage.com', password: passwordSimple, rol: RolEmpleado.MESERO, sucursalId: sucursal.id, empresaId: empresa.id },
-      { nombre: 'Chef Luigi', email: 'cocina@garage.com', password: passwordSimple, rol: RolEmpleado.COCINA, sucursalId: sucursal.id, empresaId: empresa.id },
-      { nombre: 'Barman Moe', email: 'barra@garage.com', password: passwordSimple, rol: RolEmpleado.BARRA, sucursalId: sucursal.id, empresaId: empresa.id },
-      { nombre: 'Caja', email: 'caja@garage.com', password: passwordSimple, rol: RolEmpleado.CAJA, sucursalId: sucursal.id, empresaId: empresa.id },
-    ]
-  });
-
-  console.log('✅ Empleados creados con contraseña plana "123"');
-
-  // 3. MESAS
-  const mesas: any[] = [];
+  // 3. MESAS (con verificación)
+  const mesasExistentes = await prisma.mesa.count({ where: { sucursalId: sucursal.id } });
   
-  // 6 Mesas Cuadradas (Fila 1)
-  for (let i = 1; i <= 6; i++) {
-    mesas.push({
-      numero: `M${i}`,
-      capacidad: 4,
-      tipo: 'cuadrada',
-      estado: EstadoMesa.DISPONIBLE,
-      sucursalId: sucursal.id,
-      posX: (i - 1) * 150, 
-      posY: 50             
-    });
+  if (mesasExistentes === 0) {
+    const mesas: any[] = [];
+    
+    for (let i = 1; i <= 6; i++) {
+      mesas.push({
+        numero: `M${i}`,
+        capacidad: 4,
+        tipo: 'cuadrada',
+        estado: EstadoMesa.DISPONIBLE,
+        sucursalId: sucursal.id,
+        posX: (i - 1) * 150,
+        posY: 50
+      });
+    }
+
+    for (let i = 7; i <= 12; i++) {
+      mesas.push({
+        numero: `M${i}`,
+        capacidad: 2,
+        tipo: 'rectangular',
+        estado: EstadoMesa.DISPONIBLE,
+        sucursalId: sucursal.id,
+        posX: (i - 7) * 150,
+        posY: 250
+      });
+    }
+
+    await prisma.mesa.createMany({ data: mesas });
+    console.log('✅ 12 Mesas creadas');
+  } else {
+    console.log(`⏭️  Ya existen ${mesasExistentes} mesas`);
   }
 
-  // 6 Mesas Rectangulares (Fila 2)
-  for (let i = 7; i <= 12; i++) {
-    mesas.push({
-      numero: `M${i}`,
-      capacidad: 2,
-      tipo: 'rectangular',
-      estado: EstadoMesa.DISPONIBLE,
-      sucursalId: sucursal.id,
-      posX: (i - 7) * 150, 
-      posY: 250            
-    });
-  }
-
-  await prisma.mesa.createMany({ data: mesas });
-  console.log('✅ 12 Mesas creadas correctamente');
-
-  // 4. PRODUCTOS Y CATEGORÍAS
+  // 4. CATEGORÍAS Y PRODUCTOS
   const categoriasUnicas = [...new Set(productosData.map(p => p.categoria))];
   const categoriaMap: Record<string, number> = {};
 
+  const coloresCategoria: Record<string, string> = {
+    'Bar': '#e67e22',
+    'Bebidas': '#3498db',
+    'Hamburguesas': '#e74c3c',
+    'Sushis Naturales': '#1abc9c',
+    'Sushis Horneados': '#f39c12',
+    'Paquetes': '#9b59b6',
+    'Orientales': '#e91e63',
+    'Entradas': '#16a085',
+    'Adicionales': '#95a5a6',
+  };
+
   for (const nombreCat of categoriasUnicas) {
-    const cat = await prisma.categoria.create({
-      data: { nombre: nombreCat, empresaId: empresa.id }
+    let cat = await prisma.categoria.findFirst({
+      where: { empresaId: empresa.id, nombre: nombreCat }
     });
+
+    if (!cat) {
+      cat = await prisma.categoria.create({
+        data: {
+          nombre: nombreCat,
+          empresaId: empresa.id,
+          iconoColor: coloresCategoria[nombreCat] || '#3498db'
+        }
+      });
+      console.log(`✅ Categoría creada: ${nombreCat}`);
+    } else {
+      console.log(`⏭️  Categoría ya existe: ${nombreCat}`);
+    }
+    
     categoriaMap[nombreCat] = cat.id;
   }
 
-  // Insertar Productos
+  // Insertar Productos (con verificación)
+  let productosCreados = 0;
+  let productosOmitidos = 0;
+
   for (const prod of productosData) {
-    const esBebida = prod.categoria === 'Bar' || prod.categoria === 'Bebidas';
-    const esHamburguesa = prod.categoria === 'Hamburguesas';
-
-    let config: any = undefined;
-    
-    if (esHamburguesa) {
-      config = [
-        {
-          titulo: "Término",
-          tipo: "radio",
-          obligatorio: true,
-          opciones: [{ nombre: "Medio", precio: 0 }, { nombre: "3/4", precio: 0 }]
-        },
-        {
-          titulo: "Extras",
-          tipo: "checkbox",
-          obligatorio: false,
-          opciones: [{ nombre: "Tocino Extra", precio: 20 }, { nombre: "Queso Extra", precio: 15 }]
-        }
-      ];
-    }
-
-    await prisma.producto.create({
-      data: {
-        nombre: prod.nombre,
-        descripcion: prod.descripcion,
-        precioBase: prod.precio,
+    const existe = await prisma.producto.findFirst({
+      where: {
         empresaId: empresa.id,
-        categoriaId: categoriaMap[prod.categoria],
-        destino: esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA,
-        configuracion: config ? config : undefined 
+        nombre: prod.nombre
       }
     });
+
+    if (!existe) {
+      const esBebida = prod.categoria === 'Bar' || prod.categoria === 'Bebidas';
+      const esHamburguesa = prod.categoria === 'Hamburguesas';
+
+      let config: any = undefined;
+
+      if (esHamburguesa) {
+        config = [
+          {
+            titulo: "Término",
+            tipo: "radio",
+            obligatorio: true,
+            opciones: [{ nombre: "Medio", precio: 0 }, { nombre: "3/4", precio: 0 }]
+          },
+          {
+            titulo: "Extras",
+            tipo: "checkbox",
+            obligatorio: false,
+            opciones: [{ nombre: "Tocino Extra", precio: 20 }, { nombre: "Queso Extra", precio: 15 }]
+          }
+        ];
+      }
+
+      await prisma.producto.create({
+        data: {
+          nombre: prod.nombre,
+          descripcion: prod.descripcion,
+          precioBase: prod.precio,
+          empresaId: empresa.id,
+          categoriaId: categoriaMap[prod.categoria],
+          destino: esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA,
+          configuracion: config ? config : undefined
+        }
+      });
+      productosCreados++;
+    } else {
+      productosOmitidos++;
+    }
   }
 
-  console.log(`✅ ${productosData.length} Productos insertados`);
-  console.log('🚀 Seed finalizado. Login: mesero@garage.com / 123');
+  console.log(`\n📊 Resumen de Productos:`);
+  console.log(`   ✅ Creados: ${productosCreados}`);
+  console.log(`   ⏭️  Omitidos (ya existían): ${productosOmitidos}`);
+  console.log(`   📦 Total en BD: ${productosCreados + productosOmitidos}`);
+  
+  const adicionales = productosData.filter(p => p.categoria === 'Adicionales').length;
+  console.log(`   🎁 Adicionales incluidos: ${adicionales}`);
+  
+  console.log('\n🚀 Seed finalizado');
+  console.log('📧 Login: mesero@garage.com / 123');
 }
 
 main()

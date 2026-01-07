@@ -2,8 +2,8 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faPlus, faMinus, faMoneyBillWave } from '@fortawesome/free-solid-svg-icons';
+import { ProductosService, Producto } from '../../services/productos.service';
 
-// Interfaz para definir la estructura de un adicional
 export interface Adicional {
   id: number;
   nombre: string;
@@ -19,48 +19,60 @@ export interface Adicional {
   styleUrls: ['./adicionales-modal.component.css']
 })
 export class AdicionalesModalComponent implements OnInit {
-  // Recibe los adicionales que ya están en el pedido para pre-cargarlos
   @Input() adicionalesPrevios: Adicional[] = [];
-  
-  // Emite los adicionales seleccionados o una señal de cancelación
   @Output() confirmar = new EventEmitter<Adicional[]>();
   @Output() cancelar = new EventEmitter<void>();
 
-  // Lista completa de adicionales disponibles
-  public listaAdicionales: Adicional[] = [
-    { id: 101, nombre: 'Salsa de Soja', precio: 20, cantidad: 0 },
-    { id: 102, nombre: 'Wasabi Extra', precio: 25, cantidad: 0 },
-    { id: 103, nombre: 'Jengibre Encurtido', precio: 17, cantidad: 0 },
-    { id: 104, nombre: 'Salsa de Anguila', precio: 30, cantidad: 0 },
-    { id: 105, nombre: 'Semillas de Ajonjoli', precio: 15, cantidad: 0 }
-  ];
-
+  // ✅ CAMBIO: Ya no hardcodeamos, cargamos desde BD
+  public listaAdicionales: Adicional[] = [];
   public adicionalesSeleccionados: Adicional[] = [];
   public totalAdicional: number = 0;
+  public cargando: boolean = true;
 
   // Iconos
   faPlus = faPlus;
   faMinus = faMinus;
   faMoneyBill = faMoneyBillWave;
 
+  constructor(private productosService: ProductosService) {}
+
   ngOnInit(): void {
-    // Si se reciben adicionales previos, se actualizan las cantidades
-    this.adicionalesPrevios.forEach(previo => {
-      const adicional = this.listaAdicionales.find(a => a.id === previo.id);
-      if (adicional) {
-        adicional.cantidad = previo.cantidad;
+    // ✅ Cargar adicionales desde el backend
+    this.productosService.getAdicionales().subscribe({
+      next: (adicionales) => {
+        console.log('✅ Adicionales cargados:', adicionales);
+        
+        this.listaAdicionales = adicionales.map(a => ({
+          id: a.id,
+          nombre: a.nombre,
+          precio: Number(a.precioBase),
+          cantidad: 0
+        }));
+
+        // Si había adicionales previos, restaurar las cantidades
+        this.adicionalesPrevios.forEach(previo => {
+          const adicional = this.listaAdicionales.find(a => a.id === previo.id);
+          if (adicional) {
+            adicional.cantidad = previo.cantidad;
+          }
+        });
+
+        this.calcularTotales();
+        this.cargando = false;
+      },
+      error: (err) => {
+        console.error('❌ Error cargando adicionales:', err);
+        alert('Error al cargar adicionales. Intenta de nuevo.');
+        this.cargando = false;
       }
     });
-    this.calcularTotales();
   }
 
-  // Incrementa la cantidad de un adicional
   incrementar(adicional: Adicional): void {
     adicional.cantidad++;
     this.calcularTotales();
   }
 
-  // Decrementa la cantidad, con un mínimo de 0
   decrementar(adicional: Adicional): void {
     if (adicional.cantidad > 0) {
       adicional.cantidad--;
@@ -68,7 +80,6 @@ export class AdicionalesModalComponent implements OnInit {
     }
   }
 
-  // Calcula el resumen y el total
   calcularTotales(): void {
     this.adicionalesSeleccionados = this.listaAdicionales.filter(a => a.cantidad > 0);
     this.totalAdicional = this.adicionalesSeleccionados.reduce((total, item) => {
@@ -76,12 +87,14 @@ export class AdicionalesModalComponent implements OnInit {
     }, 0);
   }
 
-  // Emite los adicionales seleccionados y cierra el modal
   onConfirmar(): void {
+    if (this.adicionalesSeleccionados.length === 0) {
+      alert('Selecciona al menos un adicional');
+      return;
+    }
     this.confirmar.emit(this.adicionalesSeleccionados);
   }
 
-  // Emite el evento de cancelación
   onCancelar(): void {
     this.cancelar.emit();
   }

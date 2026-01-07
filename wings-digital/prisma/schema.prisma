@@ -48,54 +48,54 @@ enum DestinoProducto {
 // ==========================================
 
 model Empresa {
-  id           Int      @id @default(autoincrement())
-  nombre       String   @unique @db.VarChar(100)
-  logoUrl      String?  @map("logo_url")
-  activo       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  nombre    String   @unique @db.VarChar(100)
+  logoUrl   String?  @map("logo_url")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  sucursales   Sucursal[]
-  empleados    Empleado[]
-  categorias   Categoria[]
-  productos    Producto[]
+  sucursales Sucursal[]
+  empleados  Empleado[]
+  categorias Categoria[]
+  productos  Producto[]
 
   @@map("empresas")
 }
 
 model Sucursal {
-  id           Int      @id @default(autoincrement())
-  empresaId    Int      @map("empresa_id")
-  nombre       String   @db.VarChar(100)
-  direccion    String?  @db.VarChar(255)
-  telefono     String?  @db.VarChar(20)
-  activa       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  empresaId Int      @map("empresa_id")
+  nombre    String   @db.VarChar(100)
+  direccion String?  @db.VarChar(255)
+  telefono  String?  @db.VarChar(20)
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  empresa      Empresa    @relation(fields: [empresaId], references: [id])
-  empleados    Empleado[]
-  mesas        Mesa[]
-  inventario   SucursalProducto[]
+  empresa    Empresa            @relation(fields: [empresaId], references: [id])
+  empleados  Empleado[]
+  mesas      Mesa[]
+  inventario SucursalProducto[]
 
   @@map("sucursales")
 }
 
 model Empleado {
-  id               Int          @id @default(autoincrement())
-  empresaId        Int?         @map("empresa_id")
-  sucursalId       Int?         @map("sucursal_id")
+  id         Int         @id @default(autoincrement())
+  empresaId  Int?        @map("empresa_id")
+  sucursalId Int?        @map("sucursal_id")
   
-  nombre           String       @db.VarChar(100)
-  email            String       @unique @db.VarChar(100)
-  password         String       @db.VarChar(255)
-  rol              RolEmpleado  @default(MESERO)
+  nombre     String      @db.VarChar(100)
+  email      String      @unique @db.VarChar(100)
+  password   String      @db.VarChar(255)
+  rol        RolEmpleado @default(MESERO)
   
-  activo           Boolean      @default(true) 
-  enVacaciones     Boolean      @default(false) @map("en_vacaciones")
-  fechaContratacion DateTime    @default(now()) @map("fecha_contratacion")
+  activo            Boolean  @default(true) 
+  enVacaciones      Boolean  @default(false) @map("en_vacaciones")
+  fechaContratacion DateTime @default(now()) @map("fecha_contratacion")
 
-  empresa          Empresa?     @relation(fields: [empresaId], references: [id])
-  sucursal         Sucursal?    @relation(fields: [sucursalId], references: [id])
-  ordenes          Orden[]
+  empresa  Empresa?  @relation(fields: [empresaId], references: [id])
+  sucursal Sucursal? @relation(fields: [sucursalId], references: [id])
+  ordenes  Orden[]
   
   @@index([empresaId])
   @@index([sucursalId])
@@ -107,126 +107,129 @@ model Empleado {
 // ==========================================
 
 model Mesa {
-  id           Int        @id @default(autoincrement())
-  sucursalId   Int        @map("sucursal_id")
-  numero       String     @db.VarChar(20)
-  capacidad    Int        @default(4)
-  estado       EstadoMesa @default(DISPONIBLE)
+  id         Int        @id @default(autoincrement())
+  sucursalId Int        @map("sucursal_id")
+  numero     String     @db.VarChar(20)
+  capacidad  Int        @default(4)
+  estado     EstadoMesa @default(DISPONIBLE)
   
   // ⬅️ CAMPO NUEVO: NECESARIO PARA TU MAPA
-  tipo         String     @default("cuadrada") // 'cuadrada' | 'rectangular'
+  tipo       String     @default("cuadrada") // 'cuadrada' | 'rectangular'
   
-  posX         Int        @default(0) @map("pos_x")
-  posY         Int        @default(0) @map("pos_y")
+  posX       Int        @default(0) @map("pos_x")
+  posY       Int        @default(0) @map("pos_y")
 
-  sucursal     Sucursal   @relation(fields: [sucursalId], references: [id])
-  ordenes      Orden[]
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+  ordenes  Orden[]
 
   @@unique([sucursalId, numero])
   @@map("mesas")
 }
 
 model Categoria {
-  id          Int        @id @default(autoincrement())
-  empresaId   Int        @map("empresa_id")
-  nombre      String     @db.VarChar(100)
+  id        Int    @id @default(autoincrement())
+  empresaId Int    @map("empresa_id")
+  nombre    String @db.VarChar(100)
   
   // ⬅️ NUEVOS CAMPOS PARA TU DISEÑO
-  descripcion String?    @db.VarChar(255)
-  iconoColor  String?    @db.VarChar(50) // Ej: #f76707
+  descripcion String? @db.VarChar(255)
+  iconoColor  String? @db.VarChar(50) // Ej: #f76707
   
-  empresa     Empresa    @relation(fields: [empresaId], references: [id])
-  productos   Producto[]
+  // ✅ CAMPO AGREGADO PARA LA FOTO DE LA CATEGORÍA
+  imagenUrl   String? @map("imagen_url") @db.Text 
+  
+  empresa   Empresa    @relation(fields: [empresaId], references: [id])
+  productos Producto[]
 
   @@unique([empresaId, nombre])
   @@map("categorias")
 }
 
 model Producto {
-  id               Int              @id @default(autoincrement())
-  empresaId        Int              @map("empresa_id")
-  categoriaId      Int?             @map("categoria_id")
+  id          Int             @id @default(autoincrement())
+  empresaId   Int             @map("empresa_id")
+  categoriaId Int?            @map("categoria_id")
   
-  nombre           String           @db.VarChar(255)
-  descripcion      String?          @db.Text
-  precioBase       Decimal          @db.Decimal(10, 2) @map("precio_base")
-  imagenUrl        String?          @db.VarChar(255) @map("imagen_url")
-  destino          DestinoProducto  @default(COCINA)
+  nombre        String          @db.VarChar(255)
+  descripcion   String?         @db.Text
+  precioBase    Decimal         @db.Decimal(10, 2) @map("precio_base")
+  imagenUrl     String?         @db.VarChar(255) @map("imagen_url")
+  destino       DestinoProducto @default(COCINA)
   
   // ⬅️ CAMPO NUEVO: NECESARIO PARA PERSONALIZACIÓN RAPPI
-  configuracion    Json?            @map("configuracion_json") 
+  configuracion Json?           @map("configuracion_json") 
 
-  empresa          Empresa          @relation(fields: [empresaId], references: [id])
-  categoria        Categoria?       @relation(fields: [categoriaId], references: [id])
-  itemsOrden       ItemOrden[]
-  disponibilidad   SucursalProducto[]
+  empresa        Empresa            @relation(fields: [empresaId], references: [id])
+  categoria      Categoria?         @relation(fields: [categoriaId], references: [id])
+  itemsOrden     ItemOrden[]
+  disponibilidad SucursalProducto[]
 
   @@index([empresaId])
   @@map("productos")
 }
 
 model SucursalProducto {
-  sucursalId Int @map("sucursal_id")
-  productoId Int @map("producto_id")
+  sucursalId Int     @map("sucursal_id")
+  productoId Int     @map("producto_id")
   disponible Boolean @default(true)
   stock      Int?
 
-  sucursal   Sucursal @relation(fields: [sucursalId], references: [id])
-  producto   Producto @relation(fields: [productoId], references: [id])
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
 
   @@id([sucursalId, productoId])
   @@map("sucursal_productos")
 }
 
 model Orden {
-  id              Int          @id @default(autoincrement())
-  mesaId          Int?         @map("mesa_id")
-  meseroId        Int?         @map("empleado_id")
-  estado          EstadoOrden  @default(PENDIENTE)
+  id          Int         @id @default(autoincrement())
+  mesaId      Int?        @map("mesa_id")
+  meseroId    Int?        @map("empleado_id")
+  estado      EstadoOrden @default(PENDIENTE)
   
-  comensales      Int          @default(1)
-  total           Decimal?     @db.Decimal(10, 2)
-  notaGeneral     String?      @db.Text
+  comensales  Int      @default(1)
+  total       Decimal? @db.Decimal(10, 2)
+  notaGeneral String?  @db.Text
   
-  creadaEn        DateTime     @default(now()) @map("creada_en")
-  cerradaEn       DateTime?    @map("cerrada_en")
-  propina         Float?       @default(0)
-  metodoPago      String?
+  creadaEn   DateTime  @default(now()) @map("creada_en")
+  cerradaEn  DateTime? @map("cerrada_en")
+  propina    Float?    @default(0)
+  metodoPago String?
 
-  mesa            Mesa?        @relation(fields: [mesaId], references: [id])
-  mesero          Empleado?    @relation(fields: [meseroId], references: [id])
-  items           ItemOrden[]
-  pagos           Pago[]
+  mesa   Mesa?       @relation(fields: [mesaId], references: [id])
+  mesero Empleado?   @relation(fields: [meseroId], references: [id])
+  items  ItemOrden[]
+  pagos  Pago[]
 
   @@index([mesaId])
   @@map("ordenes")
 }
 
 model ItemOrden {
-  id              Int      @id @default(autoincrement())
-  ordenId         Int      @map("orden_id")
-  productoId      Int      @map("producto_id")
-  cantidad        Int
-  precioUnitario  Decimal  @db.Decimal(10, 2) @map("precio_unitario")
+  id             Int         @id @default(autoincrement())
+  ordenId        Int         @map("orden_id")
+  productoId     Int         @map("producto_id")
+  cantidad       Int
+  precioUnitario Decimal     @db.Decimal(10, 2) @map("precio_unitario")
   
-  opcionesElegidas Json?    @map("opciones_elegidas")
-  estado          EstadoOrden @default(PENDIENTE) 
-  notas           String?  @db.Text
+  opcionesElegidas Json?       @map("opciones_elegidas")
+  estado           EstadoOrden @default(PENDIENTE) 
+  notas            String?     @db.Text
 
-  orden           Orden    @relation(fields: [ordenId], references: [id])
-  producto        Producto @relation(fields: [productoId], references: [id])
+  orden    Orden    @relation(fields: [ordenId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
 
   @@map("items_orden")
 }
 
 model Pago {
-  id           Int      @id @default(autoincrement())
-  ordenId      Int      @map("orden_id")
-  monto        Decimal  @db.Decimal(10, 2)
-  metodo       String   @db.VarChar(50)
-  fecha        DateTime @default(now())
+  id      Int      @id @default(autoincrement())
+  ordenId Int      @map("orden_id")
+  monto   Decimal  @db.Decimal(10, 2)
+  metodo  String   @db.VarChar(50)
+  fecha   DateTime @default(now())
   
-  orden        Orden    @relation(fields: [ordenId], references: [id])
+  orden Orden @relation(fields: [ordenId], references: [id])
 
   @@map("pagos")
 }
