@@ -1,0 +1,260 @@
+<div class="dashboard-gerente">
+  
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="perfil-gerente">
+        <div class="icono-perfil">
+          <i class="fas fa-user-tie"></i>
+        </div>
+        <div class="info-perfil">
+          <h2>Gerente</h2>
+          <p class="nombre">{{ nombreGerente }}</p>
+          <p class="sucursal">
+            <i class="fas fa-map-marker-alt"></i>
+            {{ sucursalNombre }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-body">
+      <div class="resumen-sidebar">
+        <h3>RESUMEN DEL DÍA</h3>
+        
+        <div class="metodo-pago">
+          <i class="fas fa-dollar-sign"></i>
+          <span class="metodo-nombre">Efectivo</span>
+          <span class="metodo-monto">${{ resumenDia.efectivo | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="metodo-pago">
+          <i class="fas fa-credit-card"></i>
+          <span class="metodo-nombre">Tarjeta</span>
+          <span class="metodo-monto">${{ resumenDia.tarjeta | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="metodo-pago">
+          <i class="fas fa-exchange-alt"></i>
+          <span class="metodo-nombre">Transferencia</span>
+          <span class="metodo-monto">${{ resumenDia.transferencia | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="total-general">
+          <span>Total General</span>
+          <span class="monto-total">${{ totalGeneral | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-cerrar-sesion" (click)="cerrarSesion()">
+        <i class="fas fa-sign-out-alt"></i>
+        Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenido Principal -->
+  <main class="contenido-principal">
+    
+    <!-- Header -->
+    <header class="header-dashboard">
+      <div class="breadcrumb">
+        <span>Garage Wings</span>
+        <i class="fas fa-chevron-right"></i>
+        <span>Dashboard de Gerente</span>
+      </div>
+      <div class="hora-actual">
+        <i class="fas fa-clock"></i>
+        {{ horaActual }}
+      </div>
+    </header>
+
+    <!-- Título -->
+    <div class="titulo-seccion">
+      <h1>Panel de Gestión</h1>
+      <p>Control de sucursales y personal</p>
+    </div>
+
+    <!-- Tarjetas de Estadísticas -->
+    <div class="tarjetas-estadisticas">
+      
+      <div class="tarjeta tarjeta-ventas">
+        <div class="tarjeta-icono" style="background-color: #d4edda;">
+          <i class="fas fa-dollar-sign" style="color: #28a745;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Ventas Totales</p>
+          <h2 class="tarjeta-valor">${{ estadisticas.ventasTotales | number:'1.2-2' }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-ordenes">
+        <div class="tarjeta-icono" style="background-color: #d1ecf1;">
+          <i class="fas fa-chart-line" style="color: #17a2b8;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Órdenes Totales</p>
+          <h2 class="tarjeta-valor">{{ estadisticas.ordenesTotales }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-personal">
+        <div class="tarjeta-icono" style="background-color: #e8daef;">
+          <i class="fas fa-users" style="color: #8e44ad;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Personal Activo</p>
+          <h2 class="tarjeta-valor">{{ estadisticas.personalActivo }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-ticket">
+        <div class="tarjeta-icono" style="background-color: #fff3cd;">
+          <i class="fas fa-receipt" style="color: #ffc107;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Ticket Promedio</p>
+          <h2 class="tarjeta-valor">${{ estadisticas.ticketPromedio | number:'1.2-2' }}</h2>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tabs de Contenido -->
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'resumen'"
+          (click)="cambiarTab('resumen')">
+          Resumen
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'personal'"
+          (click)="cambiarTab('personal')">
+          Personal
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'turnos'"
+          (click)="cambiarTab('turnos')">
+          Turnos
+        </button>
+      </div>
+
+      <!-- Contenido del Tab Resumen -->
+      <div class="tab-content" *ngIf="tabActiva === 'resumen'">
+        <div class="contenido-grid">
+          
+          <!-- Personal por Rol -->
+          <div class="card">
+            <h3 class="card-titulo">Personal por Rol</h3>
+            <div class="chart-container">
+              <div class="pie-chart">
+                <svg viewBox="0 0 200 200" width="250" height="250">
+                  <!-- Círculo base -->
+                  <circle cx="100" cy="100" r="80" fill="transparent"/>
+                  
+                  <!-- Segmentos del gráfico de pastel -->
+                  <!-- Meseros (Azul) -->
+                  <path d="M 100 100 L 100 20 A 80 80 0 0 1 180 100 Z" fill="#4285f4"/>
+                  
+                  <!-- Baristas (Rosa) -->
+                  <path d="M 100 100 L 180 100 A 80 80 0 0 1 100 180 Z" fill="#ea4c89"/>
+                  
+                  <!-- Cajeros (Verde) -->
+                  <path d="M 100 100 L 100 180 A 80 80 0 0 1 20 100 Z" fill="#34a853"/>
+                  
+                  <!-- Cocineros (Naranja) -->
+                  <path d="M 100 100 L 20 100 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
+                </svg>
+              </div>
+              
+              <div class="chart-leyenda">
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #4285f4;"></span>
+                  <span class="leyenda-texto">Meseros: {{ personalPorRol.meseros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #fbbc04;"></span>
+                  <span class="leyenda-texto">Cocineros: {{ personalPorRol.cocineros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #34a853;"></span>
+                  <span class="leyenda-texto">Cajeros: {{ personalPorRol.cajeros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #ea4c89;"></span>
+                  <span class="leyenda-texto">Baristas: {{ personalPorRol.baristas }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Métodos de Pago -->
+          <div class="card">
+            <h3 class="card-titulo">Métodos de Pago</h3>
+            <div class="metodos-pago-lista">
+              
+              <div class="metodo-card" style="background-color: #d4edda;">
+                <div class="metodo-icono">
+                  <i class="fas fa-dollar-sign" style="color: #28a745;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Efectivo</p>
+                  <h3 class="metodo-monto">${{ resumenDia.efectivo | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+              <div class="metodo-card" style="background-color: #d1ecf1;">
+                <div class="metodo-icono">
+                  <i class="fas fa-credit-card" style="color: #17a2b8;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Tarjeta</p>
+                  <h3 class="metodo-monto">${{ resumenDia.tarjeta | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+              <div class="metodo-card" style="background-color: #e8daef;">
+                <div class="metodo-icono">
+                  <i class="fas fa-exchange-alt" style="color: #8e44ad;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Transferencia</p>
+                  <h3 class="metodo-monto">${{ resumenDia.transferencia | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Contenido del Tab Personal -->
+      <div class="tab-content" *ngIf="tabActiva === 'personal'">
+        <div class="contenido-vacio">
+          <i class="fas fa-users"></i>
+          <h3>Gestión de Personal</h3>
+          <p>Próximamente: Lista de empleados, asistencias y horarios</p>
+        </div>
+      </div>
+
+      <!-- Contenido del Tab Turnos -->
+      <div class="tab-content" *ngIf="tabActiva === 'turnos'">
+        <div class="contenido-vacio">
+          <i class="fas fa-calendar-alt"></i>
+          <h3>Gestión de Turnos</h3>
+          <p>Próximamente: Calendario de turnos y horarios</p>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+</div>

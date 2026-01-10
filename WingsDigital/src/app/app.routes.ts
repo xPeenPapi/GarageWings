@@ -7,6 +7,7 @@ import { PantallaBarraComponent } from './services/barra/pantalla-barra/pantalla
 import { PagarComponent } from './caja/pagar/pagar.component';
 import { authGuard } from './auth.guard';
 import { Role } from './services/auth.service';
+import { GerenteDashboardComponent } from './components/gerente-dashboard/gerente-dashboard.component';
 
 export const routes: Routes = [
     { path: 'login', component: LoginComponent },
@@ -58,6 +59,11 @@ export const routes: Routes = [
       canActivate: [authGuard],
       data: { roles: [Role.Cajero, Role.Gerente, Role.AdminEmpresa] }
     },
+    //Gerente
+    {
+    path: 'gerente/dashboard',
+    component: GerenteDashboardComponent
+  },
     
     { path: '', redirectTo: '/login', pathMatch: 'full' },
     { path: '**', redirectTo: '/login' }
