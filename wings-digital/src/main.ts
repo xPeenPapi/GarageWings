@@ -11,7 +11,8 @@ async function bootstrap() {
       'https://garagewings-production.up.railway.app', // ← Tu frontend en Railway
       'http://localhost:4200' // ← Para desarrollo local
     ],
-    credentials: true
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   app.useGlobalPipes(new ValidationPipe());
