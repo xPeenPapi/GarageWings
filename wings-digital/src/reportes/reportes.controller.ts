@@ -1,15 +1,15 @@
-import { Controller, Get, Request } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common'; // 👈 Importa Query
 import { ReportesService } from './reportes.service';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('reportes')
+//@UseGuards(AuthGuard('jwt')) // Descomentar si usas seguridad
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get('gerente')
-  async getDashboard(@Request() req) {
-    // Aquí deberías obtener el ID de la empresa del usuario autenticado.
-    // Por ahora, usamos 1 fijo para que funcione.
-    const empresaId = 1; 
-    return this.reportesService.obtenerDashboardGerente(empresaId);
+  // 👇 Recibimos el query param 'fecha'
+  getDashboardData(@Query('fecha') fecha: string) {
+    return this.reportesService.getDashboardData(fecha);
   }
 }

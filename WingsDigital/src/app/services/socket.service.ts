@@ -2,15 +2,12 @@ import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
 
-// ✅ CORRECCIÓN: Tipos flexibles para mesa y mesero
+// ✅ MANTENEMOS TU INTERFAZ FLEXIBLE (Para que no falle el HTML)
 export interface ComandaCompleta {
-  id: number;        
+  id: number;
   mesaId: number;
-  // Puede ser string (nombre) u objeto { nombre: string, ... }
-  mesero: any;    
-  // Puede ser número (ID) u objeto { numero: string, ... }
-  mesa?: any;
-  
+  mesero: any; // Flexible: string u objeto
+  mesa?: any;  // Flexible: número u objeto
   total: number;
   fecha: string | Date;
   items: any[];
@@ -28,9 +25,13 @@ export class SocketService {
   constructor() {
     this.socket = io(this.url, {
       transports: ['websocket'],
-      autoConnect: true
+      autoConnect: true // Se conecta al instanciarse
     });
   }
+
+  // ==========================================
+  // 1. MÉTODOS BÁSICOS DE CONEXIÓN
+  // ==========================================
 
   isConnected(): boolean {
     return this.socket.connected;
@@ -48,19 +49,44 @@ export class SocketService {
     }
   }
 
-  escucharNuevosPedidos(): Observable<ComandaCompleta> {
-    return new Observable(observer => {
-      this.socket.on('nuevoPedido', (data) => observer.next(data));
+  // ==========================================
+  // 2. ⚠️ LA SOLUCIÓN AL ERROR DE APP.COMPONENT
+  // ==========================================
+
+  // Agregamos este método para que app.component.ts pueda decir:
+  // this.socketService.emit('registrar-usuario', id)
+  emit(eventName: string, data?: any) {
+    this.socket.emit(eventName, data);
+  }
+
+  // Agregamos este método para escuchar cualquier evento genérico
+  // (necesario para escuchar 'force-logout' en app.component)
+  fromEvent<T>(eventName: string): Observable<T> {
+    return new Observable<T>(observer => {
+      this.socket.on(eventName, (data: T) => {
+        observer.next(data);
+      });
+      
+      // Limpieza al desuscribirse
+      return () => {
+        this.socket.off(eventName);
+      };
     });
+  }
+
+  // ==========================================
+  // 3. TUS MÉTODOS DE NEGOCIO (ORIGINALES)
+  // ==========================================
+
+  escucharNuevosPedidos(): Observable<ComandaCompleta> {
+    return this.fromEvent<ComandaCompleta>('nuevoPedido');
   }
 
   escucharPedidosParaCobrar(): Observable<ComandaCompleta> {
-    return new Observable(observer => {
-      this.socket.on('listoParaCobrar', (data) => observer.next(data));
-    });
+    return this.fromEvent<ComandaCompleta>('listoParaCobrar');
   }
 
   marcarPedidoComoListo(data: { ordenId: number }) {
-    this.socket.emit('pedidoListo', data);
+    this.emit('pedidoListo', data);
   }
 }

@@ -1,0 +1,769 @@
+/* ===========================
+   RESET Y ESTILOS GENERALES
+   =========================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dashboard-admin {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f5f7fa;
+}
+
+/* ===========================
+   SIDEBAR
+   =========================== */
+
+.sidebar {
+  width: 290px;
+  background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.perfil-admin {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.icono-perfil {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.info-perfil h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.info-perfil .nombre {
+  font-size: 14px;
+  color: #cbd5e0;
+}
+
+.subtitulo {
+  font-size: 13px;
+  color: #a0aec0;
+  font-weight: 400;
+}
+
+.sidebar-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Filtro de Sucursal */
+.filtro-sucursal {
+  margin-bottom: 28px;
+}
+
+.filtro-sucursal h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #a0aec0;
+  margin-bottom: 12px;
+}
+
+.sucursal-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.sucursal-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sucursal-item.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #ef4444;
+  color: white;
+}
+
+.sucursal-item i {
+  font-size: 16px;
+}
+
+/* Resumen General */
+.resumen-general {
+  margin-top: 28px;
+}
+
+.resumen-general h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #a0aec0;
+  margin-bottom: 12px;
+}
+
+.resumen-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.resumen-item i {
+  font-size: 18px;
+  color: #ef4444;
+  width: 24px;
+  text-align: center;
+}
+
+.resumen-item .label {
+  flex: 1;
+  font-size: 13px;
+  color: #cbd5e0;
+}
+
+.resumen-item .valor {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.metodo-pago {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.metodo-pago i {
+  font-size: 16px;
+  color: #10b981;
+  width: 24px;
+  text-align: center;
+}
+
+.metodo-pago .label {
+  flex: 1;
+  font-size: 13px;
+  color: #cbd5e0;
+}
+
+.metodo-pago .monto {
+  font-size: 14px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.total-general {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.total-general span:first-child {
+  font-size: 13px;
+  color: #fecaca;
+  font-weight: 500;
+}
+
+.total-general .monto-total {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-cerrar-sesion {
+  width: 100%;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-cerrar-sesion:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* ===========================
+   CONTENIDO PRINCIPAL
+   =========================== */
+
+.contenido-principal {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f5f7fa;
+}
+
+.header-dashboard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.breadcrumb i {
+  font-size: 10px;
+}
+
+.breadcrumb span:last-child {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.hora-actual {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.hora-actual i {
+  color: #ef4444;
+}
+
+.titulo-seccion {
+  padding: 32px 32px 24px;
+}
+
+.titulo-seccion h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.titulo-seccion p {
+  font-size: 15px;
+  color: #64748b;
+}
+
+/* ===========================
+   TARJETAS DE ESTADÍSTICAS
+   =========================== */
+
+.tarjetas-estadisticas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 0 32px 28px;
+}
+
+.tarjeta {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tarjeta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.tarjeta-icono {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.tarjeta-info {
+  flex: 1;
+}
+
+.tarjeta-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.tarjeta-valor {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* ===========================
+   TABS
+   =========================== */
+
+.tabs-container {
+  background: white;
+  margin: 0 32px 32px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.tabs-header {
+  display: flex;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0 20px;
+  gap: 8px;
+}
+
+.tab-button {
+  padding: 16px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.tab-button:hover {
+  color: #1e293b;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.tab-button.active {
+  color: #ef4444;
+  border-bottom-color: #ef4444;
+}
+
+.tab-content {
+  padding: 28px;
+}
+
+/* ===========================
+   CONTENIDO - GRID
+   =========================== */
+
+.contenido-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card-full {
+  grid-column: 1 / -1;
+}
+
+.card-titulo {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+/* ===========================
+   GRÁFICO DE BARRAS
+   =========================== */
+
+.chart-barras {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 20px 0;
+}
+
+.eje-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 280px;
+  font-size: 12px;
+  color: #94a3b8;
+  padding-right: 12px;
+  text-align: right;
+}
+
+.barras-container {
+  flex: 1;
+  display: flex;
+  gap: 40px;
+  align-items: flex-end;
+  height: 280px;
+  border-left: 2px solid #e2e8f0;
+  border-bottom: 2px solid #e2e8f0;
+  padding-left: 20px;
+  padding-bottom: 12px;
+}
+
+.barra-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.barra {
+  width: 100%;
+  max-width: 80px;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.3s ease;
+  align-self: flex-end;
+}
+
+.barra:hover {
+  opacity: 0.8;
+}
+
+.barra-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.leyenda-chart {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  justify-content: center;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.leyenda-cuadro {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+/* ===========================
+   GRÁFICO DE PIE (PASTEL)
+   =========================== */
+
+.chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 32px;
+  padding: 20px 0;
+}
+
+.pie-chart {
+  flex-shrink: 0;
+}
+
+.chart-leyenda {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leyenda-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.leyenda-texto {
+  font-size: 14px;
+  color: #475569;
+}
+
+/* ===========================
+   SUCURSALES
+   =========================== */
+
+.seccion-rendimiento {
+  padding: 0;
+}
+
+.seccion-titulo {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+.lista-sucursales {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sucursal-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.2s ease;
+}
+
+.sucursal-card:hover {
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
+
+.sucursal-icono {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #ef4444;
+}
+
+.sucursal-info {
+  flex: 1;
+}
+
+.sucursal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sucursal-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.badge-activa {
+  padding: 4px 12px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sucursal-detalles {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.sucursal-stats {
+  text-align: right;
+}
+
+.sucursal-ventas {
+  font-size: 28px;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 4px;
+}
+
+.sucursal-extras {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ===========================
+   MÉTODOS DE PAGO
+   =========================== */
+
+.metodos-pago-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metodo-card {
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.metodo-icono {
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.metodo-detalle {
+  flex: 1;
+}
+
+.metodo-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.metodo-porcentaje {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.metodo-monto {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* ===========================
+   CONTENIDO VACÍO
+   =========================== */
+
+.contenido-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.contenido-vacio i {
+  font-size: 64px;
+  color: #cbd5e0;
+  margin-bottom: 20px;
+}
+
+.contenido-vacio h3 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.contenido-vacio p {
+  font-size: 15px;
+  color: #64748b;
+}
+
+/* ===========================
+   RESPONSIVE
+   =========================== */
+
+@media (max-width: 1400px) {
+  .tarjetas-estadisticas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 260px;
+  }
+  
+  .contenido-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-admin {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+  }
+  
+  .tarjetas-estadisticas {
+    grid-template-columns: 1fr;
+  }
+  
+  .tabs-header {
+    overflow-x: auto;
+  }
+}

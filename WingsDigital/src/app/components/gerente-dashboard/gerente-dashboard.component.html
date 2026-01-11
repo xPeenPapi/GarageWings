@@ -1,6 +1,5 @@
 <div class="dashboard-gerente">
   
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="perfil-gerente">
@@ -25,24 +24,24 @@
         <div class="metodo-pago">
           <i class="fas fa-dollar-sign"></i>
           <span class="metodo-nombre">Efectivo</span>
-          <span class="metodo-monto">${{ resumenDia.efectivo | number:'1.2-2' }}</span>
+          <span class="metodo-monto">{{ resumenDia.efectivo | currency }}</span>
         </div>
 
         <div class="metodo-pago">
           <i class="fas fa-credit-card"></i>
           <span class="metodo-nombre">Tarjeta</span>
-          <span class="metodo-monto">${{ resumenDia.tarjeta | number:'1.2-2' }}</span>
+          <span class="metodo-monto">{{ resumenDia.tarjeta | currency }}</span>
         </div>
 
         <div class="metodo-pago">
           <i class="fas fa-exchange-alt"></i>
           <span class="metodo-nombre">Transferencia</span>
-          <span class="metodo-monto">${{ resumenDia.transferencia | number:'1.2-2' }}</span>
+          <span class="metodo-monto">{{ resumenDia.transferencia | currency }}</span>
         </div>
 
         <div class="total-general">
           <span>Total General</span>
-          <span class="monto-total">${{ totalGeneral | number:'1.2-2' }}</span>
+          <span class="monto-total">{{ totalGeneral | currency }}</span>
         </div>
       </div>
     </div>
@@ -55,29 +54,35 @@
     </div>
   </aside>
 
-  <!-- Contenido Principal -->
   <main class="contenido-principal">
     
-    <!-- Header -->
     <header class="header-dashboard">
       <div class="breadcrumb">
         <span>Garage Wings</span>
         <i class="fas fa-chevron-right"></i>
         <span>Dashboard de Gerente</span>
       </div>
-      <div class="hora-actual">
-        <i class="fas fa-clock"></i>
-        {{ horaActual }}
+      
+      <div class="controles-cabecera" style="display: flex; align-items: center; gap: 15px;">
+        <div class="filtro-fecha" style="display: flex; align-items: center; gap: 8px; background: white; padding: 5px 10px; border-radius: 8px; border: 1px solid #d1d5db;">
+            <i class="fas fa-calendar-alt" style="color: #667eea;"></i>
+            <span style="font-size: 0.9rem; color: #64748b;">Ver fecha:</span>
+            <input type="date" [(ngModel)]="fechaSeleccionada" [max]="maxDate" (change)="cambiarFecha()" 
+                   style="border: none; outline: none; font-family: inherit; color: #334155; font-weight: 500;">
+        </div>
+
+        <div class="hora-actual">
+          <i class="fas fa-clock"></i>
+          {{ horaActual }}
+        </div>
       </div>
     </header>
 
-    <!-- Título -->
     <div class="titulo-seccion">
       <h1>Panel de Gestión</h1>
-      <p>Control de sucursales y personal</p>
+      <p>Administrando: <strong>{{ sucursalNombre }}</strong></p>
     </div>
 
-    <!-- Tarjetas de Estadísticas -->
     <div class="tarjetas-estadisticas">
       
       <div class="tarjeta tarjeta-ventas">
@@ -86,7 +91,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Ventas Totales</p>
-          <h2 class="tarjeta-valor">${{ estadisticas.ventasTotales | number:'1.2-2' }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticas.ventasTotales | currency }}</h2>
         </div>
       </div>
 
@@ -116,13 +121,12 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Ticket Promedio</p>
-          <h2 class="tarjeta-valor">${{ estadisticas.ticketPromedio | number:'1.2-2' }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticas.ticketPromedio | currency }}</h2>
         </div>
       </div>
 
     </div>
 
-    <!-- Tabs de Contenido -->
     <div class="tabs-container">
       <div class="tabs-header">
         <button 
@@ -145,116 +149,290 @@
         </button>
       </div>
 
-      <!-- Contenido del Tab Resumen -->
       <div class="tab-content" *ngIf="tabActiva === 'resumen'">
         <div class="contenido-grid">
           
-          <!-- Personal por Rol -->
           <div class="card">
             <h3 class="card-titulo">Personal por Rol</h3>
             <div class="chart-container">
               <div class="pie-chart">
-                <svg viewBox="0 0 200 200" width="250" height="250">
-                  <!-- Círculo base -->
-                  <circle cx="100" cy="100" r="80" fill="transparent"/>
-                  
-                  <!-- Segmentos del gráfico de pastel -->
-                  <!-- Meseros (Azul) -->
+                 <svg viewBox="0 0 200 200" width="220" height="220">
                   <path d="M 100 100 L 100 20 A 80 80 0 0 1 180 100 Z" fill="#4285f4"/>
-                  
-                  <!-- Baristas (Rosa) -->
                   <path d="M 100 100 L 180 100 A 80 80 0 0 1 100 180 Z" fill="#ea4c89"/>
-                  
-                  <!-- Cajeros (Verde) -->
                   <path d="M 100 100 L 100 180 A 80 80 0 0 1 20 100 Z" fill="#34a853"/>
-                  
-                  <!-- Cocineros (Naranja) -->
                   <path d="M 100 100 L 20 100 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
                 </svg>
               </div>
-              
-              <div class="chart-leyenda">
-                <div class="leyenda-item">
-                  <span class="leyenda-color" style="background-color: #4285f4;"></span>
-                  <span class="leyenda-texto">Meseros: {{ personalPorRol.meseros }}</span>
-                </div>
-                <div class="leyenda-item">
-                  <span class="leyenda-color" style="background-color: #fbbc04;"></span>
-                  <span class="leyenda-texto">Cocineros: {{ personalPorRol.cocineros }}</span>
-                </div>
-                <div class="leyenda-item">
-                  <span class="leyenda-color" style="background-color: #34a853;"></span>
-                  <span class="leyenda-texto">Cajeros: {{ personalPorRol.cajeros }}</span>
-                </div>
-                <div class="leyenda-item">
-                  <span class="leyenda-color" style="background-color: #ea4c89;"></span>
-                  <span class="leyenda-texto">Baristas: {{ personalPorRol.baristas }}</span>
-                </div>
-              </div>
             </div>
           </div>
 
-          <!-- Métodos de Pago -->
           <div class="card">
-            <h3 class="card-titulo">Métodos de Pago</h3>
-            <div class="metodos-pago-lista">
+            <h3 class="card-titulo">Mi Sucursal</h3>
+            <div class="sucursal-info" style="display: flex; flex-direction: column; gap: 15px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 40px; height: 40px; background: #e0f2fe; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #0284c7;">
+                  <i class="fas fa-store"></i>
+                </div>
+                <div>
+                  <small style="color: #64748b; font-size: 0.85rem;">Nombre Comercial</small>
+                  <p style="margin: 0; font-weight: 600; color: #334155;">{{ sucursalNombre }}</p>
+                </div>
+              </div>
               
-              <div class="metodo-card" style="background-color: #d4edda;">
-                <div class="metodo-icono">
-                  <i class="fas fa-dollar-sign" style="color: #28a745;"></i>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 40px; height: 40px; background: #f0fdf4; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #16a34a;">
+                  <i class="fas fa-map-marked-alt"></i>
                 </div>
-                <div class="metodo-detalle">
-                  <p class="metodo-nombre">Efectivo</p>
-                  <h3 class="metodo-monto">${{ resumenDia.efectivo | number:'1.2-2' }}</h3>
-                </div>
-              </div>
-
-              <div class="metodo-card" style="background-color: #d1ecf1;">
-                <div class="metodo-icono">
-                  <i class="fas fa-credit-card" style="color: #17a2b8;"></i>
-                </div>
-                <div class="metodo-detalle">
-                  <p class="metodo-nombre">Tarjeta</p>
-                  <h3 class="metodo-monto">${{ resumenDia.tarjeta | number:'1.2-2' }}</h3>
+                <div>
+                  <small style="color: #64748b; font-size: 0.85rem;">Estado</small>
+                  <p style="margin: 0; font-weight: 600; color: #16a34a;">Operativa / Activa</p>
                 </div>
               </div>
 
-              <div class="metodo-card" style="background-color: #e8daef;">
-                <div class="metodo-icono">
-                  <i class="fas fa-exchange-alt" style="color: #8e44ad;"></i>
-                </div>
-                <div class="metodo-detalle">
-                  <p class="metodo-nombre">Transferencia</p>
-                  <h3 class="metodo-monto">${{ resumenDia.transferencia | number:'1.2-2' }}</h3>
-                </div>
+              <div style="margin-top: 10px; padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.9rem; color: #64748b;">
+                <i class="fas fa-info-circle"></i> Datos gestionados por Administración Central.
               </div>
-
             </div>
           </div>
 
         </div>
       </div>
 
-      <!-- Contenido del Tab Personal -->
       <div class="tab-content" *ngIf="tabActiva === 'personal'">
-        <div class="contenido-vacio">
-          <i class="fas fa-users"></i>
-          <h3>Gestión de Personal</h3>
-          <p>Próximamente: Lista de empleados, asistencias y horarios</p>
+        
+        <div class="section-header">
+          <h3>Personal de {{ sucursalNombre }}</h3>
+          <button class="btn-primary" (click)="abrirModalNuevo()">
+            <i class="fas fa-user-plus"></i> Contratar Empleado
+          </button>
+        </div>
+      
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Empleado</th>
+                <th>Rol</th>
+                <th>Usuario (Email)</th>
+                <th>Fecha Ingreso</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let emp of empleados">
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar-circle">{{ emp.nombre.charAt(0) }}</div>
+                    <span class="fw-bold">{{ emp.nombre }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-role" [ngClass]="emp.rol.toLowerCase()">
+                    {{ emp.rol }}
+                  </span>
+                </td>
+                <td>{{ emp.email }}</td>
+                <td>{{ emp.fechaContratacion | date:'dd MMM yyyy' }}</td>
+                <td class="text-center">
+                  <button class="btn-icon edit" (click)="abrirModalEditar(emp)" title="Editar">
+                    <i class="fas fa-pencil-alt"></i>
+                  </button>
+                  <button class="btn-icon delete" (click)="despedirEmpleado(emp.id!)" title="Despedir">
+                    <i class="fas fa-ban"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="empleados.length === 0">
+                <td colspan="5" class="empty-state">
+                  <i class="fas fa-users" style="font-size: 2rem; color: #ccc;"></i>
+                  <p style="color: #999;">No hay empleados registrados en esta sucursal.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Contenido del Tab Turnos -->
       <div class="tab-content" *ngIf="tabActiva === 'turnos'">
-        <div class="contenido-vacio">
-          <i class="fas fa-calendar-alt"></i>
-          <h3>Gestión de Turnos</h3>
-          <p>Próximamente: Calendario de turnos y horarios</p>
+        
+        <div class="section-header">
+          <h3>Calendario de Turnos</h3>
+          <button class="btn-primary" (click)="abrirModalTurno()">
+            <i class="fas fa-calendar-plus"></i> Asignar Turno
+          </button>
+        </div>
+      
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Empleado</th>
+                <th>Horario</th>
+                <th>Duración</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let turno of turnos">
+                <td>
+                  <div class="fecha-badge">
+                    <span class="dia">{{ turno.fecha | date:'dd' : '+0000' }}</span>
+                    <span class="mes">{{ turno.fecha | date:'MMM' : '+0000' }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar-circle small" [ngClass]="turno.empleadoRol?.toLowerCase()">
+                      {{ turno.empleadoNombre?.charAt(0) }}
+                    </div>
+                    <div>
+                      <div class="fw-bold">{{ turno.empleadoNombre }}</div>
+                      <small class="text-muted">{{ turno.empleadoRol }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="horario-pill">
+                    <i class="far fa-clock"></i>
+                    {{ turno.horaInicio }} - {{ turno.horaFin }}
+                  </div>
+                </td>
+                <td>8 hrs</td>
+                <td class="text-center">
+                  <button class="btn-icon delete" (click)="eliminarTurno(turno.id!)" title="Eliminar Turno">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="turnos.length === 0">
+                <td colspan="5" class="empty-state">
+                  <i class="fas fa-calendar-times" style="font-size: 2rem; color: #ccc;"></i>
+                  <p style="color: #999;">No hay turnos programados próximamente.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
     </div>
 
   </main>
+
+  <div class="modal-backdrop" *ngIf="mostrarModalEmpleado">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>{{ esEdicion ? 'Editar Empleado' : 'Contratar Nuevo Personal' }}</h3>
+        <button class="btn-close" (click)="cerrarModalEmpleado()">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre Completo</label>
+          <input type="text" [(ngModel)]="empleadoForm.nombre" placeholder="Ej. Juan Pérez">
+        </div>
+  
+        <div class="form-group">
+          <label>Rol / Puesto</label>
+          <select [(ngModel)]="empleadoForm.rol">
+            <option value="MESERO">Mesero</option>
+            <option value="COCINA">Cocina</option>
+            <option value="BARRA">Barra</option>
+            <option value="CAJA">Caja</option>
+            <option value="GERENTE">Gerente</option>
+          </select>
+        </div>
+  
+        <div class="form-group">
+          <label>Email (Usuario de Acceso)</label>
+          <input type="email" [(ngModel)]="empleadoForm.email" placeholder="usuario@restaurante.com">
+        </div>
+  
+        <div class="form-group">
+          <label>
+            {{ esEdicion ? 'Nueva Contraseña (opcional)' : 'Contraseña' }}
+          </label>
+          <input type="password" [(ngModel)]="empleadoForm.password" placeholder="******">
+          <small *ngIf="esEdicion" class="text-muted" style="display:block; font-size: 0.8rem; color: #666; margin-top: 4px;">
+            Dejar en blanco para mantener la actual.
+          </small>
+        </div>
+      </div>
+  
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalEmpleado()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarEmpleado()">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="mostrarModalTurno">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Asignar Nuevo Turno</h3>
+        <button class="btn-close" (click)="cerrarModalTurno()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="form-group">
+          <label>Empleado</label>
+          <select [(ngModel)]="turnoForm.empleadoId">
+            <option [ngValue]="null">-- Seleccionar --</option>
+            <option *ngFor="let emp of empleados" [value]="emp.id">
+              {{ emp.nombre }} ({{ emp.rol }})
+            </option>
+          </select>
+        </div>
+  
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" [(ngModel)]="turnoForm.fecha">
+        </div>
+  
+        <div class="form-row" style="display: flex; gap: 10px;">
+          <div class="form-group" style="flex: 1;">
+            <label>Entrada</label>
+            <input type="time" [(ngModel)]="turnoForm.horaInicio">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Salida</label>
+            <input type="time" [(ngModel)]="turnoForm.horaFin">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Notas (Opcional)</label>
+          <input type="text" [(ngModel)]="turnoForm.notas" placeholder="Ej. Cubre turno de mañana">
+        </div>
+  
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalTurno()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarTurno()">Guardar Turno</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="mostrarAlertaModal" style="z-index: 2000;">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border-top: 5px solid #f59e0b;">
+      
+      <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #f59e0b; margin-top: 10px;"></i>
+      </div>
+      
+      <div class="modal-body" style="padding-top: 10px;">
+        <h3 style="color: #333; margin-bottom: 10px;">Atención</h3>
+        <p style="color: #666; font-size: 1rem;">{{ textoAlerta }}</p>
+      </div>
+      
+      <div class="modal-footer" style="justify-content: center; border-top: none; padding-top: 0;">
+        <button class="btn-primary" (click)="cerrarAlerta()" style="background-color: #f59e0b; border: none; padding: 10px 30px;">
+          Entendido
+        </button>
+      </div>
+
+    </div>
+  </div>
 
 </div>

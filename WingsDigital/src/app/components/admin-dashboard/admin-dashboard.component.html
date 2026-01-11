@@ -1,0 +1,439 @@
+<div class="dashboard-admin">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="perfil-admin">
+        <div class="icono-perfil">
+          <i class="fas fa-cog"></i>
+        </div>
+        <div class="info-perfil">
+          <h2>Administrador</h2>
+          <p class="nombre">{{ nombreAdmin }}</p>
+        </div>
+      </div>
+      <p class="subtitulo">Control Total del Sistema</p>
+    </div>
+
+    <div class="sidebar-body">
+      
+      <!-- Filtro de Sucursal -->
+      <div class="filtro-sucursal">
+        <h3>FILTRO DE SUCURSAL</h3>
+        
+        <button 
+          class="sucursal-item"
+          [class.active]="sucursalSeleccionada === 'todas'"
+          (click)="seleccionarSucursal('todas')">
+          <i class="fas fa-building"></i>
+          <span>Todas las Sucursales</span>
+        </button>
+
+        <button 
+          class="sucursal-item"
+          *ngFor="let sucursal of sucursales"
+          [class.active]="sucursalSeleccionada === sucursal.nombre"
+          (click)="seleccionarSucursal(sucursal.nombre)">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>{{ sucursal.nombre }}</span>
+        </button>
+      </div>
+
+      <!-- Resumen General -->
+      <div class="resumen-general">
+        <h3>RESUMEN GENERAL</h3>
+        
+        <div class="resumen-item">
+          <i class="fas fa-building"></i>
+          <span class="label">Sucursales</span>
+          <span class="valor">{{ estadisticas.sucursalesActivas }}</span>
+        </div>
+
+        <div class="resumen-item">
+          <i class="fas fa-users"></i>
+          <span class="label">Personal Activo</span>
+          <span class="valor">{{ estadisticas.personalActivo }}</span>
+        </div>
+
+        <div class="resumen-item">
+          <i class="fas fa-utensils"></i>
+          <span class="label">Platillos</span>
+          <span class="valor">{{ platillos }}</span>
+        </div>
+
+        <div class="metodo-pago">
+          <i class="fas fa-dollar-sign"></i>
+          <span class="label">Efectivo</span>
+          <span class="monto">${{ resumenGeneral.efectivo | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="metodo-pago">
+          <i class="fas fa-credit-card"></i>
+          <span class="label">Tarjeta</span>
+          <span class="monto">${{ resumenGeneral.tarjeta | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="metodo-pago">
+          <i class="fas fa-exchange-alt"></i>
+          <span class="label">Transferencia</span>
+          <span class="monto">${{ resumenGeneral.transferencia | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="total-general">
+          <span>Ventas Totales</span>
+          <span class="monto-total">${{ resumenGeneral.total | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-cerrar-sesion" (click)="cerrarSesion()">
+        <i class="fas fa-sign-out-alt"></i>
+        Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenido Principal -->
+  <main class="contenido-principal">
+    
+    <!-- Header -->
+    <header class="header-dashboard">
+      <div class="breadcrumb">
+        <span>Garage Wings</span>
+        <i class="fas fa-chevron-right"></i>
+        <span>Panel de Administración</span>
+      </div>
+      <div class="hora-actual">
+        <i class="fas fa-clock"></i>
+        {{ horaActual }}
+      </div>
+    </header>
+
+    <!-- Título -->
+    <div class="titulo-seccion">
+      <h1>Control Total del Sistema</h1>
+      <p>Gestión completa de sucursales, personal, menú y operaciones</p>
+    </div>
+
+    <!-- Tarjetas de Estadísticas -->
+    <div class="tarjetas-estadisticas">
+      
+      <div class="tarjeta tarjeta-ventas">
+        <div class="tarjeta-icono" style="background-color: #d4edda;">
+          <i class="fas fa-dollar-sign" style="color: #28a745;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Ventas Totales</p>
+          <h2 class="tarjeta-valor">${{ estadisticas.ventasTotales | number:'1.2-2' }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-ordenes">
+        <div class="tarjeta-icono" style="background-color: #d1ecf1;">
+          <i class="fas fa-chart-line" style="color: #17a2b8;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Órdenes del Día</p>
+          <h2 class="tarjeta-valor">{{ estadisticas.ordenesDelDia }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-personal">
+        <div class="tarjeta-icono" style="background-color: #e8daef;">
+          <i class="fas fa-users" style="color: #8e44ad;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Personal Activo</p>
+          <h2 class="tarjeta-valor">{{ estadisticas.personalActivo }}</h2>
+        </div>
+      </div>
+
+      <div class="tarjeta tarjeta-sucursales">
+        <div class="tarjeta-icono" style="background-color: #fff3cd;">
+          <i class="fas fa-building" style="color: #ffc107;"></i>
+        </div>
+        <div class="tarjeta-info">
+          <p class="tarjeta-label">Sucursales Activas</p>
+          <h2 class="tarjeta-valor">{{ estadisticas.sucursalesActivas }}</h2>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tabs de Contenido -->
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'resumen'"
+          (click)="cambiarTab('resumen')">
+          Resumen
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'sucursales'"
+          (click)="cambiarTab('sucursales')">
+          Sucursales
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'personal'"
+          (click)="cambiarTab('personal')">
+          Personal
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'menu'"
+          (click)="cambiarTab('menu')">
+          Menú
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'categorias'"
+          (click)="cambiarTab('categorias')">
+          Categorías
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="tabActiva === 'turnos'"
+          (click)="cambiarTab('turnos')">
+          Turnos
+        </button>
+      </div>
+
+      <!-- Tab Resumen -->
+      <div class="tab-content" *ngIf="tabActiva === 'resumen'">
+        <div class="contenido-grid">
+          
+          <!-- Ventas por Sucursal -->
+          <div class="card card-full">
+            <h3 class="card-titulo">Ventas por Sucursal</h3>
+            <div class="chart-barras">
+              <div class="eje-y">
+                <span>2600</span>
+                <span>1950</span>
+                <span>1300</span>
+                <span>650</span>
+                <span>0</span>
+              </div>
+              <div class="barras-container">
+                <div class="barra-wrapper" *ngFor="let dato of ventasPorSucursalData">
+                  <div class="barra" 
+                       [style.height.%]="(dato.ventas / maxVentas) * 100"
+                       style="background-color: #20c997;">
+                  </div>
+                  <span class="barra-label">{{ dato.sucursal.replace('Garage Sushis ', '') }}</span>
+                </div>
+              </div>
+              <div class="leyenda-chart">
+                <div class="leyenda-item">
+                  <span class="leyenda-cuadro" style="background-color: #20c997;"></span>
+                  <span>Ventas ($)</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-cuadro" style="background-color: #4285f4;"></span>
+                  <span>Órdenes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal por Rol -->
+          <div class="card">
+            <h3 class="card-titulo">Personal por Rol</h3>
+            <div class="chart-container">
+              <div class="pie-chart">
+                <svg viewBox="0 0 200 200" width="250" height="250">
+                  <circle cx="100" cy="100" r="80" fill="transparent"/>
+                  
+                  <!-- Meseros (Azul) - 28.6% -->
+                  <path d="M 100 100 L 100 20 A 80 80 0 0 1 177.13 64.27 Z" fill="#4285f4"/>
+                  
+                  <!-- Gerentes (Morado) - 14.3% -->
+                  <path d="M 100 100 L 177.13 64.27 A 80 80 0 0 1 177.13 135.73 Z" fill="#8e44ad"/>
+                  
+                  <!-- Baristas (Rosa) - 14.3% -->
+                  <path d="M 100 100 L 177.13 135.73 A 80 80 0 0 1 100 180 Z" fill="#ea4c89"/>
+                  
+                  <!-- Cajeros (Verde agua) - 14.3% -->
+                  <path d="M 100 100 L 100 180 A 80 80 0 0 1 22.87 135.73 Z" fill="#20c997"/>
+                  
+                  <!-- Cocineros (Naranja) - 28.6% -->
+                  <path d="M 100 100 L 22.87 135.73 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
+                </svg>
+              </div>
+              
+              <div class="chart-leyenda">
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #4285f4;"></span>
+                  <span class="leyenda-texto">Meseros: {{ personalPorRol.meseros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #fbbc04;"></span>
+                  <span class="leyenda-texto">Cocineros: {{ personalPorRol.cocineros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #20c997;"></span>
+                  <span class="leyenda-texto">Cajeros: {{ personalPorRol.cajeros }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #ea4c89;"></span>
+                  <span class="leyenda-texto">Baristas: {{ personalPorRol.baristas }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #8e44ad;"></span>
+                  <span class="leyenda-texto">Gerentes: {{ personalPorRol.gerentes }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Tab Sucursales -->
+      <div class="tab-content" *ngIf="tabActiva === 'sucursales'">
+        <div class="seccion-rendimiento">
+          <h3 class="seccion-titulo">Rendimiento de Sucursales</h3>
+          
+          <div class="lista-sucursales">
+            <div class="sucursal-card" *ngFor="let sucursal of sucursales.slice(0, 2)">
+              <div class="sucursal-icono">
+                <i class="fas fa-building"></i>
+              </div>
+              <div class="sucursal-info">
+                <div class="sucursal-header">
+                  <h4>{{ sucursal.nombre }}</h4>
+                  <span class="badge-activa">Activa</span>
+                </div>
+                <p class="sucursal-detalles">
+                  {{ sucursal.empleadosActivos }} empleados activos • Hora pico: {{ sucursal.horaPico }}
+                </p>
+              </div>
+              <div class="sucursal-stats">
+                <h3 class="sucursal-ventas">${{ sucursal.ventas | number:'1.2-2' }}</h3>
+                <p class="sucursal-extras">
+                  {{ sucursal.ordenes }} órdenes • ${{ sucursal.ticketPromedio | number:'1.2-2' }} promedio
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Personal -->
+      <div class="tab-content" *ngIf="tabActiva === 'personal'">
+        <div class="contenido-grid">
+          
+          <!-- Estado del Personal -->
+          <div class="card">
+            <h3 class="card-titulo">Estado del Personal</h3>
+            <div class="chart-container">
+              <div class="pie-chart">
+                <svg viewBox="0 0 200 200" width="250" height="250">
+                  <circle cx="100" cy="100" r="80" fill="transparent"/>
+                  
+                  <!-- Activo (Verde) - 85.7% -->
+                  <path d="M 100 100 L 100 20 A 80 80 0 1 1 151.42 38.58 Z" fill="#20c997"/>
+                  
+                  <!-- Vacaciones (Naranja) - 14.3% -->
+                  <path d="M 100 100 L 151.42 38.58 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
+                  
+                  <!-- Inactivo (Rojo) - 0% -->
+                  <!-- No se muestra porque es 0 -->
+                </svg>
+              </div>
+              
+              <div class="chart-leyenda">
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #20c997;"></span>
+                  <span class="leyenda-texto">Activo: {{ estadoPersonal.activo }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #fbbc04;"></span>
+                  <span class="leyenda-texto">Vacaciones: {{ estadoPersonal.vacaciones }}</span>
+                </div>
+                <div class="leyenda-item">
+                  <span class="leyenda-color" style="background-color: #e74c3c;"></span>
+                  <span class="leyenda-texto">Despedido: {{ estadoPersonal.inactivo }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Métodos de Pago -->
+          <div class="card">
+            <h3 class="card-titulo">Métodos de Pago</h3>
+            <div class="metodos-pago-lista">
+              
+              <div class="metodo-card" style="background-color: #d4edda;">
+                <div class="metodo-icono">
+                  <i class="fas fa-dollar-sign" style="color: #28a745;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Efectivo</p>
+                  <p class="metodo-porcentaje">
+                    {{ calcularPorcentaje(resumenGeneral.efectivo, resumenGeneral.total) | number:'1.1-1' }}% del total
+                  </p>
+                  <h3 class="metodo-monto">${{ resumenGeneral.efectivo | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+              <div class="metodo-card" style="background-color: #d1ecf1;">
+                <div class="metodo-icono">
+                  <i class="fas fa-credit-card" style="color: #17a2b8;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Tarjeta</p>
+                  <p class="metodo-porcentaje">
+                    {{ calcularPorcentaje(resumenGeneral.tarjeta, resumenGeneral.total) | number:'1.1-1' }}% del total
+                  </p>
+                  <h3 class="metodo-monto">${{ resumenGeneral.tarjeta | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+              <div class="metodo-card" style="background-color: #e8daef;">
+                <div class="metodo-icono">
+                  <i class="fas fa-exchange-alt" style="color: #8e44ad;"></i>
+                </div>
+                <div class="metodo-detalle">
+                  <p class="metodo-nombre">Transferencia</p>
+                  <p class="metodo-porcentaje">
+                    {{ calcularPorcentaje(resumenGeneral.transferencia, resumenGeneral.total) | number:'1.1-1' }}% del total
+                  </p>
+                  <h3 class="metodo-monto">${{ resumenGeneral.transferencia | number:'1.2-2' }}</h3>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Tabs vacíos -->
+      <div class="tab-content" *ngIf="tabActiva === 'menu' || tabActiva === 'categorias' || tabActiva === 'turnos'">
+        <div class="contenido-vacio">
+          <i class="fas" 
+             [class.fa-utensils]="tabActiva === 'menu'"
+             [class.fa-th-large]="tabActiva === 'categorias'"
+             [class.fa-calendar-alt]="tabActiva === 'turnos'"></i>
+          <h3>
+            <span *ngIf="tabActiva === 'menu'">Gestión de Menú</span>
+            <span *ngIf="tabActiva === 'categorias'">Gestión de Categorías</span>
+            <span *ngIf="tabActiva === 'turnos'">Gestión de Turnos</span>
+          </h3>
+          <p>Próximamente: Gestión completa de 
+            <span *ngIf="tabActiva === 'menu'">productos y precios</span>
+            <span *ngIf="tabActiva === 'categorias'">categorías del menú</span>
+            <span *ngIf="tabActiva === 'turnos'">horarios y turnos</span>
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+</div>

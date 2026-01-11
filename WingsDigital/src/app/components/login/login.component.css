@@ -8,7 +8,6 @@
     padding: 40px;
 }
 
-
 .login-illustration {
     flex: 1;
     display: flex;
@@ -43,6 +42,7 @@
     max-width: 400px;
     text-align: center;
 }
+
 .form-logo {
     display: none;
 }
@@ -99,6 +99,11 @@ input {
     font-weight: bold;
     cursor: pointer;
     margin-bottom: 1.5rem;
+    transition: background 0.3s;
+}
+
+.login-button:hover {
+    background-color: #d65a5e;
 }
 
 .social-login {
@@ -145,24 +150,123 @@ input {
     font-weight: bold;
 }
 
+/* ========================================= */
+/* 👇 ESTILOS PARA EL MODAL DE ALERTA 👇 */
+/* ========================================= */
+
+.modal-backdrop {
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Fondo oscuro */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000; /* Por encima de todo */
+    backdrop-filter: blur(4px); /* Efecto borroso elegante */
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease-out;
+    border-top: 5px solid #ef4444; /* Línea roja superior */
+}
+
+/* Icono de Alerta */
+.icon-container {
+    background: #fee2e2; /* Rojo muy suave */
+    width: 70px; 
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 15px auto;
+}
+
+.icon-error {
+    width: 35px;
+    height: 35px;
+    color: #ef4444; /* Rojo alerta */
+}
+
+/* Texto del Modal */
+.modal-body h3 {
+    margin: 0 0 10px 0;
+    color: #1f2937;
+    font-size: 1.4rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+}
+
+.modal-body p {
+    margin: 0 0 25px 0;
+    color: #6b7280;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* Botón del Modal */
+.modal-footer button {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.modal-footer button:hover {
+    background: #dc2626;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* ========================================= */
+/* RESPONSIVE */
+/* ========================================= */
+
 @media (max-width: 768px) {
   .login-container {
     flex-direction: column; 
     justify-content: center;
     align-items: center;
-    padding: 100px; 
-    height: auto;
+    padding: 20px; 
+    height: 100vh;
   }
   .login-illustration {
     display: none; 
   }
+  .login-form {
+    border-radius: 10px; /* Bordes completos en móvil */
+    width: 100%;
+    box-shadow: none; /* Opcional: quitar sombra en móvil si prefieres flat */
+  }
   .form-logo{
     display: block;
+    width: 150px;
+    margin: 0 auto 20px auto;
   }
-
-  .h2{
-    
-  }
-
-
 }

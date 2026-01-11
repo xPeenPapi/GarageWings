@@ -5,9 +5,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { MesasModule } from './mesas/mesas.module';
 import { ProductosModule } from './productos/productos.module';
 import { PedidosModule } from './pedidos/pedidos.module';
-// 👇 1. IMPORTAR EL MÓDULO DE REPORTES
 import { ReportesModule } from './reportes/reportes.module';
-import { PersonalModule } from './personal/personal.module'; // 👈 Importar
+import { PersonalModule } from './personal/personal.module';
+// 👇 1. IMPORTAR LOS MÓDULOS NUEVOS
+import { TurnosModule } from './turnos/turnos.module';
+import { SucursalesModule } from './sucursales/sucursales.module';
 
 @Module({
   imports: [
@@ -17,9 +19,11 @@ import { PersonalModule } from './personal/personal.module'; // 👈 Importar
     MesasModule,
     ProductosModule,
     PedidosModule,
-    // 👇 2. AGREGARLO A LOS IMPORTS
     ReportesModule,
-    PersonalModule
+    PersonalModule,
+    // 👇 2. AGREGARLOS A LA LISTA DE IMPORTS
+    TurnosModule,     // Para gestionar horarios
+    SucursalesModule, // Para abrir nuevas ubicaciones
   ],
 })
 export class AppModule {}

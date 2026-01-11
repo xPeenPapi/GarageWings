@@ -3,11 +3,12 @@ import { AggpedidoComponent } from './components/aggpedido/aggpedido.component';
 import { MesasComponent } from './components/mesas/mesas.component';
 import { LoginComponent } from './components/login/login.component';
 import { PantallaCocinaComponent } from './cocina/pantalla-cocina/pantalla-cocina.component';
-import { PantallaBarraComponent } from './services/barra/pantalla-barra/pantalla-barra.component'; // Verifica esta ruta
+import { PantallaBarraComponent } from './services/barra/pantalla-barra/pantalla-barra.component';
 import { PagarComponent } from './caja/pagar/pagar.component';
 import { authGuard } from './auth.guard';
 import { Role } from './services/auth.service';
 import { GerenteDashboardComponent } from './components/gerente-dashboard/gerente-dashboard.component';
+import { AdminDashboardComponent } from './components/admin-dashboard/admin-dashboard.component';
 
 export const routes: Routes = [
     { path: 'login', component: LoginComponent },
@@ -20,7 +21,7 @@ export const routes: Routes = [
       data: { roles: [Role.Mesero, Role.Gerente, Role.AdminEmpresa] } 
     },
     
-    // ✅ RUTA 1: Para Llevar (Orden Directa) - IMPORTANTE: Antes de :id (mesa)
+    // ✅ RUTA 1: Para Llevar (Orden Directa)
     { 
       path: 'pedido/orden/:idOrden', 
       component: AggpedidoComponent,
@@ -59,11 +60,23 @@ export const routes: Routes = [
       canActivate: [authGuard],
       data: { roles: [Role.Cajero, Role.Gerente, Role.AdminEmpresa] }
     },
-    //Gerente
+
+    // ✅ GERENTE (Protegida y Simplificada)
     {
-    path: 'gerente/dashboard',
-    component: GerenteDashboardComponent
-  },
+      path: 'gerente', // Antes era 'gerente/dashboard'
+      component: GerenteDashboardComponent,
+      canActivate: [authGuard],
+      // El Admin también puede entrar por si acaso
+      data: { roles: [Role.Gerente, Role.AdminEmpresa] } 
+    },
+
+    // ✅ ADMIN (Protegida y Simplificada)
+    {
+      path: 'admin', // Antes era 'admin/dashboard'
+      component: AdminDashboardComponent,
+      canActivate: [authGuard],
+      data: { roles: [Role.AdminEmpresa] }
+    },
     
     { path: '', redirectTo: '/login', pathMatch: 'full' },
     { path: '**', redirectTo: '/login' }

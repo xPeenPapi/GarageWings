@@ -36,9 +36,9 @@ export class MesasComponent implements OnInit, OnDestroy {
   public mesas: MesaVisual[] = [];
   public nombreMesero = ''; 
   public usuarioActualId: number = 0; 
+  public rolUsuario: string = ''; // Para validar permisos especiales (Gerente)
 
   public ordenesParaLlevarActivas: any[] = [];
-  // ✅ MODIFICADO: Agregué 'SUCIAS' al filtro
   public filtroActual: 'TODAS' | 'DISPONIBLES' | 'OCUPADAS' | 'SUCIAS' = 'TODAS';
   public textoBusqueda: string = ''; 
 
@@ -47,7 +47,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   public totalOcupadas = 0;
   public totalReservadas = 0;
   public totalMisMesas = 0;
-  public totalSucias = 0; // ✅ NUEVO CONTADOR
+  public totalSucias = 0; 
 
   public pedidosListos: ComandaCompleta[] = [];
   public contadorNotificaciones = 0;
@@ -63,7 +63,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   public modoUnion = false;
   public mesaPrincipalUnion: MesaVisual | null = null;
 
-  // ✅ MODO TRANSFERENCIA (NUEVO)
+  // --- MODO TRANSFERENCIA ---
   public modoTransferencia = false;
   public mesaOrigenTransferencia: MesaVisual | null = null;
 
@@ -84,6 +84,8 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.audio = new Audio('assets/sounds/notification.mp3');
     const user = this.authService.currentUser; 
     this.usuarioActualId = user ? user.id : 0;
+    // Asumimos que el objeto user tiene una propiedad 'rol'
+    this.rolUsuario = user ? (user.rol || '') : ''; 
   }
 
   ngOnInit(): void {
@@ -167,7 +169,6 @@ export class MesasComponent implements OnInit, OnDestroy {
         this.mesas = listaMesas.map(m => {
             // 2. Recuperar unión local
             let padreId = m.mesaPadreId || this.obtenerUnionLocal(m.id);
-            // ✅ Normalizamos estado a minúsculas para evitar problemas (SUCIA vs sucia)
             let estadoVisual = m.estado ? m.estado.toLowerCase() : 'disponible';
 
             // 3. Verificación de seguridad visual
@@ -275,7 +276,6 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.mesaSeleccionadaTemp = null;
     
     if (this.modoUnion) {
-        // Si activamos unión, desactivamos transferencia
         this.modoTransferencia = false;
         this.mesaOrigenTransferencia = null;
     }
@@ -287,22 +287,20 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.mesaSeleccionadaTemp = null;
 
     if (this.modoTransferencia) {
-        // Si activamos transferencia, desactivamos unión
         this.modoUnion = false;
         this.mesaPrincipalUnion = null;
     }
   }
 
   // ==========================================
-  // ✅ LÓGICA DE SELECCIÓN MAESTRA
+  // ✅ LÓGICA DE SELECCIÓN MAESTRA (ACTUALIZADA: MESA HUÉRFANA)
   // ==========================================
   
   seleccionarMesa(mesa: MesaVisual): void {
     
-    // --- 0. SI LA MESA ESTÁ SUCIA (NUEVO) ---
+    // --- 0. SI LA MESA ESTÁ SUCIA ---
     if (mesa.estado === 'sucia') {
         this.mostrarConfirmacion(`La Mesa ${mesa.numero} está sucia. ¿Ya se limpió y está lista?`, () => {
-            // Llamamos al backend para pasarla a DISPONIBLE
             this.mesaService.actualizarEstadoMesa(mesa.id, 'disponible', '').subscribe({
                 next: () => {
                     this.cargarMesas();
@@ -311,13 +309,12 @@ export class MesasComponent implements OnInit, OnDestroy {
                 error: (err) => this.mostrarAlerta("Error al actualizar estado.", 'error')
             });
         });
-        return; // Detenemos aquí
+        return; 
     }
 
-    // --- 1. MODO TRANSFERENCIA (CAMBIO DE MESA) ---
+    // --- 1. MODO TRANSFERENCIA ---
     if (this.modoTransferencia) {
         if (!this.mesaOrigenTransferencia) {
-            // PASO A: Seleccionar Origen
             if (mesa.estado !== 'ocupada') {
                 this.mostrarAlerta("Selecciona la mesa que quieres MOVER (debe estar ocupada).", 'error');
                 return;
@@ -326,11 +323,20 @@ export class MesasComponent implements OnInit, OnDestroy {
                 this.mostrarAlerta("Esta mesa es secundaria. Selecciona la mesa principal.", 'error');
                 return;
             }
+            
+            // ✅ CORREGIDO: Si la mesa no tiene dueño (huérfana), permitimos moverla
+            const esMia = mesa.meseroId === this.usuarioActualId;
+            const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
+            const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
+
+            if (!esMia && !soyGerente && !esHuerfana) {
+               this.mostrarAlerta(`⛔ No puedes mover esta mesa. Pertenece a ${mesa.mesero}.`, 'error');
+               return;
+            }
             this.mesaOrigenTransferencia = mesa;
         } else {
-            // PASO B: Seleccionar Destino
             if (mesa.id === this.mesaOrigenTransferencia.id) {
-                this.mesaOrigenTransferencia = null; // Deseleccionar
+                this.mesaOrigenTransferencia = null; 
                 return;
             }
             this.procesarTransferencia(mesa);
@@ -341,16 +347,24 @@ export class MesasComponent implements OnInit, OnDestroy {
     // --- 2. MODO UNIÓN ---
     if (this.modoUnion) {
       if (!this.mesaPrincipalUnion) {
-        // PASO A: Seleccionar Principal (Padre)
         if (mesa.mesaPadreId) {
             this.mostrarAlerta("Esta mesa ya está unida a otra. Selecciona la mesa principal.", 'error');
             return;
         }
+        
+        // ✅ CORREGIDO: Permitir si es huérfana
+        const esMia = mesa.meseroId === this.usuarioActualId;
+        const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
+        const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
+
+        if (mesa.estado === 'ocupada' && !esMia && !soyGerente && !esHuerfana) {
+            this.mostrarAlerta(`⛔ No puedes usar esta mesa como principal. Pertenece a ${mesa.mesero}.`, 'error');
+            return;
+        }
         this.mesaPrincipalUnion = mesa;
       } else {
-        // PASO B: Seleccionar Secundaria (Hija)
         if (mesa.id === this.mesaPrincipalUnion.id) {
-            this.mesaPrincipalUnion = null; // Deseleccionar
+            this.mesaPrincipalUnion = null; 
             return;
         }
         this.procesarUnion(mesa);
@@ -358,10 +372,24 @@ export class MesasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // --- 3. MODO NORMAL ---
+    // --- 3. MODO NORMAL (ENTRAR A LA MESA) ---
     if (mesa.estado === 'ocupada') {
+      
+      // ✅ LÓGICA DE PROPIEDAD CORREGIDA PARA MESAS "ZOMBIE"
+      const esMia = mesa.meseroId === this.usuarioActualId;
+      const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
+      const esHuerfana = !mesa.meseroId || mesa.meseroId === 0; // Si es null o 0, no tiene dueño
+
+      // Si NO es mía, NO soy gerente, y la mesa SÍ tiene un dueño válido -> BLOQUEAR
+      // (Si es huérfana, esta condición es falsa y te deja pasar)
+      if (!esMia && !soyGerente && !esHuerfana) {
+          const nombreOwner = mesa.mesero ? mesa.mesero : 'otro mesero';
+          this.mostrarAlerta(`⛔ ACCESO DENEGADO. Esta mesa está siendo atendida por ${nombreOwner}.`, 'error');
+          return;
+      }
+
       if (mesa.mesaPadreId) {
-          this.router.navigate(['/pedido', mesa.mesaPadreId]); // Ir al padre
+          this.router.navigate(['/pedido', mesa.mesaPadreId]); 
           return;
       }
       this.router.navigate(['/pedido', mesa.id]);
@@ -388,7 +416,6 @@ export class MesasComponent implements OnInit, OnDestroy {
         return; 
     }
 
-    // ✅ VALIDACIÓN DE CAPACIDAD MEJORADA
     const capacidadTotal = this.obtenerCapacidadTotal(this.mesaSeleccionadaTemp);
 
     if (this.comensalesTemp > capacidadTotal) {
@@ -408,21 +435,13 @@ export class MesasComponent implements OnInit, OnDestroy {
     }
 
     this.mostrarConfirmacion(`¿Unir la Mesa ${segundaMesa.numero} a la Mesa ${this.mesaPrincipalUnion.numero}?`, () => {
-        
-        // 1. Guardar Unión
         this.guardarUnionLocal(segundaMesa.id, this.mesaPrincipalUnion!.id);
-        
-        // 2. Visual inmediato
         segundaMesa.mesaPadreId = this.mesaPrincipalUnion!.id;
         segundaMesa.estado = 'ocupada';
 
-        // 3. Backend
         this.mesaService.actualizarEstadoMesa(segundaMesa.id, 'ocupada', this.nombreMesero).subscribe({
             next: () => {
-                
-                // 🔥 AUTO-APERTURA: Si el padre estaba vacío, abrimos orden automáticamente
                 const padreEstabaDisponible = this.mesaPrincipalUnion?.estado === 'disponible';
-                
                 this.toggleModoUnion();
 
                 if (padreEstabaDisponible) {
@@ -444,19 +463,14 @@ export class MesasComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ FUNCIÓN DE TRANSFERENCIA CON VALIDACIÓN DE CAPACIDAD
   procesarTransferencia(mesaDestino: MesaVisual) {
       if (!this.mesaOrigenTransferencia) return;
 
-      // 1. Validar Disponibilidad
       if (mesaDestino.estado !== 'disponible') {
           this.mostrarAlerta("La mesa de destino debe estar LIBRE.", 'error');
           return;
       }
 
-      // 2. 🔥 VALIDACIÓN DE CAPACIDAD (CORREGIDA)
-      // Usamos el número de comensales actual de la orden.
-      // Si comensales es 0, null o undefined, asumimos al menos 1 para que la validación sea segura.
       const comensalesActuales = (this.mesaOrigenTransferencia.comensales && this.mesaOrigenTransferencia.comensales > 0) 
                                 ? this.mesaOrigenTransferencia.comensales 
                                 : 1; 
@@ -468,7 +482,7 @@ export class MesasComponent implements OnInit, OnDestroy {
               `Capacidad insuficiente. Hay ${comensalesActuales} comensales y la Mesa ${mesaDestino.numero} solo soporta ${capacidadDestino}.`, 
               'error'
           );
-          return; // ⛔ DETENEMOS LA EJECUCIÓN AQUÍ
+          return; 
       }
 
       this.mostrarConfirmacion(`¿Mover cuenta de Mesa ${this.mesaOrigenTransferencia.numero} a Mesa ${mesaDestino.numero}?`, () => {
@@ -478,10 +492,8 @@ export class MesasComponent implements OnInit, OnDestroy {
                   this.mostrarAlerta("Mesa cambiada correctamente.");
                   this.cargarMesas();
               },
-              // 🔥 MEJORA DE ERROR: Captura el mensaje real del backend
               error: (err: any) => {
                   console.error('Error en transferencia:', err);
-                  // Intentamos leer el mensaje que envía el servidor
                   const msg = err.error?.message || err.message || "Error al cambiar de mesa. Verifica el servidor.";
                   this.mostrarAlerta(msg, 'error');
               }
@@ -489,7 +501,6 @@ export class MesasComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ... (Resto de funciones)
   crearOrdenParaLlevar() { 
     this.nombreClienteTemp = '';
     this.mostrarModalCliente = true;

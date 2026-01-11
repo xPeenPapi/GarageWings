@@ -3,23 +3,30 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Router } from '@angular/router';
 
+// ==========================================
+// 1. ENUM DE ROLES (Debe coincidir con la BD)
+// ==========================================
 export enum Role {
   SuperAdmin = 'SUPER_ADMIN',
-  AdminEmpresa = 'ADMIN_EMPRESA',
+  AdminEmpresa = 'ADMIN_EMPRESA', // O 'ADMIN' si así está en tu BD
   Gerente = 'GERENTE',
-  Cajero = 'CAJA',
+  Cajero = 'CAJA',      // En BD suele guardarse como 'CAJA'
   Mesero = 'MESERO',
-  Cocinero = 'COCINA',
+  Cocinero = 'COCINA',  // En BD suele guardarse como 'COCINA'
   Barra = 'BARRA'
 }
 
+// ==========================================
+// 2. INTERFACES
+// ==========================================
 export interface UserData {
   id: number;
   nombre: string;
   email: string;
-  rol: Role;
+  rol: Role; // Usamos el Enum aquí para tipado estricto
   empresaId: number;
   sucursalId: number;
+  sucursalNombre?: string; // Opcional, útil para el dashboard
 }
 
 interface LoginResponse {
@@ -28,6 +35,9 @@ interface LoginResponse {
   user: UserData;
 }
 
+// ==========================================
+// 3. SERVICIO
+// ==========================================
 @Injectable({
   providedIn: 'root'
 })
@@ -35,21 +45,20 @@ export class AuthService {
   
   private apiUrl = 'http://localhost:3000/api'; 
   
-  // BehaviorSubject inicia con el valor recuperado INMEDIATAMENTE
+  // BehaviorSubject para mantener el estado del usuario en toda la app
   private currentUserSubject: BehaviorSubject<UserData | null>;
   public currentUser$: Observable<UserData | null>;
 
   constructor(private http: HttpClient, private router: Router) {
-    // ✅ CLAVE: Cargar usuario síncronamente ANTES de que nada más arranque
+    // ✅ RECUPERACIÓN SÍNCRONA AL INICIAR LA APP
     const storedUser = this.getUserFromStorage();
     
     if (storedUser) {
-      console.log('✅ Sesión recuperada correctamente:', storedUser.nombre);
+      console.log('✅ Sesión recuperada:', storedUser.nombre, '| Rol:', storedUser.rol);
     } else {
-      console.warn('⚠️ No se encontró sesión guardada o estaba corrupta.');
+      console.warn('⚠️ No hay sesión activa.');
     }
 
-    // Inicializamos el Subject con el usuario (o null si no había)
     this.currentUserSubject = new BehaviorSubject<UserData | null>(storedUser);
     this.currentUser$ = this.currentUserSubject.asObservable();
   }
@@ -70,12 +79,17 @@ export class AuthService {
     console.log('👋 Cerrando sesión...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('inicioTurno'); // Limpiamos turno de caja también
+    
+    // Limpiezas opcionales de otros módulos
+    localStorage.removeItem('inicioTurno'); 
+    localStorage.removeItem('montoInicial');
+    localStorage.removeItem('uniones_mesas'); 
+
     this.currentUserSubject.next(null);
     this.router.navigate(['/login']);
   }
 
-  // --- GETTERS (Síncronos para los Guards) ---
+  // --- GETTERS (Síncronos para Guards y Componentes) ---
   
   get currentUser(): UserData | null {
     return this.currentUserSubject.value;
@@ -97,14 +111,14 @@ export class AuthService {
     return this.currentUser ? this.currentUser.nombre : '';
   }
 
-  // ✅ Verificación robusta: Solo es true si hay token Y usuario en memoria
+  // Verifica si está logueado (Token + Usuario en memoria)
   isAuthenticated(): boolean {
     const token = this.token;
     const user = this.currentUser;
     return !!token && !!user;
   }
 
-  // --- STORAGE MANAGEMENT ---
+  // --- STORAGE MANAGEMENT (Privados) ---
 
   private saveToken(token: string) {
     localStorage.setItem('token', token);
@@ -115,7 +129,7 @@ export class AuthService {
     this.currentUserSubject.next(user);
   }
 
-  // ✅ Recuperación segura: Si el JSON está roto, limpia y retorna null
+  // Recuperación segura con Try-Catch por si el JSON se rompe
   private getUserFromStorage(): UserData | null {
     const userStr = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -124,9 +138,8 @@ export class AuthService {
       try {
         return JSON.parse(userStr);
       } catch (error) {
-        console.error('❌ Datos de sesión corruptos en LocalStorage. Limpiando...');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        console.error('❌ Datos de sesión corruptos. Limpiando storage...');
+        this.logout(); // Limpia todo si está corrupto
         return null;
       }
     }
