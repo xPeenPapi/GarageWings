@@ -8,8 +8,7 @@
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:WingsDigital": "node dist/wings-digital/server/server.mjs",
-    "postinstall": "npm run build:prod"
+    "serve:ssr:WingsDigital": "node dist/wings-digital/server/server.mjs"
   },
   "private": true,
   "engines": {
