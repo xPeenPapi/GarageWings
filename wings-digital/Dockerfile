@@ -1,31 +1,31 @@
-# 1. Usamos Node 20 (versión estable y compatible)
+# 1. Usar imagen base de Node
 FROM node:20-alpine
 
-# 2. Creamos la carpeta de la app dentro del contenedor
+# 2. Establecer directorio de trabajo
 WORKDIR /app
 
-# 3. Copiamos los archivos de configuración primero (para aprovechar caché)
+# 3. Copiar archivos de dependencias
 COPY package*.json ./
-# ⚠️ IMPORTANTE: Copiamos la carpeta prisma explícitamente
+# Copiar carpeta prisma
 COPY prisma ./prisma/
 
-# 4. Instalamos dependencias
+# 4. Instalar dependencias
 RUN npm install
 
-# 5. Copiamos todo el código fuente del backend
+# 5. Copiar el resto del código
 COPY . .
 
-# 6. Generamos el cliente de Prisma
-# Al estar en /app y haber copiado ./prisma, el comando estándar funciona
-RUN npx prisma generate
+# 6. Generar cliente de Prisma
+# ⚠️ AQUÍ ESTÁ EL TRUCO: Le pasamos una URL falsa para que el comando pase la validación.
+# No te preocupes, no intenta conectarse, solo genera el código.
+RUN DATABASE_URL="mysql://usuario:password@localhost:3306/db" npx prisma generate
 
-# 7. Construimos la aplicación NestJS
+# 7. Construir la aplicación
 RUN npm run build
 
-# 8. Exponemos el puerto 3000
+# 8. Exponer el puerto
 EXPOSE 3000
 
-# 9. COMANDO DE ARRANQUE (Aquí ocurre la magia)
-# Usamos "sh -c" para ejecutar migraciones Y LUEGO arrancar el servidor
-# Esto asegura que la base de datos esté lista antes de iniciar
+# 9. Comando de inicio
+# Aquí SÍ usará la DATABASE_URL real de Railway
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start:prod"]
