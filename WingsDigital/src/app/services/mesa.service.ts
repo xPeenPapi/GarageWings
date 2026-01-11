@@ -25,7 +25,7 @@ export interface Mesa {
 })
 export class MesaService {
   // ⚠️ Asegúrate de que esta URL coincida con tu backend
-  private apiUrl = `${environment.apiUrl}/api/mesas`; // ✅ ACTUALIZADO
+  private apiUrl = `${environment.apiUrl}/mesas`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 

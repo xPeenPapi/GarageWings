@@ -64,7 +64,7 @@ export interface Turno {
 export class GerenteService {
   
   // Apuntamos a la raíz de la API
-  private baseUrl = `${environment.apiUrl}/api`; // ✅ ACTUALIZADO
+  private baseUrl = `${environment.apiUrl}`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 

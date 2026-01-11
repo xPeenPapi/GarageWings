@@ -42,7 +42,7 @@ export interface Producto {
 })
 export class ProductosService {
   
-  private apiUrl = `${environment.apiUrl}/api`; // ✅ ACTUALIZADO
+  private apiUrl = `${environment.apiUrl}`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 
