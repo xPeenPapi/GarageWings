@@ -1,29 +1,33 @@
-# 1. Imagen base
+# Imagen base
 FROM node:20-alpine
 
-# 2. Directorio de trabajo
+# Directorio de trabajo
 WORKDIR /app
 
-# 3. Copiar archivos de dependencias
+# Copiar package files
 COPY package*.json ./
 
-# 4. Copiar Prisma
-COPY prisma ./prisma/
+# Copiar solo el schema de Prisma (NO el config)
+COPY prisma/schema.prisma ./prisma/
+COPY prisma/migrations ./prisma/migrations
 
-# 5. Instalar dependencias
+# Instalar dependencias
 RUN npm ci
 
-# 6. Copiar TODO el código fuente (incluyendo src/)
+# Copiar el resto del código
 COPY . .
 
-# 7. IMPORTANTE: Compilar el proyecto NestJS
+# Generar Prisma Client (con DATABASE_URL dummy)
+RUN DATABASE_URL="mysql://dummy:dummy@localhost:3306/db" npx prisma generate
+
+# Build de NestJS
 RUN npm run build
 
-# 8. Verificar que se creó dist/main.js
-RUN ls -la dist/
+# Verificar que dist/main.js existe
+RUN ls -la dist/ && test -f dist/main.js
 
-# 9. Exponer puerto
+# Exponer puerto
 EXPOSE 3000
 
-# 10. Comando de inicio
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main.js"]
+# Comando de inicio
+CMD npx prisma db push --accept-data-loss && node dist/main.js
