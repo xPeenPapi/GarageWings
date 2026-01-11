@@ -16,21 +16,18 @@ RUN npm install
 COPY . .
 
 # 6. Generar cliente de Prisma (CON EL TRUCO DE LA URL FALSA)
-# Esto permite que genere el cliente sin tener la variable real todavía
 RUN DATABASE_URL="mysql://dummy:dummy@localhost:3306/db" npx prisma generate
 
 # 7. Construir la aplicación
 RUN npm run build
 
-# 8. PASO DE DEPURACIÓN (Importante para tu error)
-# Esto imprimirá en los logs de Railway la estructura de carpetas.
-# Si falla, podrás ver en los logs dónde quedó el archivo main.js
-RUN echo "--- VERIFICANDO CARPETA DIST ---" && ls -R dist
+# 8. 🔍 PASO DE DIAGNÓSTICO (Esto imprimirá la estructura de carpetas en los logs)
+# Si vuelve a fallar, ve a los logs de Railway y busca "--- CONTENIDO DE DIST ---"
+RUN echo "--- CONTENIDO DE DIST ---" && ls -R dist
 
 # 9. Exponer el puerto
 EXPOSE 3000
 
-# 10. COMANDO DE INICIO BLINDADO
-# Ejecuta migraciones Y LUEGO intenta arrancar.
-# Usa "||" para probar la segunda ruta si la primera falla.
+# 10. COMANDO DE INICIO INTELIGENTE
+# Intenta arrancar 'dist/main.js'. Si falla, intenta 'dist/src/main.js'.
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss && (node dist/main.js || node dist/src/main.js)"]
