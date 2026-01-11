@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common'; 
+import { ValidationPipe } from '@nestjs/common';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -10,6 +11,10 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  await app.listen(3000);
+  // IMPORTANTE: Usar el puerto de Railway y escuchar en 0.0.0.0
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
+
+  console.log(`🚀 Backend running on port ${port}`);
 }
 bootstrap();
