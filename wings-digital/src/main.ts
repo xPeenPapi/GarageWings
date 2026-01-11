@@ -5,13 +5,19 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  // CORS - PERMITIR PETICIONES DESDE TU FRONTEND
+  app.enableCors({
+    origin: [
+      'https://garagewings-production.up.railway.app', // ← Tu frontend en Railway
+      'http://localhost:4200' // ← Para desarrollo local
+    ],
+    credentials: true
+  });
 
   app.useGlobalPipes(new ValidationPipe());
 
   app.setGlobalPrefix('api');
 
-  // IMPORTANTE: Usar el puerto de Railway y escuchar en 0.0.0.0
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 

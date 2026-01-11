@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { environment } from '../../environments/environments';
+
 
 export interface OpcionPersonalizacion {
   titulo: string;
@@ -40,7 +42,7 @@ export interface Producto {
 })
 export class ProductosService {
   
-  private apiUrl = 'http://localhost:3000/api'; 
+  private apiUrl = `${environment.apiUrl}/api`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 

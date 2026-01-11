@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Router } from '@angular/router';
-
+import { environment } from '../../environments/environments';
 // ==========================================
 // 1. ENUM DE ROLES (Debe coincidir con la BD)
 // ==========================================
@@ -42,9 +42,8 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  
-  private apiUrl = 'http://localhost:3000/api'; 
-  
+  private apiUrl = environment.apiUrl; // ← Usar aquí
+    
   // BehaviorSubject para mantener el estado del usuario en toda la app
   private currentUserSubject: BehaviorSubject<UserData | null>;
   public currentUser$: Observable<UserData | null>;

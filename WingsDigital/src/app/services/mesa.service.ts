@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environments';
+
 
 export interface Mesa {
   id: number;
@@ -23,7 +25,7 @@ export interface Mesa {
 })
 export class MesaService {
   // ⚠️ Asegúrate de que esta URL coincida con tu backend
-  private apiUrl = 'http://localhost:3000/api/mesas'; 
+  private apiUrl = `${environment.apiUrl}/api/mesas`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 

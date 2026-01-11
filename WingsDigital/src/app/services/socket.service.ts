@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environments';
+
 
 // ✅ MANTENEMOS TU INTERFAZ FLEXIBLE (Para que no falle el HTML)
 export interface ComandaCompleta {
@@ -20,7 +22,7 @@ export interface ComandaCompleta {
 export class SocketService {
   private socket: Socket;
   // Ajusta puerto si es necesario
-  private url = 'http://localhost:3000/pedidos'; 
+  private url = `${environment.apiUrl}/pedidos`; // ✅ ACTUALIZADO
 
   constructor() {
     this.socket = io(this.url, {

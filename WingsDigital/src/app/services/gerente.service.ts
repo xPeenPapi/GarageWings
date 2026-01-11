@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environments';
+
 
 // ==========================================
 // 1. INTERFACES
@@ -62,7 +64,7 @@ export interface Turno {
 export class GerenteService {
   
   // Apuntamos a la raíz de la API
-  private baseUrl = 'http://localhost:3000/api'; 
+  private baseUrl = `${environment.apiUrl}/api`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 
