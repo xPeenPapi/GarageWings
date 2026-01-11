@@ -12,7 +12,6 @@ async function bootstrap() {
       'http://localhost:4200' // ← Para desarrollo local
     ],
     credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   app.useGlobalPipes(new ValidationPipe());
