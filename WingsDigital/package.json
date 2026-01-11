@@ -3,12 +3,11 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "node dist/wings-digital/server/server.mjs",
+    "start": "node server.js",
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve:ssr:WingsDigital": "node dist/wings-digital/server/server.mjs"
+    "test": "ng test"
   },
   "private": true,
   "engines": {
