@@ -337,7 +337,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   // =========================================================
-  // ENVÍO A COCINA (MODIFICADO PARA BARRA)
+  // ENVÍO A COCINA
   // =========================================================
 
   abrirModalCocina(): void {
@@ -354,29 +354,22 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCocina = true;
   }
 
-// aggpedido.component.ts - VERSIÓN MEJORADA
-
 procesarConfirmacionCocina(): void {
   if (!this.empleadoId) return;
 
-  // ✅ LÓGICA MEJORADA: Obtiene destino del producto directamente
   const itemsDto = this.pedido.map(item => {
-    // 1. Buscar el producto completo (incluye destino y categoría)
     const productoCompleto = this.productos.find(p => p.id === item.id);
     
     let destinoFinal: string;
 
-    // 2. PRIORIDAD 1: Usar el destino del producto si existe
     if (productoCompleto?.destino) {
       destinoFinal = productoCompleto.destino;
       console.log(`✅ Destino desde producto: "${item.nombre}" → ${destinoFinal}`);
     } 
-    // 3. PRIORIDAD 2: Calcular por categoría (fallback)
     else {
       const categoria = this.categorias.find(c => c.id === item.categoriaId);
       const nombreCategoria = (categoria?.nombre || '').toLowerCase();
       
-      // Lista expandida de palabras clave para BARRA
       const esBebida = 
         nombreCategoria.includes('bebida') ||
         nombreCategoria.includes('bar') ||
@@ -399,7 +392,7 @@ procesarConfirmacionCocina(): void {
       precio_item: item.precio || item.precioBase,
       notas: item.notas || null,
       opcionesElegidas: item.opcionesElegidas || null,
-      destino: destinoFinal // ✅ Siempre tiene valor (BARRA o COCINA)
+      destino: destinoFinal 
     };
   });
 
@@ -420,7 +413,6 @@ procesarConfirmacionCocina(): void {
 
   this.pedidosService.crearPedido(pedidoDto).subscribe({
     next: (ordenCreada: any) => {
-      // ✅ Mostrar resumen de destinos
       const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
       const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
       
@@ -519,12 +511,10 @@ procesarConfirmacionCocina(): void {
   if (this.mesaId) {
     console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
     
-    // ✅ Pasar string vacío para limpiar el mesero
-    // El backend automáticamente limpiará mesero, meseroId y horaApertura
     this.mesaService.actualizarEstadoMesa(
       this.mesaId, 
       'disponible', 
-      '' // ← Mesero vacío = limpiar
+      '' 
     ).subscribe({
       next: () => {
         console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
@@ -532,7 +522,7 @@ procesarConfirmacionCocina(): void {
       },
       error: (err) => {
         console.error('❌ Error al liberar mesa:', err);
-        this.regresar(); // Regresar aunque falle
+        this.regresar(); 
       }
     });
   } else {
@@ -587,17 +577,16 @@ procesarConfirmacionCocina(): void {
     });
   }
 
-  // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
+  // ✅ FUNCIÓN CORREGIDA: Marca Orden y sus Items como ENTREGADA 
+  // Esto hará que desaparezcan automáticamente de la pantalla de Cocina
   confirmarEntrega(pedido: any) {
-    // 1. Actualizar estado general de la orden
     this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
         next: () => {
-            // 2. IMPORTANTE: Actualizar cada item que esté en 'LISTA' a 'ENTREGADA' 
-            // Esto hace que desaparezcan de la pantalla de cocina
+            // Actualizar el estado de cada ítem de la orden a ENTREGADA
             if (pedido.items && Array.isArray(pedido.items)) {
                 pedido.items.forEach((item: any) => {
+                    // Solo marcamos como entregados los que ya están en LISTA
                     if (item.estado === 'LISTA') {
-                        // Se asume que existe este método en el servicio o se usa patch general
                         this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
                     }
                 });
@@ -628,8 +617,7 @@ procesarConfirmacionCocina(): void {
   
   irAMesa(pedido: any) {
       this.mostrarListaNotificaciones = false;
-      
-      // ✅ Confirmamos entrega antes de navegar para que se limpie en cocina
+      // Confirmamos entrega antes de navegar para limpiar cocina
       this.confirmarEntrega(pedido); 
 
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
