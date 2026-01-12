@@ -13,16 +13,16 @@ export class PedidosController {
     return this.pedidosService.create(createPedidoDto);
   }
 
-  // ✅ 2. Obtener TODO lo del día (Caja / F5) - ¡ESTA FALTABA!
+  // ✅ 2. Obtener TODO lo del día
   @Get('dia')
   obtenerDelDia() {
     return this.pedidosService.obtenerOrdenesDelDia();
   }
 
-  // ✅ 3. Obtener pedidos pendientes (Cocina)
+  // ✅ 3. Obtener pedidos pendientes
   @Get('pendientes')
   findPendientes() {
-    console.log('🔍 Consultando pedidos pendientes...');
+    // console.log('🔍 Consultando pedidos pendientes...');
     return this.pedidosService.findPendientes();
   }
 
@@ -38,25 +38,25 @@ export class PedidosController {
     return this.pedidosService.obtenerOrdenCompleta(id);
   }
 
-  // ✅ 6. Actualizar estado (Cocina)
+  // ✅ 6. Actualizar estado (DE LA ORDEN COMPLETA)
   @Patch(':id/estado')
   actualizarEstado(
     @Param('id', ParseIntPipe) id: number, 
     @Body('estado') estado: EstadoOrden
   ) {
-    console.log(`🔄 Actualizando orden ${id} a estado: ${estado}`);
+    console.log(`🔄 Actualizando ORDEN ${id} a estado: ${estado}`);
     return this.pedidosService.actualizarEstado(id, estado);
   }
 
-  // ✅ 7. Solicitar cuenta (Mesero)
+  // ✅ 7. Solicitar cuenta
   @Patch(':id/solicitar-cuenta')
   solicitarCuenta(@Param('id', ParseIntPipe) id: number) {
     console.log(`💰 Solicitando cuenta para orden ${id}`);
     return this.pedidosService.solicitarCuenta(id);
   }
 
-  // ✅ 8. Finalizar orden (Cajero)
-  @Patch(':id/finalizar') // Cambié a @Patch para consistencia, pero @Post también sirve
+  // ✅ 8. Finalizar orden
+  @Patch(':id/finalizar')
   finalizarOrden(
     @Param('id', ParseIntPipe) id: number,
     @Body() datosPago: any
@@ -70,5 +70,17 @@ export class PedidosController {
   cancelarOrden(@Param('id', ParseIntPipe) id: number) {
     console.log(`❌ Cancelando orden ${id}`);
     return this.pedidosService.cancelarOrden(id);
+  }
+
+  // =======================================================
+  // 🔥 NUEVO: ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina)
+  // =======================================================
+  @Patch('items/:itemId')
+  actualizarItem(
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body('estado') estado: EstadoOrden 
+  ) {
+    console.log(`🧪 Actualizando ITEM ${itemId} a ${estado}`);
+    return this.pedidosService.actualizarEstadoItem(itemId, estado);
   }
 }

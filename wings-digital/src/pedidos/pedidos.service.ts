@@ -7,7 +7,7 @@ export class PedidosService {
   constructor(private prisma: PrismaService) {}
 
   // ===================================================
-  // 1. CREAR O ACTUALIZAR ORDEN (SOLUCIÓN CORREGIDA)
+  // 1. CREAR O ACTUALIZAR ORDEN
   // ===================================================
   async create(dto: any) {
     console.log('📦 [INICIO] Crear Pedido. DTO:', JSON.stringify(dto));
@@ -25,8 +25,7 @@ export class PedidosService {
       if (ordenPendiente) ordenId = ordenPendiente.id;
     }
 
-    // ✅ CORRECCIÓN: Permitir órdenes vacías (para adicionales o pedidos progresivos)
-    // Solo validamos que si NO hay mesa_id Y NO hay orden_id, debe tener items
+    // Permitir órdenes vacías (para adicionales o pedidos progresivos)
     if (!dto.mesa_id && !dto.orden_id && (!dto.items || dto.items.length === 0)) {
         throw new BadRequestException('No se puede crear un pedido nuevo sin productos.');
     }
@@ -34,12 +33,10 @@ export class PedidosService {
     // 🛠️ PROCESAMIENTO DE ITEMS (SANITIZACIÓN)
     const itemsProcesados = dto.items && dto.items.length > 0 ? dto.items.map((item: any, index: number) => {
         
-        // 1. Detección flexible de nombres de propiedades
         const idProd = item.producto_id || item.productoId || item.id;
         const precio = item.precio_item || item.precio || item.precioUnitario || item.precioBase;
         const cant = item.cantidad;
 
-        // 2. Validaciones numéricas estrictas
         const productoIdFinal = Number(idProd);
         const cantidadFinal = Number(cant);
         const precioFinal = parseFloat(precio);
@@ -48,7 +45,6 @@ export class PedidosService {
         if (isNaN(cantidadFinal) || cantidadFinal <= 0) throw new BadRequestException(`El item #${index + 1} tiene una cantidad inválida.`);
         if (isNaN(precioFinal) || precioFinal < 0) throw new BadRequestException(`El item #${index + 1} tiene un precio inválido.`);
 
-        // Opciones elegidas
         const opcionesFinales = item.opcionesElegidas || []; 
 
         return {
@@ -57,7 +53,9 @@ export class PedidosService {
             precioUnitario: precioFinal,
             notas: item.notas || '',
             opcionesElegidas: opcionesFinales,
-            estado: EstadoOrden.PENDIENTE
+            estado: EstadoOrden.PENDIENTE,
+            // Guardamos el destino si viene del frontend (BARRA / COCINA)
+            destino: item.destino || null 
         };
     }) : [];
 
@@ -72,7 +70,7 @@ export class PedidosService {
             return this.obtenerOrdenCompleta(ordenId);
         }
 
-        // C. CASO 2: Usar orden_id del DTO (frontend indica que ya existe)
+        // C. CASO 2: Usar orden_id del DTO
         else if (dto.orden_id && itemsProcesados.length > 0) {
             console.log(`➕ Agregando items a Orden existente ID: ${dto.orden_id}`);
             ordenId = Number(dto.orden_id);
@@ -88,7 +86,6 @@ export class PedidosService {
             console.log('✨ Creando Nueva Orden...');
             const notaCliente = dto.notaGeneral || dto.nota_general || 'Cliente';
             
-            // Construcción del objeto orden
             const ordenData: any = {
                 meseroId: dto.mesero_id ? Number(dto.mesero_id) : (dto.empleado_id ? Number(dto.empleado_id) : null),
                 estado: EstadoOrden.PENDIENTE,
@@ -96,10 +93,8 @@ export class PedidosService {
                 notaGeneral: notaCliente,
             };
 
-            // Solo agregamos mesaId si existe
             if (dto.mesa_id) ordenData.mesaId = Number(dto.mesa_id);
 
-            // ✅ CORRECCIÓN: Solo agregamos items si hay items procesados
             if (itemsProcesados.length > 0) {
                 ordenData.items = { create: itemsProcesados };
             }
@@ -113,7 +108,6 @@ export class PedidosService {
                 }
             });
 
-            // Actualizar estado de la mesa si existe
             if (dto.mesa_id) {
                 await this.prisma.mesa.update({
                     where: { id: Number(dto.mesa_id) },
@@ -125,10 +119,6 @@ export class PedidosService {
         }
     } catch (error: any) {
         console.error('❌ ERROR CRÍTICO AL GUARDAR ORDEN:', error);
-        console.error('Stack:', error.stack);
-        console.error('DTO recibido:', JSON.stringify(dto, null, 2));
-        
-        // Enviamos el mensaje de error real al frontend
         throw new InternalServerErrorException(
             `Error al guardar el pedido: ${error.message || 'Error desconocido'}`
         );
@@ -136,7 +126,7 @@ export class PedidosService {
   }
 
   // ===================================================
-  // 2. BUSCAR PENDIENTES (COCINA)
+  // 2. BUSCAR PENDIENTES (COCINA/BARRA)
   // ===================================================
   async findPendientes() {
     return this.prisma.orden.findMany({
@@ -144,7 +134,7 @@ export class PedidosService {
         estado: { notIn: [EstadoOrden.CANCELADA, EstadoOrden.CERRADA] }, 
         items: {
           some: { 
-              estado: { in: [EstadoOrden.PENDIENTE, EstadoOrden.EN_PREPARACION] }
+              estado: { in: [EstadoOrden.PENDIENTE, EstadoOrden.EN_PREPARACION, EstadoOrden.LISTA] }
           }
         }
       },
@@ -152,8 +142,9 @@ export class PedidosService {
         mesero: true, 
         mesa: true,
         items: { 
+            // Traemos todos los items activos para poder filtrar en frontend
             where: {
-                estado: { in: [EstadoOrden.PENDIENTE, EstadoOrden.EN_PREPARACION] }
+                estado: { not: EstadoOrden.CANCELADA }
             },
             include: { producto: true } 
         }
@@ -201,7 +192,7 @@ export class PedidosService {
   }
 
   // ===================================================
-  // 4. ACTUALIZAR ESTADO
+  // 4. ACTUALIZAR ESTADO ORDEN COMPLETA
   // ===================================================
   async actualizarEstado(id: number, estado: EstadoOrden) {
     await this.prisma.orden.update({ where: { id }, data: { estado } });
@@ -284,6 +275,45 @@ export class PedidosService {
        }
     }
     return { mensaje: 'Orden cancelada' };
+  }
+
+  // ===================================================
+  // 8. ✅ ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina Independientes)
+  // ===================================================
+  async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
+    // 1. Actualizamos el item específico
+    const itemActualizado = await this.prisma.itemOrden.update({
+      where: { id: itemId },
+      data: { estado: estado },
+      include: { 
+        orden: { include: { items: true } } 
+      }
+    });
+
+    // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
+    const ordenPadre = itemActualizado.orden;
+    
+    // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
+    const itemsPendientes = ordenPadre.items.filter(i => 
+        i.estado !== EstadoOrden.LISTA && 
+        i.estado !== EstadoOrden.ENTREGADA && 
+        i.estado !== EstadoOrden.CANCELADA
+    );
+
+    // Si ya no hay pendientes, cerramos la orden padre
+    if (itemsPendientes.length === 0 && 
+        ordenPadre.estado !== EstadoOrden.LISTA && 
+        ordenPadre.estado !== EstadoOrden.ENTREGADA && 
+        ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
+        
+       console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
+       await this.prisma.orden.update({
+         where: { id: ordenPadre.id },
+         data: { estado: EstadoOrden.LISTA }
+       });
+    }
+
+    return itemActualizado;
   }
 
   // ===================================================
