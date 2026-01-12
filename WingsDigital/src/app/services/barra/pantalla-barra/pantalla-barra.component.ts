@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { SocketService, ComandaCompleta } from '../../socket.service';
-import { AuthService } from '../../auth.service';
-import { PedidosService } from '../../pedidos.service';
+import { SocketService, ComandaCompleta } from '../../socket.service'; // Asegúrate que la ruta sea correcta
+import { AuthService } from '../../auth.service'; // Asegúrate que la ruta sea correcta
+import { PedidosService } from '../../pedidos.service'; // Asegúrate que la ruta sea correcta
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -15,16 +15,16 @@ import { Subscription } from 'rxjs';
 })
 export class PantallaBarraComponent implements OnInit, OnDestroy {
   
+  // ✅ OPTIMIZACIÓN: Solo 2 estados para Barra (Por hacer y Hecho)
   nuevosPedidos: ComandaCompleta[] = [];
-  preparandoPedidos: ComandaCompleta[] = [];
   listosPedidos: ComandaCompleta[] = [];
   
   private socketSub: Subscription | undefined;
 
   // Iconos temáticos de BARRA 🍸
   iconos = {
-    nuevos: 'fas fa-bell',
-    preparando: 'fas fa-cocktail', // Icono de cóctel
+    nuevos: 'fas fa-wine-bottle', // Icono de botella/bebida
+    servir: 'fas fa-hand-holding-water', // Icono de servir
     listos: 'fas fa-check-circle',
     marcarListo: 'fas fa-check'
   };
@@ -50,83 +50,68 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
     // 2. Conectar Socket
     if (!this.socketService.isConnected()) this.socketService.reconnect();
 
-    this.socketSub = this.socketService.escucharNuevosPedidos().subscribe((pedido) => {
-      this.zone.run(() => {
-        console.log('🔔 Barra: Nuevo pedido entrante', pedido);
-        this.procesarPedidoEntrante(pedido);
-      });
+    this.socketSub = this.socketService.escucharPedidosParaCobrar().subscribe((pedido) => {
+        // Nota: Reutilizamos el socket de pedidos generales para detectar cambios
+        // Idealmente deberías tener un 'escucharNuevosPedidos' específico si tu backend lo soporta
+        // Si no, recargamos la lista o procesamos si viene el objeto completo
+        this.zone.run(() => {
+             // Si llega un pedido nuevo, lo procesamos
+             // Aquí asumimos que el socket devuelve la orden completa
+             this.procesarPedidoEntrante(pedido as any);
+        });
     });
   }
 
   distribuirPedidos(pedidos: any[]) {
+    // Limpiamos listas para evitar duplicados al recargar
+    this.nuevosPedidos = [];
+    this.listosPedidos = [];
     pedidos.forEach(p => this.procesarPedidoEntrante(p));
   }
 
   procesarPedidoEntrante(pedido: any) {
-    // Evitar duplicados
-    if (this.existePedido(pedido.id)) return;
-
     // ⚠️ FILTRO MÁGICO: Solo aceptamos la orden si tiene algo para la BARRA
     const tieneBebida = pedido.items.some((item: any) => item.producto?.destino === 'BARRA');
     
-    if (tieneBebida) {
-      if (pedido.estado === 'PENDIENTE') {
+    if (!tieneBebida) return;
+
+    // Evitar duplicados visuales si ya existe
+    if (this.existePedido(pedido.id)) return;
+
+    // ✅ LÓGICA SIMPLIFICADA: 
+    // Si está Pendiente o En Preparación -> Va a "Nuevos" (Por servir)
+    // Si está Lista -> Va a "Listos"
+    if (pedido.estado === 'PENDIENTE' || pedido.estado === 'EN_PREPARACION') {
         this.nuevosPedidos.push(pedido);
-      } else if (pedido.estado === 'EN_PREPARACION') {
-        this.preparandoPedidos.push(pedido);
-      } else if (pedido.estado === 'LISTA') {
+    } else if (pedido.estado === 'LISTA') {
         this.listosPedidos.push(pedido);
-      }
     }
   }
 
   existePedido(id: number): boolean {
-    return [...this.nuevosPedidos, ...this.preparandoPedidos, ...this.listosPedidos].some(p => p.id === id);
+    return [...this.nuevosPedidos, ...this.listosPedidos].some(p => p.id === id);
   }
 
-  marcarComoPreparando(pedido: ComandaCompleta) {
-      // 1. Llamada a la API (Backend)
-      this.pedidosService.actualizarEstado(pedido.id, 'EN_PREPARACION').subscribe({
+  // ✅ ACCIÓN RÁPIDA: De Pendiente a LISTO directamente
+  marcarComoServido(pedido: ComandaCompleta) {
+      // 1. Llamada a la API (Backend) -> Directo a LISTA
+      this.pedidosService.actualizarEstado(pedido.id, 'LISTA').subscribe({
         next: (ordenActualizada) => {
-          console.log('✅ Estado actualizado en BD: EN_PREPARACION');
+          console.log('✅ Bebida servida (Estado: LISTA)');
           
-          // 2. Mover visualmente (Solo si la BD respondió ok)
+          // 2. Mover visualmente
           const index = this.nuevosPedidos.findIndex(p => p.id === pedido.id);
           if (index !== -1) {
             this.nuevosPedidos.splice(index, 1);
-            this.preparandoPedidos.push(pedido);
+            // Actualizamos el estado localmente para reflejar el cambio
+            const pedidoActualizado = { ...pedido, estado: 'LISTA' };
+            this.listosPedidos.push(pedidoActualizado);
           }
         },
-        error: (err) => alert('Error al guardar estado: ' + err.message)
+        error: (err) => alert('Error al actualizar estado: ' + err.message)
       });
-    }
-    marcarComoListo(pedido: ComandaCompleta) {
-    // 1. Llamada a la API (Backend)
-    this.pedidosService.actualizarEstado(pedido.id, 'LISTA').subscribe({
-      next: (ordenActualizada) => {
-        console.log('✅ Estado actualizado en BD: LISTA');
-
-        // 2. Mover visualmente
-        const index = this.preparandoPedidos.findIndex(p => p.id === pedido.id);
-        if (index !== -1) {
-          this.preparandoPedidos.splice(index, 1);
-          this.listosPedidos.push(pedido);
-        }
-        
-        // NOTA: Ya no necesitamos llamar a socketService.marcarPedidoComoListo() aquí manual,
-        // porque ahora el Controlador del Backend lo hace automático al recibir el PATCH.
-      },
-      error: (err) => alert('Error al finalizar pedido: ' + err.message)
-    });
   }
-  moverPedido(pedido: any, origen: any[], destino: any[]) {
-    const idx = origen.findIndex(p => p.id === pedido.id);
-    if (idx !== -1) {
-      origen.splice(idx, 1);
-      destino.push(pedido);
-    }
-  }
-
+ 
   formatearOpcion(valor: any): string {
     if (Array.isArray(valor)) return valor.join(', ');
     return String(valor);
