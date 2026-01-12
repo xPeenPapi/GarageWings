@@ -299,7 +299,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     const itemExistente = this.pedido.find(p => 
       p.id === itemConDetalles.id && 
       JSON.stringify(p.opcionesElegidas) === JSON.stringify(itemConDetalles.opcionesElegidas) &&
-      p.notes === itemConDetalles.notes
+      p.notas === itemConDetalles.notas
     );
 
     if (itemExistente) {
@@ -359,13 +359,16 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
     const itemsDto = this.pedido.map(item => {
       const productoCompleto = this.productos.find(p => p.id === item.id);
+      
       let destinoFinal: string;
 
       if (productoCompleto?.destino) {
         destinoFinal = productoCompleto.destino;
-      } else {
+      } 
+      else {
         const categoria = this.categorias.find(c => c.id === item.categoriaId);
         const nombreCategoria = (categoria?.nombre || '').toLowerCase();
+        
         const esBebida = 
           nombreCategoria.includes('bebida') ||
           nombreCategoria.includes('bar') ||
@@ -406,7 +409,20 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
     this.pedidosService.crearPedido(pedidoDto).subscribe({
       next: (ordenCreada: any) => {
-        alert('✅ Pedido enviado correctamente');
+        const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
+        const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
+        
+        let mensaje = '✅ Pedido enviado correctamente';
+        if (itemsBarra > 0 && itemsCocina > 0) {
+          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra\n🍔 ${itemsCocina} item(s) → Cocina`;
+        } else if (itemsBarra > 0) {
+          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra`;
+        } else {
+          mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
+        }
+        
+        alert(mensaje);
+        
         this.ordenId = ordenCreada.id;
         this.ordenActiva = ordenCreada;
         this.nombreClienteTemporal = '';
@@ -421,11 +437,14 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
         this.pedido = []; 
         this.calcularTotales();
         this.mostrarModalCocina = false;
-        if (!this.esEscritorio) this.vistaMovilActual = 'resumen';
+        
+        if (!this.esEscritorio) {
+          this.vistaMovilActual = 'resumen';
+        }
       },
       error: (error: any) => {
         console.error('❌ Error al guardar:', error);
-        alert('Error al enviar el pedido.');
+        alert('Error al enviar el pedido. Intenta de nuevo.');
       }
     });
   }
@@ -442,28 +461,28 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCuenta = true;
   }
 
-  // ✅ CORREGIDO: Solicitud de cuenta sincronizada con el backend NestJS
+  // ✅ MODIFICADO: Manejo de errores mejorado
   confirmarPedirCuenta() {
     const idParaCuenta = this.ordenId; 
     if (!idParaCuenta) return;
 
-    // Llamamos al servicio de pedidos.
-    // El frontend ahora usará la ruta correcta: /api/pedidos/8/solicitar-cuenta
-    this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
-        next: () => {
-            this.mostrarModalCuenta = false;
-            alert('Cuenta solicitada a caja.');
-            
-            this.itemsEnCocina = [];
-            if(this.ordenActiva) this.ordenActiva.estado = 'POR_COBRAR';
+    console.log(`💰 Solicitando cuenta para orden ${idParaCuenta}...`);
 
-            this.regresar();
-        },
-        error: (err: any) => {
-            console.error('❌ Error al solicitar cuenta:', err);
-            // Si sale 404 aquí, revisa que PedidosService.solicitarCuenta esté enviando '/solicitar-cuenta'
-            alert('Error al solicitar la cuenta. Revisa la consola para más detalles.');
-        }
+    this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
+      next: () => {
+        this.mostrarModalCuenta = false;
+        alert('✅ Cuenta solicitada a caja.');
+        
+        this.itemsEnCocina = [];
+        if (this.ordenActiva) this.ordenActiva.estado = 'POR_COBRAR';
+
+        this.regresar();
+      },
+      error: (err: any) => {
+        console.error('❌ Error al solicitar la cuenta:', err);
+        const mensaje = err.error?.message || err.message || 'Error de conexión con el servidor';
+        alert(`Error: ${mensaje}`);
+      }
     });
   }
 
@@ -477,6 +496,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
   confirmarLiberacion() {
     this.mostrarModalLiberar = false;
+    
     if (this.ordenId) {
         this.pedidosService.cancelarOrden(this.ordenId).subscribe({
             next: () => this.finalizarLiberacion(),
@@ -487,13 +507,23 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ✅ MODIFICADO: Limpieza mejorada con logs
   finalizarLiberacion() {
     if (this.mesaId) {
-      this.mesaService.actualizarEstadoMesa(this.mesaId, 'disponible', '').subscribe({
-        next: () => this.regresar(),
+      console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
+      
+      this.mesaService.actualizarEstadoMesa(
+        this.mesaId, 
+        'disponible', 
+        '' // ✅ String vacío = limpiar mesero, meseroId y horaApertura
+      ).subscribe({
+        next: () => {
+          console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
+          this.regresar();
+        },
         error: (err) => {
           console.error('❌ Error al liberar mesa:', err);
-          this.regresar(); 
+          this.regresar(); // Regresar aunque falle
         }
       });
     } else {
@@ -519,7 +549,9 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
         const misOrdenesListas = ordenes.filter(o => {
             const esLista = o.estado === 'LISTA';
             if (!esLista) return false;
-            return String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
+
+            const soyYo = String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
+            return soyYo;
         });
 
         this.pedidosListos = misOrdenesListas.map(o => {
@@ -538,6 +570,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
         const cuentaAnterior = this.contadorNotificaciones;
         this.contadorNotificaciones = this.pedidosListos.length;
+
         if (this.contadorNotificaciones > cuentaAnterior) {
             this.audio?.play().catch(()=>{});
         }
@@ -545,34 +578,54 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ CORREGIDO: Confirmar entrega (Limpia tanto la orden como los items individuales)
+  // ✅ MODIFICADO: Actualiza orden e items individuales
   confirmarEntrega(pedido: any) {
+    console.log(`🍽️ Confirmando entrega de orden ${pedido.id}...`);
+    
+    // 1. Actualizar estado de la orden completa
     this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
-        next: () => {
-            // Sincronización de items individuales para pantalla de cocina
-            if (pedido.items && pedido.items.length > 0) {
-                pedido.items.forEach((item: any) => {
-                    if (item.estado === 'LISTA') {
-                        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
-                    }
-                });
+      next: () => {
+        console.log(`✅ Orden ${pedido.id} marcada como ENTREGADA`);
+        
+        // 2. Actualizar cada item para que se limpie en Cocina/Barra
+        if (pedido.items && pedido.items.length > 0) {
+          pedido.items.forEach((item: any) => {
+            if (item.estado === 'LISTA' || item.estado === 'EN_PREPARACION') {
+              this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe({
+                next: () => console.log(`✅ Item ${item.id} marcado como ENTREGADO`),
+                error: (err) => console.error(`❌ Error al actualizar item ${item.id}:`, err)
+              });
             }
-
-            this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
-            this.contadorNotificaciones = this.pedidosListos.length;
-            
-            if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
-                this.recargarDatosMesa();
-            }
-        },
-        error: (err) => console.error('Error al confirmar entrega:', err)
+          });
+        }
+        
+        // 3. Limpiar interfaz local
+        this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
+        this.contadorNotificaciones = this.pedidosListos.length;
+        
+        // 4. Recargar datos si estamos en la misma mesa
+        if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
+          this.recargarDatosMesa();
+        }
+      },
+      error: (err) => {
+        console.error('❌ Error al confirmar entrega:', err);
+        const mensaje = err.status === 404 
+          ? 'Ruta no encontrada. Verifica el backend.'
+          : err.error?.message || 'Error de conexión';
+        alert(`Error: ${mensaje}`);
+      }
     });
   }
 
+  // ✅ MODIFICADO: Procesa todas las entregas con logs
   limpiarNotificaciones() { 
-      const copia = [...this.pedidosListos];
-      copia.forEach(p => this.confirmarEntrega(p));
-      this.mostrarListaNotificaciones = false; 
+    console.log(`🧹 Limpiando ${this.pedidosListos.length} notificaciones...`);
+    
+    const copia = [...this.pedidosListos];
+    copia.forEach(p => this.confirmarEntrega(p));
+    
+    this.mostrarListaNotificaciones = false; 
   }
 
   // =========================================================
@@ -581,15 +634,21 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
   
+  // ✅ MODIFICADO: Espera confirmación antes de navegar
   irAMesa(pedido: any) {
-      this.mostrarListaNotificaciones = false;
-      this.confirmarEntrega(pedido); 
+    this.mostrarListaNotificaciones = false;
+    
+    // Confirmar entrega primero
+    this.confirmarEntrega(pedido); 
 
-      if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
-          this.router.navigateByUrl('/', {skipLocationChange: true}).then(() => {
-              this.router.navigate(['/pedido', pedido.mesaId]);
-          });
+    // Navegar después de un breve delay
+    setTimeout(() => {
+      if (pedido.mesaId && pedido.mesaId !== 'Llevar') {
+        this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+          this.router.navigate(['/pedido', pedido.mesaId]);
+        });
       }
+    }, 300);
   }
 
   filtrarPorCategoria(categoriaId: number): void {
