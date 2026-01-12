@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http'; // Importamos HttpClient directo si falta en servicio
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { SocketService, ComandaCompleta } from '../../services/socket.service';
@@ -8,10 +8,10 @@ import { AuthService } from '../../services/auth.service';
 import { PedidosService } from '../../services/pedidos.service';
 import { environment } from '../../../environments/environment';
 
-// Interfaz para la vista
+// Interfaz para la vista (Item Individual)
 interface ItemCocina {
   pedidoId: number;
-  itemId: number; // ID real del item en base de datos
+  itemId: number;
   productoNombre: string;
   cantidad: number;
   mesaNumero: string;
@@ -34,13 +34,13 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   
   activeMobileTab: MobileTab = 'nuevos';
 
-  // Datos
-  nuevosPedidos: ComandaCompleta[] = [];
-  preparandoPedidos: ComandaCompleta[] = []; 
-  listosPedidos: ComandaCompleta[] = [];
+  // Almacén de datos crudos (Todas las órdenes que tienen ALGO activo)
+  todasLasOrdenes: ComandaCompleta[] = [];
   
+  // VISTAS APLANADAS (Aquí está la clave: Listas de ITEMS, no de órdenes)
   itemsPendientes: ItemCocina[] = [];
   itemsPreparando: ItemCocina[] = [];
+  listosPedidos: any[] = []; // Agrupado por orden para el historial
 
   // UI
   nombreChef: string = '';
@@ -50,7 +50,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   conteoListos: number = 0;
 
   private subscriptions = new Subscription();
-  private apiUrl = `${environment.apiUrl}/pedidos`; // Ajusta según tu API
+  private apiUrl = `${environment.apiUrl}/pedidos`; 
 
   constructor(
     private socketService: SocketService,
@@ -68,6 +68,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cargarPedidos();
+    // Polling de seguridad cada 10s por si falla el socket
     this.subscriptions.add(interval(10000).subscribe(() => this.cargarPedidos()));
     this.conectarSocket();
   }
@@ -79,9 +80,13 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  // 1. CARGA DE DATOS (Sin filtrar todavía)
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
-      next: (pedidos) => this.distribuirPedidos(pedidos),
+      next: (pedidos) => {
+        this.todasLasOrdenes = pedidos;
+        this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia
+      },
       error: (err) => console.error(err)
     });
   }
@@ -89,190 +94,118 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   conectarSocket() {
     if (!this.socketService.isConnected()) this.socketService.reconnect();
     this.subscriptions.add(
-      this.socketService.escucharNuevosPedidos().subscribe((pedido) => {
-        this.zone.run(() => this.cargarPedidos()); // Recargar todo para asegurar consistencia
+      this.socketService.escucharNuevosPedidos().subscribe(() => {
+        this.zone.run(() => this.cargarPedidos());
       })
     );
   }
 
-  // ✅ FILTRO MEJORADO: ¿Es comida Y no está lista todavía?
-  esItemCocinaPendiente(item: any): boolean {
-    const esCocina = item.destino === 'COCINA' || item.producto?.destino === 'COCINA' || item.producto?.destino !== 'BARRA';
-    const noEstaListo = item.estado !== 'LISTA' && item.estado !== 'ENTREGADA';
-    return esCocina && noEstaListo;
+  // 2. FILTRO INTELIGENTE: ¿Es responsabilidad de Cocina?
+  esItemDeCocina(item: any): boolean {
+    // A. Si tiene la etiqueta nueva 'destino' (Gracias a la actualización de DB)
+    if (item.destino) return item.destino === 'COCINA';
+    
+    // B. Fallback: Si no tiene etiqueta, miramos el producto
+    if (item.producto?.destino) return item.producto.destino === 'COCINA';
+    
+    // C. Último recurso: Si no dice BARRA, es COCINA.
+    return item.producto?.destino !== 'BARRA';
   }
 
-  // ✅ FILTRO MEJORADO: ¿Es comida Y ya está lista?
-  esItemCocinaListo(item: any): boolean {
-    const esCocina = item.destino === 'COCINA' || item.producto?.destino === 'COCINA' || item.producto?.destino !== 'BARRA';
-    return esCocina && item.estado === 'LISTA';
-  }
-
-  distribuirPedidos(pedidos: any[]) {
-    const nuevos: ComandaCompleta[] = [];
-    const enPrep: ComandaCompleta[] = [];
-    const listos: ComandaCompleta[] = [];
-
-    pedidos.forEach(p => {
-        // 1. Revisar si hay items de cocina PENDIENTES
-        const tienePendientes = p.items.some((i: any) => this.esItemCocinaPendiente(i) && (p.estado === 'PENDIENTE' || !i.estado || i.estado === 'PENDIENTE'));
-        
-        // 2. Revisar si hay items de cocina PREPARANDO
-        const tienePreparando = p.items.some((i: any) => this.esItemCocinaPendiente(i) && (p.estado === 'EN_PREPARACION' || i.estado === 'EN_PREPARACION'));
-        
-        // 3. Revisar si hay items de cocina LISTOS (para el historial)
-        const tieneListos = p.items.some((i: any) => this.esItemCocinaListo(i));
-
-        // Lógica de asignación (prioridad a lo crudo)
-        if (tienePreparando) {
-            enPrep.push(p);
-        } else if (tienePendientes) {
-            nuevos.push(p);
-        } else if (tieneListos && p.estado !== 'ENTREGADA') {
-            // Solo lo mostramos en listos si ya no tiene nada pendiente en cocina
-            listos.push(p);
-        }
-    });
-
-    this.nuevosPedidos = nuevos;
-    this.preparandoPedidos = enPrep;
-    this.listosPedidos = listos;
-    this.actualizarListasVisuales();
-  }
-
-  actualizarListasVisuales() {
+  // 3. PROCESAMIENTO (Convierte Órdenes complejas en Lista de Tareas Simple)
+  procesarListasVisuales() {
       this.itemsPendientes = [];
       this.itemsPreparando = [];
-      
-      const procesarLista = (listaPedidos: any[], listaVisual: ItemCocina[], estadoFiltro: string) => {
-          listaPedidos.forEach(pedido => {
-              const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
-              const horaInicio = new Date(fechaOrigen);
-              
-              pedido.items.forEach((item: any) => {
-                  // Mostrar solo si es de cocina y coincide con el estado visual deseado
-                  // OJO: Aquí asumimos que si la orden está en "Nuevos", mostramos sus items pendientes
-                  if (this.esItemCocinaPendiente(item)) {
-                       // Si la orden está en 'preparando', solo mostramos items preparando (o pendientes si queremos arrastrarlos todos)
-                       // Para simplificar: mostramos todo lo pendiente de cocina
-                       
-                       const visualItem: ItemCocina = {
-                          pedidoId: pedido.id,
-                          itemId: item.id, // ID ÚNICO DEL ITEM
-                          productoNombre: item.producto.nombre,
-                          cantidad: item.cantidad,
-                          mesaNumero: pedido.mesa?.numero || 'S/N',
-                          tiempo: this.getMinutosTranscurridos(horaInicio),
-                          notas: item.notas,
-                          opciones: item.opcionesElegidas,
-                          horaInicio: horaInicio
-                      };
+      const mapaListos = new Map<number, any>(); // Map para agrupar "Listos" por mesa
 
-                      // Decidir en qué columna va basado en el estado DEL ITEM (si existe) o de la ORDEN
-                      const estadoItem = item.estado || pedido.estado;
-                      
-                      if (estadoItem === 'EN_PREPARACION') {
-                          if (estadoFiltro === 'PREPARANDO') this.itemsPreparando.push(visualItem);
-                      } else {
-                          if (estadoFiltro === 'PENDIENTE') this.itemsPendientes.push(visualItem);
-                      }
-                  }
-              });
-          });
-      };
-
-      // Procesamos todo junto para evitar duplicados visuales complejos
-      const todosLosPedidosActivos = [...this.nuevosPedidos, ...this.preparandoPedidos];
-      
-      // Limpiamos y rellenamos
-      this.itemsPendientes = [];
-      this.itemsPreparando = [];
-
-      todosLosPedidosActivos.forEach(pedido => {
-          const horaInicio = new Date((pedido as any).createdAt || new Date());
+      this.todasLasOrdenes.forEach(pedido => {
+          const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
+          const horaInicio = new Date(fechaOrigen);
+          
           pedido.items.forEach((item: any) => {
-              if (this.esItemCocinaPendiente(item)) {
-                   const visualItem = {
-                      pedidoId: pedido.id,
-                      itemId: item.id,
-                      productoNombre: item.producto.nombre,
-                      cantidad: item.cantidad,
-                      mesaNumero: pedido.mesa?.numero || 'S/N',
-                      tiempo: this.getMinutosTranscurridos(horaInicio),
-                      notas: item.notas,
-                      opciones: item.opcionesElegidas,
-                      horaInicio: horaInicio
-                  };
+              // PASO A: ¿Este item es mío (Cocina)?
+              if (!this.esItemDeCocina(item)) return;
 
-                  if (item.estado === 'EN_PREPARACION' || pedido.estado === 'EN_PREPARACION') {
-                      // Evitar duplicados si ya está
-                      if(!this.itemsPreparando.find(i => i.itemId === item.id)) 
-                         this.itemsPreparando.push(visualItem);
-                  } else {
-                      if(!this.itemsPendientes.find(i => i.itemId === item.id))
-                         this.itemsPendientes.push(visualItem);
-                  }
+              // PASO B: Crear objeto visual
+              const visualItem: ItemCocina = {
+                  pedidoId: pedido.id,
+                  itemId: item.id,
+                  productoNombre: item.producto.nombre,
+                  cantidad: item.cantidad,
+                  mesaNumero: pedido.mesa?.numero || 'S/N',
+                  tiempo: this.getMinutosTranscurridos(horaInicio),
+                  notas: item.notas,
+                  opciones: item.opcionesElegidas,
+                  horaInicio: horaInicio
+              };
+
+              // PASO C: Clasificar según el estado DEL ITEM (Independiente de la Orden)
+              switch (item.estado) {
+                  case 'PENDIENTE':
+                      this.itemsPendientes.push(visualItem);
+                      break;
+                  
+                  case 'EN_PREPARACION':
+                      this.itemsPreparando.push(visualItem);
+                      break;
+                  
+                  case 'LISTA':
+                      // Agrupamos para mostrar en el historial "Mesa 1: Hamburguesa (Listo)"
+                      if (!mapaListos.has(pedido.id)) {
+                          mapaListos.set(pedido.id, { 
+                              ...pedido, 
+                              items: [] // Reiniciamos items para meter solo los de cocina listos
+                          });
+                      }
+                      mapaListos.get(pedido.id).items.push(item);
+                      break;
+                  
+                  // Ignoramos 'ENTREGADA', 'CANCELADA' para no saturar
               }
           });
       });
 
+      // Convertimos el mapa de listos a array para el HTML
+      this.listosPedidos = Array.from(mapaListos.values());
+
+      // Actualizamos contadores para las pestañas
       this.conteoPendientes = this.itemsPendientes.length;
       this.conteoPreparando = this.itemsPreparando.length;
       this.conteoListos = this.listosPedidos.length;
   }
 
-  // --- ACCIONES QUE CORRIGEN EL PROBLEMA ---
+  // --- ACCIONES (Optimizadas para respuesta instantánea) ---
 
   empezarPreparacion(itemVisual: ItemCocina) {
-      // 1. Optimistic UI
-      const item = this.itemsPendientes.find(i => i.itemId === itemVisual.itemId);
-      if(item) {
-          this.itemsPendientes = this.itemsPendientes.filter(i => i !== item);
+      // 1. UI Optimista (Mover tarjeta instantáneamente sin esperar al server)
+      const index = this.itemsPendientes.findIndex(i => i.itemId === itemVisual.itemId);
+      if (index !== -1) {
+          const item = this.itemsPendientes[index];
+          this.itemsPendientes.splice(index, 1);
           this.itemsPreparando.push(item);
       }
-      
-      // 2. Actualizar estado de LA ORDEN a 'EN_PREPARACION' (para que sepan que cocina trabaja)
-      // Y actualizar estado del ITEM a 'EN_PREPARACION'
-      this.actualizarEstadoItem(itemVisual.itemId, 'EN_PREPARACION');
-      this.pedidosService.actualizarEstado(itemVisual.pedidoId, 'EN_PREPARACION').subscribe();
+      this.conteoPendientes = this.itemsPendientes.length;
+      this.conteoPreparando = this.itemsPreparando.length;
+
+      // 2. Llamada al Backend (Solo actualiza ESTE item)
+      this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'EN_PREPARACION' })
+          .subscribe({ error: (e) => console.error(e) });
   }
 
   terminarPreparacion(itemVisual: ItemCocina) {
-      // 1. Quitar de la vista "Preparando"
-      this.itemsPreparando = this.itemsPreparando.filter(i => i.itemId !== itemVisual.itemId);
+      // 1. UI Optimista (Quitar de pantalla instantáneamente)
+      const index = this.itemsPreparando.findIndex(i => i.itemId === itemVisual.itemId);
+      if (index !== -1) {
+          this.itemsPreparando.splice(index, 1);
+      }
       this.conteoPreparando = this.itemsPreparando.length;
-
-      // 2. ACTUALIZAR EL ITEM A 'LISTA' (NO LA ORDEN ENTERA AÚN)
-      this.actualizarEstadoItem(itemVisual.itemId, 'LISTA').add(() => {
-          // 3. VERIFICACIÓN INTELIGENTE:
-          // ¿Queda algo pendiente en esta orden (Bebida o Comida)?
-          this.verificarCierreOrden(itemVisual.pedidoId);
-      });
-  }
-
-  // 🔥 LA CLAVE: Función para actualizar items individuales
-  // Si tu backend no tiene esta ruta, avísame, pero es necesaria para la independencia.
-  actualizarEstadoItem(itemId: number, estado: string) {
-      return this.http.patch(`${this.apiUrl}/items/${itemId}`, { estado }).subscribe({
-          next: () => console.log(`Item ${itemId} actualizado a ${estado}`),
-          error: (err) => console.error('Error actualizando item', err)
-      });
-  }
-
-  // 🔥 LA MAGIA: Verifica si cierra toda la orden
-  verificarCierreOrden(pedidoId: number) {
-      // Obtenemos la orden fresca para ver cómo van los de la Barra
-      this.pedidosService.getOrden(pedidoId).subscribe((orden: any) => {
-          const todosListos = orden.items.every((i: any) => i.estado === 'LISTA' || i.estado === 'ENTREGADA');
-          
-          if (todosListos) {
-              // ¡Solo ahora cerramos la mesa completa!
-              this.pedidosService.actualizarEstado(pedidoId, 'LISTA').subscribe(() => {
-                  this.cargarPedidos(); // Refrescar para mover a columna Listos
-              });
-          } else {
-              // Si falta algo (ej. barra), solo recargamos para actualizar mi vista
-              this.cargarPedidos();
+      
+      // 2. Llamada al Backend
+      this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'LISTA' }).subscribe({
+          next: () => {
+              // 3. Al terminar, recargamos todo para ver si la orden completa se cierra
+              // y para que aparezca en la columna "Listos"
+              this.cargarPedidos(); 
           }
       });
   }
