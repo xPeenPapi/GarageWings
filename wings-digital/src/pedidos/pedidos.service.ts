@@ -112,7 +112,11 @@ export class PedidosService {
             const datosInsertar = itemsProcesados.map((i: any) => ({ ...i, ordenId: ordenId as number }));
             await this.prisma.itemOrden.createMany({ data: datosInsertar });
             
-            return this.obtenerOrdenCompleta(ordenId);
+            // ✅ NOTIFICAR AL SOCKET (Cocina/Barra recibirán esto)
+            const ordenActualizada = await this.obtenerOrdenCompleta(ordenId);
+            this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
+
+            return ordenActualizada;
         }
 
         // C. CASO 2: Usar orden_id del DTO
@@ -123,7 +127,10 @@ export class PedidosService {
             const datosInsertar = itemsProcesados.map((i: any) => ({ ...i, ordenId: ordenId as number }));
             await this.prisma.itemOrden.createMany({ data: datosInsertar });
             
-            return this.obtenerOrdenCompleta(ordenId);
+            const ordenActualizada = await this.obtenerOrdenCompleta(ordenId);
+            this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
+
+            return ordenActualizada;
         }
 
         // D. CASO 3: Crear Orden Nueva
@@ -166,6 +173,7 @@ export class PedidosService {
                 });
             }
 
+            this.pedidosGateway.notificarNuevoPedido(ordenNueva);
             return ordenNueva;
         }
     } catch (error: any) {
@@ -246,7 +254,9 @@ export class PedidosService {
   // ===================================================
   async actualizarEstado(id: number, estado: EstadoOrden) {
     await this.prisma.orden.update({ where: { id }, data: { estado } });
-    return this.obtenerOrdenCompleta(id);
+    const orden = await this.obtenerOrdenCompleta(id);
+    this.pedidosGateway.notificarNuevoPedido(orden); // ✅ Notificar cambio
+    return orden;
   }
 
   // ===================================================
@@ -255,8 +265,9 @@ export class PedidosService {
   async solicitarCuenta(id: number) {
     const ordenActual = await this.prisma.orden.findUnique({ where: { id } });
 
+    let resultado;
     if (ordenActual && ordenActual.mesaId) {
-        return this.prisma.orden.updateMany({
+        resultado = await this.prisma.orden.updateMany({
             where: { 
                 mesaId: ordenActual.mesaId,
                 estado: { notIn: [EstadoOrden.PAGADA, EstadoOrden.CANCELADA, EstadoOrden.CERRADA] }
@@ -264,11 +275,16 @@ export class PedidosService {
             data: { estado: EstadoOrden.POR_COBRAR }
         });
     } else {
-        return this.prisma.orden.update({
+        resultado = await this.prisma.orden.update({
             where: { id },
             data: { estado: EstadoOrden.POR_COBRAR }
         });
     }
+    
+    // Notificar a Caja
+    const ordenNoti = await this.obtenerOrdenCompleta(id);
+    this.pedidosGateway.notificarPedidoParaCobrar(ordenNoti);
+    return resultado;
   }
 
   // ===================================================
@@ -305,6 +321,7 @@ export class PedidosService {
       console.log(`✅ Mesa ${ordenPagada.mesaId} marcada como SUCIA y limpiada`);
     }
 
+    this.pedidosGateway.notificarNuevoPedido(ordenPagada); // Actualizar pantallas
     return ordenPagada;
   }
 
@@ -352,11 +369,12 @@ export class PedidosService {
       }
     }
     
+    this.pedidosGateway.notificarNuevoPedido(orden);
     return { mensaje: 'Orden cancelada' };
   }
 
   // ===================================================
-  // 8. ACTUALIZAR ITEM (Lógica Cocina/Barra)
+  // 8. ACTUALIZAR ITEM (Lógica Cocina/Barra/Mesero)
   // ===================================================
   async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
     const itemActualizado = await this.prisma.itemOrden.update({
@@ -373,7 +391,16 @@ export class PedidosService {
       }
     });
 
-    // Lógica para cerrar orden completa automáticamente
+    // 🔥 IMPORTANTE: Emitir evento para que Cocina/Barra se actualicen
+    // Esto es lo que hace que desaparezca de la pantalla cuando el mesero confirma entrega
+    try {
+      this.pedidosGateway.notificarNuevoPedido(itemActualizado.orden);
+      console.log(`🔔 WebSocket emitido: Item ${itemId} cambiado a ${estado}`);
+    } catch (error) {
+      console.warn('⚠️ Error al emitir WebSocket:', error);
+    }
+
+    // Lógica para cerrar orden completa automáticamente si todo está listo
     const ordenPadre = itemActualizado.orden;
     const itemsPendientes = ordenPadre.items.filter(i => 
         i.estado !== EstadoOrden.LISTA && 
@@ -398,13 +425,7 @@ export class PedidosService {
          }
        });
 
-       try {
-         this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
-         console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo`);
-       } catch (error) {
-         console.warn('⚠️ Error al emitir WebSocket:', error);
-       }
-
+       this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
        return ordenActualizada;
     }
 

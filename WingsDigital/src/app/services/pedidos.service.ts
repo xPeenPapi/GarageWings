@@ -1,23 +1,22 @@
-
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { OrdenBackend } from '../models/api-models'; // Asegúrate de tener este modelo o quita el tipo si da error
 import { environment } from '../../environments/environment';
 
-
+// ✅ INTERFAZ ACTUALIZADA
 export interface CreatePedidoDto {
   mesa_id: number | null;
   empleado_id: number;
+  orden_id?: number | null; // Agregado para soportar agregar a orden existente
   items: Array<{
     producto_id: number;
     cantidad: number;
     precio_item: number;
     notas?: string | null;
     opcionesElegidas?: any;
+    destino?: string; // ✅ NUEVO: 'COCINA' o 'BARRA'
   }>;
   comensales?: number;
-  // ✅ ACTUALIZADO: Soportamos ambos nombres para evitar errores
   nota_general?: string; 
   notaGeneral?: string; 
   mesero_id?: number;
@@ -28,7 +27,7 @@ export interface CreatePedidoDto {
 })
 export class PedidosService {
   
-  private apiUrl = `${environment.apiUrl}/pedidos`; // ✅ ACTUALIZADO
+  private apiUrl = `${environment.apiUrl}/pedidos`; 
 
   constructor(private http: HttpClient) {}
 
@@ -46,11 +45,10 @@ export class PedidosService {
   // ==========================================
 
   crearPedido(dto: CreatePedidoDto): Observable<any> {
-    // console.log('📤 Enviando pedido:', dto);
     return this.http.post(`${this.apiUrl}`, dto, { headers: this.getHeaders() });
   }
 
-  // ✅ ALIAS (Para compatibilidad con tu código antiguo)
+  // ALIAS (Compatibilidad)
   crearOrden(dto: CreatePedidoDto): Observable<any> {
     return this.crearPedido(dto);
   }
@@ -64,14 +62,19 @@ export class PedidosService {
     return this.http.get<any[]>(`${this.apiUrl}/pendientes`, { headers: this.getHeaders() });
   }
 
-  // ✅ ALIAS (Para compatibilidad)
+  // ALIAS
   obtenerPendientes(): Observable<any[]> {
     return this.getPedidosPendientes();
   }
 
-  // 🔥 Para la Caja (Trae todo lo del día para el F5)
-  obtenerOrdenesDelDia(): Observable<OrdenBackend[]> {
-    return this.http.get<OrdenBackend[]>(`${this.apiUrl}/dia`, { headers: this.getHeaders() });
+  // Para la Caja (Trae todo lo del día/por cobrar)
+  obtenerOrdenesCaja(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/caja`, { headers: this.getHeaders() });
+  }
+  
+  // ALIAS para compatibilidad con código anterior si usabas obtenerOrdenesDelDia
+  obtenerOrdenesDelDia(): Observable<any[]> {
+    return this.obtenerOrdenesCaja();
   }
 
   getOrdenesPorMesa(mesaId: number): Observable<any[]> {
@@ -82,7 +85,6 @@ export class PedidosService {
     return this.http.get(`${this.apiUrl}/${ordenId}`, { headers: this.getHeaders() });
   }
 
-  // ✅ CORREGIDO: Faltaban los headers en esta función
   getPedidosPorMesa(mesaId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/mesa/${mesaId}`, { headers: this.getHeaders() });
   }
@@ -91,20 +93,27 @@ export class PedidosService {
   // 3. ACCIONES (Estados / Pagos)
   // ==========================================
 
+  // Actualizar estado GENERAL de la orden (PENDIENTE -> LISTA -> ENTREGADA)
   actualizarEstado(ordenId: number, nuevoEstado: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${ordenId}/estado`, { estado: nuevoEstado }, { headers: this.getHeaders() });
+    // Nota: Se envía a la raíz ID, el backend decide qué hacer con el body { estado: ... }
+    return this.http.patch(`${this.apiUrl}/${ordenId}`, { estado: nuevoEstado }, { headers: this.getHeaders() });
+  }
+
+  // ✅ MÉTODO FALTANTE AGREGADO: Actualizar estado de UN ITEM (Platillo individual)
+  // Esto es lo que permite que el checkmark funcione item por item y notifique a cocina
+  actualizarEstadoItem(itemId: number, estado: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/items/${itemId}`, { estado }, { headers: this.getHeaders() });
   }
 
   solicitarCuenta(ordenId: number): Observable<any> {
-    // Apuntamos a la ruta correcta del backend para solicitar cuenta
-    return this.http.patch(`${this.apiUrl}/${ordenId}/solicitar-cuenta`, {}, { headers: this.getHeaders() });
+    return this.http.patch(`${this.apiUrl}/${ordenId}/cuenta`, {}, { headers: this.getHeaders() });
   }
 
   finalizarOrden(ordenId: number, datosPago: any = {}): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${ordenId}/finalizar`, datosPago, { headers: this.getHeaders() });
+    return this.http.post(`${this.apiUrl}/${ordenId}/finalizar`, datosPago, { headers: this.getHeaders() });
   }
 
   cancelarOrden(ordenId: number): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${ordenId}/cancelar`, {}, { headers: this.getHeaders() });
+    return this.http.delete(`${this.apiUrl}/${ordenId}`, { headers: this.getHeaders() });
   }
 }

@@ -587,16 +587,30 @@ procesarConfirmacionCocina(): void {
     });
   }
 
+  // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
   confirmarEntrega(pedido: any) {
+    // 1. Actualizar estado general de la orden
     this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
         next: () => {
+            // 2. IMPORTANTE: Actualizar cada item que esté en 'LISTA' a 'ENTREGADA' 
+            // Esto hace que desaparezcan de la pantalla de cocina
+            if (pedido.items && Array.isArray(pedido.items)) {
+                pedido.items.forEach((item: any) => {
+                    if (item.estado === 'LISTA') {
+                        // Se asume que existe este método en el servicio o se usa patch general
+                        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+                    }
+                });
+            }
+
             this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
             this.contadorNotificaciones = this.pedidosListos.length;
             
             if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
                 this.recargarDatosMesa();
             }
-        }
+        },
+        error: (err) => console.error('Error al confirmar entrega:', err)
     });
   }
 
@@ -614,6 +628,10 @@ procesarConfirmacionCocina(): void {
   
   irAMesa(pedido: any) {
       this.mostrarListaNotificaciones = false;
+      
+      // ✅ Confirmamos entrega antes de navegar para que se limpie en cocina
+      this.confirmarEntrega(pedido); 
+
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
           this.router.navigateByUrl('/', {skipLocationChange: true}).then(() => {
               this.router.navigate(['/pedido', pedido.mesaId]);

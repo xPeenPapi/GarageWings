@@ -34,7 +34,6 @@ export class PedidosGateway implements OnGatewayInit, OnGatewayConnection, OnGat
 
   handleConnection(client: Socket) {
     // Solo log básico, la lógica real ocurre en 'registrar-usuario'
-    // this.logger.log(`✅ Cliente conectado al socket: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
@@ -81,11 +80,6 @@ export class PedidosGateway implements OnGatewayInit, OnGatewayConnection, OnGat
       
       // Enviamos la orden de salida al socket viejo
       this.server.to(socketIdAnterior).emit('force-logout');
-      
-      // Opcional: Desconexión forzada del servidor tras un breve retraso
-      // setTimeout(() => {
-      //   this.server.sockets.get(socketIdAnterior)?.disconnect(true);
-      // }, 500);
     } else {
       this.logger.log(`✅ Primera sesión activa para Usuario ${idNumerico}`);
     }
@@ -95,13 +89,19 @@ export class PedidosGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   }
 
   // ==========================================
-  // 2. GESTIÓN DE PEDIDOS (Cocina/Barra)
+  // 2. GESTIÓN DE PEDIDOS (Cocina/Barra/Caja)
   // ==========================================
   
-  // Método puente llamado desde el Controller
+  // Método puente llamado desde el Controller para Cocina y Meseros
   notificarNuevoPedido(orden: any) {
     this.logger.log(`📢 EMITIENDO 'nuevoPedido' para orden #${orden.id}`);
     this.server.emit('nuevoPedido', orden);
+  }
+
+  // ✅ MÉTODO AGREGADO: Notificar a Caja que alguien pidió la cuenta
+  notificarPedidoParaCobrar(orden: any) {
+    this.logger.log(`💸 EMITIENDO 'pedidoParaCobrar' para orden #${orden.id}`);
+    this.server.emit('pedidoParaCobrar', orden);
   }
 
   @SubscribeMessage('pedidoListo')
