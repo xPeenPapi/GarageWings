@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment'; // ✅ AGREGAR
+
 
 @Component({
   selector: 'app-pantalla-cocina',
@@ -24,7 +26,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   };
 
   private intervalId: any;
-  private apiUrl = 'http://localhost:3000/api/pedidos'; 
+  private apiUrl = `${environment.apiUrl}/pedidos`; // ✅ USAR ENVIRONMENT
 
   constructor(private http: HttpClient, private authService: AuthService, private router: Router) {}
 
