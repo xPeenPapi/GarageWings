@@ -2,12 +2,13 @@ import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Subscription, interval } from 'rxjs';
+import { Subscription, interval, forkJoin } from 'rxjs'; // ✅ Agregado forkJoin
 import { SocketService, ComandaCompleta } from '../../services/socket.service';
 import { AuthService } from '../../services/auth.service';
 import { PedidosService } from '../../services/pedidos.service';
 import { environment } from '../../../environments/environment';
 
+// Interfaz para la vista (Item Individual)
 interface ItemCocina {
   pedidoId: number;
   itemId: number;
@@ -32,12 +33,16 @@ type MobileTab = 'nuevos' | 'preparando' | 'listos';
 export class PantallaCocinaComponent implements OnInit, OnDestroy {
   
   activeMobileTab: MobileTab = 'nuevos';
+
+  // Almacén de datos crudos (Todas las órdenes que tienen ALGO activo)
   todasLasOrdenes: ComandaCompleta[] = [];
   
+  // VISTAS APLANADAS
   itemsPendientes: ItemCocina[] = [];
   itemsPreparando: ItemCocina[] = [];
-  listosPedidos: any[] = [];
+  listosPedidos: any[] = []; // Agrupado por orden para el historial
 
+  // UI
   nombreChef: string = '';
   horaActual: string = '';
   conteoPendientes: number = 0;
@@ -63,6 +68,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cargarPedidos();
+    // Polling de seguridad cada 10s por si falla el socket
     this.subscriptions.add(interval(10000).subscribe(() => this.cargarPedidos()));
     this.conectarSocket();
   }
@@ -74,11 +80,12 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  // 1. CARGA DE DATOS
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
         this.todasLasOrdenes = pedidos;
-        this.procesarListasVisuales();
+        this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia
       },
       error: (err) => console.error(err)
     });
@@ -93,121 +100,76 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     );
   }
 
+  // ==============================================================================
+  // 🔥🔥🔥 FILTRO BLINDADO ANTI-BEBIDAS (4 CAPAS DE SEGURIDAD) 🔥🔥🔥
+  // ==============================================================================
+  esItemDeCocina(item: any): boolean {
+    // 🔍 DEBUG: Información completa del item para rastreo
+    // const infoDebug = {
+    //   nombre: item.producto?.nombre,
+    //   itemDestino: item.destino,
+    //   productoDestino: item.producto?.destino,
+    //   categoria: item.producto?.categoria?.nombre,
+    //   estado: item.estado
+    // };
+    // console.log('🔍 Evaluando item:', infoDebug);
 
+    // CAPA 1: Destino del ITEM (Campo directo en la orden)
+    if (item.destino) {
+      const destinoItem = String(item.destino).toUpperCase();
+      if (destinoItem === 'BARRA') return false;
+      if (destinoItem === 'COCINA') return true;
+    }
 
-esItemDeCocina(item: any): boolean {
-  // ========================================
-  // 🔍 DEBUG: Información completa del item
-  // ========================================
-  const infoDebug = {
-    nombre: item.producto?.nombre,
-    itemDestino: item.destino,
-    productoDestino: item.producto?.destino,
-    categoria: item.producto?.categoria?.nombre,
-    estado: item.estado
-  };
-  
-  console.log('🔍 Evaluando item:', infoDebug);
+    // CAPA 2: Destino del PRODUCTO (Configuración del catálogo)
+    if (item.producto?.destino) {
+      const destinoProducto = String(item.producto.destino).toUpperCase();
+      if (destinoProducto === 'BARRA') return false;
+      if (destinoProducto === 'COCINA') return true;
+    }
 
-  // ========================================
-  // CAPA 1: Destino del ITEM (campo en ItemOrden)
-  // ========================================
-  if (item.destino) {
-    const destinoItem = String(item.destino).toUpperCase();
-    
-    if (destinoItem === 'BARRA') {
-      console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → item.destino = BARRA`);
+    // CAPA 3: Filtro por NOMBRE (Palabras clave prohibidas en cocina)
+    const nombre = (item.producto?.nombre || '').toLowerCase();
+    const palabrasProhibidas = [
+      // Bebidas generales
+      'bebida', 'refresco', 'agua', 'jugo', 'nectar', 'soda',
+      // Cervezas
+      'cerveza', 'corona', 'modelo', 'tecate', 'victoria', 'indio', 'pacifico', 'bohemia', 'heineken', 'stella', 'dos equis',
+      // Gaseosas
+      'coca', 'pepsi', 'sprite', 'fanta', 'manzanita', 'squirt', 'sidral', 'fresca', 'mirinda',
+      // Calientes / Café / Té
+      'cafe', 'café', 'capuchino', 'latte', 'espresso', 'americano', 'te ', 'té ', 'tisana', 'infusion',
+      // Alcohol / Coctelería
+      'coctel', 'cóctel', 'margarita', 'mojito', 'daiquiri', 'caipirinha', 'piña colada', 'tequila', 'vodka', 'ron', 'whisky', 'ginebra', 'mezcal',
+      // Otros envases
+      'michelada', 'chelada', 'clamato', 'vino', 'champagne', 'copa', 'trago', 'shot', 'botella', 'lata', 'barril', 'smoothie', 'frappe', 'malteada', 'limonada', 'naranjada', 'horchata', 'jamaica'
+    ];
+
+    if (palabrasProhibidas.some(p => nombre.includes(p))) {
+      // console.log(`❌ BLOQUEADO POR NOMBRE: "${item.producto?.nombre}"`);
       return false;
     }
-    
-    if (destinoItem === 'COCINA') {
-      console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → item.destino = COCINA`);
-      return true;
-    }
-  }
 
-  // ========================================
-  // CAPA 2: Destino del PRODUCTO (campo en Producto)
-  // ========================================
-  if (item.producto?.destino) {
-    const destinoProducto = String(item.producto.destino).toUpperCase();
-    
-    if (destinoProducto === 'BARRA') {
-      console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → producto.destino = BARRA`);
+    // CAPA 4: Filtro por CATEGORÍA
+    const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
+    const categoriasProhibidas = [
+      'bebida', 'cerveza', 'refresco', 'coctel', 'cóctel', 'licor', 'barra', 'bar', 'vino', 'cafe', 'café', 'tragos'
+    ];
+
+    if (categoriasProhibidas.some(c => categoria.includes(c))) {
+      // console.log(`❌ BLOQUEADO POR CATEGORÍA: "${categoria}"`);
       return false;
     }
-    
-    if (destinoProducto === 'COCINA') {
-      console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → producto.destino = COCINA`);
-      return true;
-    }
+
+    // ✅ Si pasó TODOS los filtros → Es comida
+    return true;
   }
 
-  // ========================================
-  // CAPA 3: Filtro por NOMBRE (para items sin destino)
-  // ========================================
-  const nombre = (item.producto?.nombre || '').toLowerCase();
-  
-  const palabrasProhibidas = [
-    // Bebidas generales
-    'bebida', 'refresco', 'agua', 'jugo', 'nectar', 'soda',
-    
-    // Cervezas (marcas específicas)
-    'cerveza', 'corona', 'modelo', 'tecate', 'victoria', 'indio',
-    'pacifico', 'bohemia', 'heineken', 'stella', 'dos equis',
-    
-    // Gaseosas
-    'coca', 'pepsi', 'sprite', 'fanta', 'manzanita', 
-    'squirt', 'sidral', 'fresca', 'mirinda',
-    
-    // Bebidas calientes
-    'cafe', 'café', 'capuchino', 'latte', 'espresso', 'americano',
-    'te ', 'té ', 'tisana', 'infusion', 'infusión',
-    
-    // Cocteles y licores
-    'coctel', 'cóctel', 'margarita', 'mojito', 'daiquiri',
-    'caipirinha', 'piña colada', 'tequila', 'vodka',
-    'ron', 'whisky', 'whiskey', 'ginebra', 'mezcal',
-    
-    // Otros
-    'michelada', 'chelada', 'clamato', 'vino', 'champagne',
-    'copa', 'trago', 'shot', 'botella', 'lata', 'barril',
-    'smoothie', 'frappe', 'frappé', 'batido', 'malteada',
-    'limonada', 'naranjada', 'horchata', 'jamaica'
-  ];
-
-  if (palabrasProhibidas.some(p => nombre.includes(p))) {
-    console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → nombre contiene palabra de bebida`);
-    return false;
-  }
-
-  // ========================================
-  // CAPA 4: Filtro por CATEGORÍA
-  // ========================================
-  const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
-  
-  const categoriasProhibidas = [
-    'bebida', 'cerveza', 'refresco', 'coctel', 'cóctel', 
-    'licor', 'barra', 'bar', 'vino', 'cafe', 'café', 'tragos'
-  ];
-
-  if (categoriasProhibidas.some(c => categoria.includes(c))) {
-    console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → categoría "${categoria}" es de bebidas`);
-    return false;
-  }
-
-  // ========================================
-  // ✅ Si pasó TODOS los filtros → Es comida
-  // ========================================
-  console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → pasó todos los filtros (es comida)`);
-  return true;
-}
-
-// 🔥 Reemplaza procesarListasVisuales() en pantalla-cocina.component.ts
-
-procesarListasVisuales() {
-    console.log('🔄 ===== PROCESANDO LISTAS COCINA =====');
-    console.log(`📦 Total órdenes recibidas: ${this.todasLasOrdenes.length}`);
+  // ==============================================================================
+  // 🚜 PROCESADOR VISUAL (Clasifica items en columnas)
+  // ==============================================================================
+  procesarListasVisuales() {
+    // console.log('🔄 ===== PROCESANDO LISTAS COCINA =====');
     
     this.itemsPendientes = [];
     this.itemsPreparando = [];
@@ -220,10 +182,8 @@ procesarListasVisuales() {
         const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
         const horaInicio = new Date(fechaOrigen);
         
-        console.log(`📋 Orden #${pedido.id} - Mesa: ${pedido.mesa?.numero || 'S/N'} - Items: ${pedido.items.length}`);
-        
         pedido.items.forEach((item: any) => {
-            // ✅ APLICAR FILTRO (con logs incluidos)
+            // ✅ APLICAR EL FILTRO BLINDADO
             const esParaCocina = this.esItemDeCocina(item);
             
             if (!esParaCocina) {
@@ -249,12 +209,13 @@ procesarListasVisuales() {
                 case 'PENDIENTE':
                     this.itemsPendientes.push(visualItem);
                     break;
-                    
+                
                 case 'EN_PREPARACION':
                     this.itemsPreparando.push(visualItem);
                     break;
-                    
+                
                 case 'LISTA':
+                    // Agrupamos para mostrar en el historial "Mesa 1: Hamburguesa (Listo)"
                     if (!mapaListos.has(pedido.id)) {
                         mapaListos.set(pedido.id, { 
                             ...pedido, 
@@ -272,16 +233,15 @@ procesarListasVisuales() {
     this.conteoPreparando = this.itemsPreparando.length;
     this.conteoListos = this.listosPedidos.length;
 
-    console.log('📊 ===== RESUMEN COCINA =====');
-    console.log(`✅ Items aceptados: ${itemsAceptados}`);
-    console.log(`❌ Items bloqueados: ${itemsBloqueados}`);
-    console.log(`📋 Pendientes: ${this.conteoPendientes}`);
-    console.log(`👨‍🍳 Preparando: ${this.conteoPreparando}`);
-    console.log(`🍽️ Listos: ${this.conteoListos}`);
-    console.log('=====================================\n');
-}
+    // console.log(`📊 Reporte: ${itemsAceptados} aceptados, ${itemsBloqueados} bebidas bloqueadas.`);
+  }
+
+  // ==============================================================================
+  // ⚡ ACCIONES (Botones)
+  // ==============================================================================
 
   empezarPreparacion(itemVisual: ItemCocina) {
+      // 1. UI Optimista (Mover tarjeta instantáneamente)
       const index = this.itemsPendientes.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           const item = this.itemsPendientes[index];
@@ -291,24 +251,48 @@ procesarListasVisuales() {
       this.conteoPendientes = this.itemsPendientes.length;
       this.conteoPreparando = this.itemsPreparando.length;
 
+      // 2. Llamada al Backend
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'EN_PREPARACION' })
           .subscribe({ error: (e) => console.error(e) });
   }
 
   terminarPreparacion(itemVisual: ItemCocina) {
+      // 1. UI Optimista
       const index = this.itemsPreparando.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           this.itemsPreparando.splice(index, 1);
       }
       this.conteoPreparando = this.itemsPreparando.length;
       
+      // 2. Llamada al Backend
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'LISTA' }).subscribe({
           next: () => {
-              this.cargarPedidos(); 
+              this.cargarPedidos(); // Recargar para mover a "Listos" y verificar cierre de orden
           }
       });
   }
 
+  // ✅ FUNCIÓN PARA EL BOTÓN "CHECK" (LIMPIAR PANTALLA)
+  // Cambia el estado de LISTA a ENTREGADA, haciendo que desaparezca de la cocina.
+  limpiarOrdenLista(pedidoVisual: any) {
+      if (!pedidoVisual || !pedidoVisual.items) return;
+
+      // Creamos un array de peticiones para actualizar todos los items de esa tarjeta
+      const peticiones = pedidoVisual.items.map((item: any) => {
+          return this.http.patch(`${this.apiUrl}/items/${item.id}`, { estado: 'ENTREGADA' });
+      });
+
+      // Ejecutamos todas las peticiones en paralelo
+      forkJoin(peticiones).subscribe({
+          next: () => {
+              // Recargamos para que la tarjeta desaparezca de la columna "Listos"
+              this.cargarPedidos();
+          },
+          error: (err) => console.error('Error al limpiar orden', err)
+      });
+  }
+
+  // Auxiliares
   getMinutosTranscurridos(fecha: Date): number {
       const diff = new Date().getTime() - new Date(fecha).getTime();
       return Math.floor(diff / 60000);

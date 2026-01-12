@@ -246,14 +246,40 @@
 .ready-item-compact {
     background: white; padding: 12px; border-radius: 10px;
     border-left: 4px solid #00b894;
-    opacity: 0.8;
+    opacity: 0.9;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 .ready-header {
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: space-between; align-items: center; /* Alineación del botón */
     font-weight: 700; color: #2d3436; margin-bottom: 8px;
 }
+
+/* ✅ NUEVO: Estilo del botón de limpiar orden lista */
+.btn-clear-ready {
+    background: #e3f2fd; /* Azul suave */
+    color: #0984e3;
+    border: none;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.btn-clear-ready:hover {
+    background: #0984e3;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
 .ready-items { font-size: 0.9rem; color: #636e72; }
 .ready-subitem { margin-bottom: 4px; display: block;}
+.ready-subitem span { font-weight: 700; color: #2d3436; margin-right: 5px; }
 
 
 /* ========================================= */

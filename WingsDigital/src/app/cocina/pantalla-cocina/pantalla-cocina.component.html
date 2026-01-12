@@ -138,12 +138,16 @@
              <div *ngFor="let pedido of listosPedidos" class="ready-item-compact animate-in">
                  <div class="ready-header">
                      <strong>Mesa {{ pedido.mesa?.numero || 'S/N' }}</strong>
-                     <span class="status-check">✓</span>
+                     
+                     <button class="btn-clear-ready" (click)="limpiarOrdenLista(pedido)" title="Marcar entregado">
+                        <i class="fas fa-check-double"></i>
+                     </button>
                  </div>
+                 
                  <div class="ready-items">
-                     <ng-container *ngFor="let i of pedido.items">
-                        <div *ngIf="esItemDeCocina(i)" class="ready-subitem">
-                           <span>{{ i.cantidad }}x</span> {{ i.producto?.nombre }}
+                     <ng-container *ngFor="let item of pedido.items">
+                        <div *ngIf="esItemDeCocina(item)" class="ready-subitem">
+                           <span>{{ item.cantidad }}x</span> {{ item.producto?.nombre }}
                         </div>
                      </ng-container>
                  </div>
