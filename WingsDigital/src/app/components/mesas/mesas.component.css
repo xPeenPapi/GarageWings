@@ -763,7 +763,7 @@ body {
   background: rgba(255, 107, 107, 0.1);
 }
 
-/* ========== NOTIFICACIONES MÓVIL ========== */
+/* ========== NOTIFICACIONES MÓVIL (CORREGIDO) ========== */
 
 .notificacion-container-movil {
   position: relative;
@@ -793,7 +793,7 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 9999;
+  z-index: 20000; /* Z-Index alto para estar sobre todo */
   display: flex;
   align-items: flex-end;
   animation: fadeIn 0.3s;
@@ -876,6 +876,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: transform 0.2s;
+  border-left: 5px solid #2ecc71; /* Borde verde */
 }
 
 .notificacion-item-movil:active {
@@ -887,6 +888,19 @@ body {
   align-items: center;
   gap: 12px;
   flex: 1;
+}
+
+/* ✅ CLASE AGREGADA: ÍCONO VERDE */
+.icono-listo {
+  background-color: #e8f5e9;
+  color: #2ecc71;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
 }
 
 .notificacion-info-movil i {

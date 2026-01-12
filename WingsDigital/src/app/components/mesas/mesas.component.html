@@ -259,7 +259,11 @@
     <header class="header">
       <img src="wings4.jpg" alt="Logo" class="logo">
       <div><h1 *ngIf="!modoUnion">Selección</h1><h1 *ngIf="modoUnion" style="color: #e67e22;">Unir Mesas</h1><p>{{ nombreMesero }}</p></div>
-      <div class="notificacion-container-movil"><i class="fas fa-bell notification-icon" (click)="toggleListaNotificaciones()"></i><span *ngIf="contadorNotificaciones > 0" class="notificacion-badge-movil">{{ contadorNotificaciones }}</span></div>
+      
+      <div class="notificacion-container-movil">
+          <i class="fas fa-bell notification-icon" (click)="toggleListaNotificaciones()"></i>
+          <span *ngIf="contadorNotificaciones > 0" class="notificacion-badge-movil">{{ contadorNotificaciones }}</span>
+      </div>
     </header>
 
     <div *ngIf="modoUnion" class="banner-movil-union">
@@ -338,6 +342,46 @@
         </div>
       </ng-container>
     </div>
+
+    <div class="notificaciones-modal-movil" *ngIf="mostrarListaNotificaciones" (click)="toggleListaNotificaciones()">
+      <div class="notificaciones-contenido-movil" (click)="$event.stopPropagation()">
+        
+        <div class="notificaciones-header-movil">
+          <h3><i class="fas fa-bell"></i> Pedidos Listos</h3>
+          <button class="btn-cerrar-modal" (click)="toggleListaNotificaciones()">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+
+        <div class="notificaciones-lista-movil">
+          
+          <div *ngIf="pedidosListos.length === 0" class="sin-notificaciones-movil">
+            <i class="fas fa-check-circle"></i>
+            <p>¡Todo entregado!</p>
+            <p style="font-size: 0.8rem; margin-top: 5px;">No tienes pedidos pendientes de recoger.</p>
+          </div>
+
+          <div *ngFor="let pedido of pedidosListos" class="notificacion-item-movil" (click)="irAMesa(pedido)">
+            <div class="notificacion-info-movil">
+              <div class="icono-listo"><i class="fas fa-utensils"></i></div>
+              <div>
+                <h4>Mesa {{ pedido.mesaId }}</h4>
+                <p>Pedido #{{ pedido.id }} • {{ pedido.total | currency }}</p>
+              </div>
+            </div>
+            <button class="btn-cerrar-notificacion" style="font-size: 1.2rem; padding: 10px;" (click)="marcarComoVista(pedido); $event.stopPropagation()">
+              <i class="fas fa-check"></i>
+            </button>
+          </div>
+
+          <button *ngIf="pedidosListos.length > 0" class="btn-limpiar-movil" (click)="limpiarNotificaciones()">
+            Marcar todo como entregado
+          </button>
+
+        </div>
+      </div>
+    </div>
+
     <button class="logout" (click)="Logout()">Salir</button>
   </div>
 </ng-template>

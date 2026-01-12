@@ -49,7 +49,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   public totalMisMesas = 0;
   public totalSucias = 0; 
 
-  public pedidosListos: ComandaCompleta[] = [];
+  public pedidosListos: any[] = []; // Cambiado a any[] para flexibilidad en mapeo
   public contadorNotificaciones = 0;
   public mostrarListaNotificaciones = false;
 
@@ -104,7 +104,12 @@ export class MesasComponent implements OnInit, OnDestroy {
     
     // Intervalos de actualización
     this.subscriptions.add(interval(60000).subscribe(() => { this.cargarMesas(); this.cargarOrdenesParaLlevar(); }));
-    this.subscriptions.add(interval(5000).subscribe(() => { this.verificarNotificacionesComida(); this.cargarOrdenesParaLlevar(); }));
+    
+    // Intervalo de notificaciones (5s) - ACTUALIZADO para usar la nueva lógica
+    this.subscriptions.add(interval(5000).subscribe(() => { 
+        this.verificarNotificacionesComida(); 
+        this.cargarOrdenesParaLlevar(); 
+    }));
   }
 
   // ==========================================
@@ -213,9 +218,70 @@ export class MesasComponent implements OnInit, OnDestroy {
       return padre ? padre.numero : '?';
   }
 
-  cargarOrdenesParaLlevar() { this.pedidosService.obtenerPendientes().subscribe({ next: (ordenes: any[]) => { this.ordenesParaLlevarActivas = ordenes.filter(o => !o.mesaId && o.estado !== 'CANCELADA' && o.estado !== 'PAGADA' && o.estado !== 'CERRADA'); } }); }
+  cargarOrdenesParaLlevar() { 
+      this.pedidosService.obtenerPendientes().subscribe({ 
+          next: (ordenes: any[]) => { 
+              this.ordenesParaLlevarActivas = ordenes.filter(o => 
+                  !o.mesaId && 
+                  o.estado !== 'CANCELADA' && 
+                  o.estado !== 'PAGADA' && 
+                  o.estado !== 'CERRADA'
+              ); 
+          } 
+      }); 
+  }
   
-  verificarNotificacionesComida() { this.pedidosService.obtenerPendientes().subscribe({ next: (ordenes: any[]) => { this.mesas.forEach(mesa => { const ordenMesa = ordenes.find(o => o.mesaId === mesa.id); if (ordenMesa && ordenMesa.estado === 'LISTA') { mesa.tienePedidoListo = true; } else { mesa.tienePedidoListo = false; } }); }, error: (err) => console.error(err) }); }
+  // ✅ VERIFICACIÓN DE NOTIFICACIONES (CORREGIDA Y MEJORADA)
+  verificarNotificacionesComida() { 
+      this.pedidosService.obtenerPendientes().subscribe({ 
+          next: (ordenes: any[]) => { 
+              
+              // 1. Marcar mesas visualmente (Ícono rojo)
+              this.mesas.forEach(mesa => { 
+                  const ordenMesa = ordenes.find(o => o.mesaId === mesa.id); 
+                  if (ordenMesa && ordenMesa.estado === 'LISTA') { 
+                      mesa.tienePedidoListo = true; 
+                  } else { 
+                      mesa.tienePedidoListo = false; 
+                  } 
+              }); 
+
+              // 2. Llenar la lista de notificaciones (Campanita)
+              const misOrdenesListas = ordenes.filter(o => {
+                  const esLista = o.estado === 'LISTA';
+                  if (!esLista) return false;
+                  // Verificar propiedad (por ID o por objeto mesero)
+                  const ownerId = o.meseroId || (o.mesero ? o.mesero.id : 0);
+                  return String(ownerId) === String(this.usuarioActualId);
+              });
+
+              this.pedidosListos = misOrdenesListas.map(o => {
+                  // Calcular total si no viene del backend
+                  const totalCalculado = (o.items || []).reduce((acc: number, item: any) => {
+                      const precio = Number(item.precioUnitario) || Number(item.precio) || 0;
+                      return acc + (precio * item.cantidad);
+                  }, 0);
+
+                  return {
+                      id: o.id,
+                      mesaId: o.mesa?.numero || 'Llevar', // Manejo visual para pedidos llevar
+                      total: o.total || totalCalculado,
+                      items: o.items,
+                      estado: o.estado
+                  };
+              });
+
+              // Actualizar contador y sonido
+              const cuentaAnterior = this.contadorNotificaciones;
+              this.contadorNotificaciones = this.pedidosListos.length;
+
+              if (this.contadorNotificaciones > cuentaAnterior) {
+                  this.audio?.play().catch(()=>{});
+              }
+          }, 
+          error: (err) => console.error(err) 
+      }); 
+  }
   
   calcularTiempo(fecha?: string): string { if (!fecha) return ''; const inicio = new Date(fecha).getTime(); const ahora = new Date().getTime(); const diffMinutos = Math.floor((ahora - inicio) / 60000); const horas = Math.floor(diffMinutos / 60); const minutos = diffMinutos % 60; if (horas > 0) return `${horas}h ${minutos}min`; return `${minutos} min`; }
   
@@ -558,23 +624,56 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.subscriptions.add(this.socketService.escucharPedidosParaCobrar().subscribe({
       next: (pedido: ComandaCompleta) => {
         if(pedido.estado === 'PAGADA' || pedido.estado === 'CANCELADA') this.cargarMesas();
-        if (pedido.mesero === this.nombreMesero) this.agregarNotificacion(pedido);
+        // El socket solo fuerza la actualización, la lógica de lista la maneja el intervalo para ser consistente con AggPedido
+        if (pedido.mesero === this.nombreMesero) {
+            this.verificarNotificacionesComida();
+        }
       }
     }));
   }
 
+  // Mantenemos este método por compatibilidad con el socket antiguo, pero la lógica fuerte está en verificarNotificacionesComida
   agregarNotificacion(pedido: ComandaCompleta) {
+    // Ya no es necesario insertar manualmente si usamos el polling, pero por seguridad:
     if (!this.pedidosListos.find(p => p.id === pedido.id)) {
-      this.pedidosListos.unshift(pedido);
+      // Ajuste rápido de tipo
+      const p: any = pedido; 
+      p.mesaId = pedido.mesaId || 'Llevar';
+      this.pedidosListos.unshift(p);
       this.contadorNotificaciones++;
       this.audio?.play().catch(()=>{});
     }
   }
+
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
-  limpiarNotificaciones() { this.pedidosListos = []; this.contadorNotificaciones = 0; this.mostrarListaNotificaciones = false; }
-  irAMesa(pedido: ComandaCompleta) { this.marcarComoVista(pedido); if(pedido.mesaId) this.router.navigate(['/pedido', pedido.mesaId]); else this.router.navigate(['/pedido/orden', pedido.id]); }
+  
+  limpiarNotificaciones() { 
+      // Al limpiar, idealmente marcaríamos como "visto" en backend o local, 
+      // aquí simplemente limpiamos la vista
+      this.pedidosListos = []; 
+      this.contadorNotificaciones = 0; 
+      this.mostrarListaNotificaciones = false; 
+  }
+
+  irAMesa(pedido: any) { 
+      this.marcarComoVista(pedido); 
+      if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
+          this.router.navigate(['/pedido', pedido.mesaId]); 
+      } else {
+          this.router.navigate(['/pedido/orden', pedido.id]); 
+      }
+  }
+
   irAPedidoParaLlevar(id: number) { this.router.navigate(['/pedido/orden', id]); }
-  marcarComoVista(p: any) { const idx = this.pedidosListos.indexOf(p); if(idx > -1) { this.pedidosListos.splice(idx, 1); this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); } }
+  
+  marcarComoVista(p: any) { 
+      const idx = this.pedidosListos.indexOf(p); 
+      if(idx > -1) { 
+          this.pedidosListos.splice(idx, 1); 
+          this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
+      } 
+  }
+  
   Logout() { this.authService.logout(); }
   ngOnDestroy() { this.subscriptions.unsubscribe(); }
 }
