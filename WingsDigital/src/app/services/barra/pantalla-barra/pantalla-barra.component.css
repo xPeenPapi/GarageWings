@@ -1,58 +1,292 @@
-/* Asegura que el grid sea de 2 columnas */
-.pedidos-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Forzar 2 columnas */
-    gap: 20px;
-    height: calc(100vh - 80px);
-    padding: 10px;
+/* ========================================= */
+/* 🎨 PANTALLA DE BARRA - ESTILO MODERNO */
+/* ========================================= */
+
+:host {
+  display: block;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8f9fa; /* Fondo gris muy suave */
+  min-height: 100vh;
 }
 
-/* Estilo para el botón de acción rápida */
+.barra-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* --- HEADER --- */
+.header-pantalla {
+  background-color: #ffffff;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.header-pantalla h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #2c3e50;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-salir {
+  background-color: #ffffff;
+  border: 1px solid #dcdcdc;
+  color: #555;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-salir:hover {
+  background-color: #f1f1f1;
+  color: #333;
+}
+
+/* --- GRID PRINCIPAL (2 COLUMNAS) --- */
+.pedidos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+  gap: 20px;
+  padding: 20px;
+  flex: 1;
+  overflow: hidden; /* Para que el scroll sea interno en cada columna */
+}
+
+/* --- SECCIONES (COLUMNAS) --- */
+.pedido-seccion {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.seccion-titulo {
+  margin: 0;
+  padding: 15px 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 2px solid transparent;
+}
+
+/* Colores por estado */
+.seccion-titulo.nuevo {
+  background-color: #fff5f5; /* Rojo pastel muy claro */
+  color: #e74c3c;
+  border-bottom-color: #e74c3c;
+}
+
+.seccion-titulo.listo {
+  background-color: #f0fdf4; /* Verde pastel muy claro */
+  color: #27ae60;
+  border-bottom-color: #27ae60;
+}
+
+/* --- LISTA SCROLLABLE --- */
+.lista-pedidos {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  background-color: #fafafa;
+}
+
+.no-pedidos {
+  text-align: center;
+  color: #adb5bd;
+  margin-top: 50px;
+  font-style: italic;
+  font-size: 1.2rem;
+}
+
+/* --- TARJETAS DE PEDIDO --- */
+.pedido-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.pedido-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+/* Borde izquierdo de color según estado */
+.pedido-card.nuevo { border-left: 5px solid #e74c3c; }
+.pedido-card.listo { border-left: 5px solid #27ae60; opacity: 0.85; }
+
+/* --- HEADER DE TARJETA --- */
+.pedido-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.pedido-header h4 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 800;
+}
+
+.mesero-tag {
+  background-color: #f1f3f5;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status {
+  font-size: 1.5rem;
+  color: #27ae60;
+}
+
+/* --- LISTA DE ITEMS --- */
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 15px 0;
+}
+
+.items-list li {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #eee;
+}
+
+.items-list li:last-child {
+  border-bottom: none;
+}
+
+.item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.qty {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #2c3e50;
+  min-width: 30px;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #34495e;
+}
+
+.notas {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-top: 4px;
+  display: inline-block;
+  font-weight: 500;
+}
+
+.extras {
+  margin-left: 30px;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+/* --- BOTÓN DE ACCIÓN (SERVIDO) --- */
 .btn-listo-directo {
-    background-color: #2ecc71; /* Verde brillante */
-    color: white;
-    width: 100%;
-    padding: 15px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: transform 0.1s, background-color 0.2s;
+  background-color: #2ecc71; /* Verde brillante */
+  color: white;
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background-color 0.2s, transform 0.1s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-listo-directo:hover {
+  background-color: #27ae60;
 }
 
 .btn-listo-directo:active {
-    transform: scale(0.98);
-    background-color: #27ae60;
+  transform: scale(0.98);
 }
 
-.btn-listo-directo i {
-    font-size: 1.4rem;
-}
-
-/* Lista compacta para la columna de entregados */
+/* --- ITEMS COMPACTOS (COLUMNA DERECHA) --- */
 .items-list-compact {
-    list-style: none;
-    padding: 0;
-    margin: 10px 0;
-    font-size: 0.9rem;
-    color: #555;
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  font-size: 0.95rem;
+  color: #555;
 }
 
 .items-list-compact li {
-    border-bottom: 1px dashed #eee;
-    padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 6px 0;
+  display: flex;
+  gap: 8px;
 }
 
-/* Ajustes responsive si la pantalla es muy chica */
+.pedido-footer {
+  font-size: 0.8rem;
+  color: #adb5bd;
+  text-align: right;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+/* --- RESPONSIVE --- */
 @media (max-width: 768px) {
-    .pedidos-grid {
-        grid-template-columns: 1fr; /* 1 columna en móviles verticales */
-        height: auto;
-    }
+  .pedidos-grid {
+    grid-template-columns: 1fr; /* 1 columna en móviles */
+    height: auto;
+    overflow-y: auto;
+  }
+  
+  .pedido-seccion {
+    max-height: 500px; /* Limitar altura en móvil */
+  }
 }

@@ -1,10 +1,12 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { SocketService, ComandaCompleta } from '../../socket.service'; // Asegúrate que la ruta sea correcta
-import { AuthService } from '../../auth.service'; // Asegúrate que la ruta sea correcta
-import { PedidosService } from '../../pedidos.service'; // Asegúrate que la ruta sea correcta
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
+
+// Asegúrate de que las rutas a tus servicios sean correctas
+import { SocketService, ComandaCompleta } from '../../socket.service';
+import { AuthService } from '../../auth.service';
+import { PedidosService } from '../../pedidos.service';
 
 @Component({
   selector: 'app-pantalla-barra',
@@ -15,16 +17,16 @@ import { Subscription } from 'rxjs';
 })
 export class PantallaBarraComponent implements OnInit, OnDestroy {
   
-  // ✅ OPTIMIZACIÓN: Solo 2 estados para Barra (Por hacer y Hecho)
+  // ✅ Solo 2 listas: Por Servir (Pendientes) y Para Entregar (Listos)
   nuevosPedidos: ComandaCompleta[] = [];
   listosPedidos: ComandaCompleta[] = [];
   
-  private socketSub: Subscription | undefined;
+  private subscriptions = new Subscription();
 
   // Iconos temáticos de BARRA 🍸
   iconos = {
-    nuevos: 'fas fa-wine-bottle', // Icono de botella/bebida
-    servir: 'fas fa-hand-holding-water', // Icono de servir
+    nuevos: 'fas fa-wine-bottle', 
+    servir: 'fas fa-hand-holding-water',
     listos: 'fas fa-check-circle',
     marcarListo: 'fas fa-check'
   };
@@ -38,49 +40,86 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // 1. Cargar historial de BD
+    // 1. Carga inicial de datos
+    this.cargarPedidos();
+
+    // 2. Intervalo de seguridad (polling) cada 15 segundos
+    // Esto asegura que si el socket falla, las bebidas lleguen igual.
+    this.subscriptions.add(
+      interval(15000).subscribe(() => this.cargarPedidos())
+    );
+
+    // 3. Conexión por WebSockets (Tiempo real)
+    this.conectarSocket();
+  }
+
+  cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
-        console.log('📥 Barra: Historial recuperado', pedidos);
+        // console.log('📥 Barra: Sincronizando pedidos...', pedidos.length);
         this.distribuirPedidos(pedidos);
       },
-      error: (err) => console.error(err)
+      error: (err) => console.error('Error cargando pedidos:', err)
     });
+  }
 
-    // 2. Conectar Socket
+  conectarSocket() {
     if (!this.socketService.isConnected()) this.socketService.reconnect();
 
-    this.socketSub = this.socketService.escucharPedidosParaCobrar().subscribe((pedido) => {
-        // Nota: Reutilizamos el socket de pedidos generales para detectar cambios
-        // Idealmente deberías tener un 'escucharNuevosPedidos' específico si tu backend lo soporta
-        // Si no, recargamos la lista o procesamos si viene el objeto completo
+    // ✅ CORRECCIÓN IMPORTANTE: Escuchamos 'escucharNuevosPedidos', no 'PedidosParaCobrar'
+    // La barra necesita ver el pedido en cuanto el mesero lo envía.
+    this.subscriptions.add(
+      this.socketService.escucharNuevosPedidos().subscribe((pedido) => {
         this.zone.run(() => {
-             // Si llega un pedido nuevo, lo procesamos
-             // Aquí asumimos que el socket devuelve la orden completa
-             this.procesarPedidoEntrante(pedido as any);
+             console.log('🔔 Barra: Nuevo pedido detectado por socket');
+             // Si el socket devuelve solo el ID o un objeto parcial, recargamos todo para evitar errores
+             // Si devuelve el objeto completo, lo procesamos directo.
+             // Por seguridad, aquí llamamos a procesar si es completo, o recargamos.
+             if (pedido && pedido.items) {
+                this.procesarPedidoEntrante(pedido as any);
+             } else {
+                this.cargarPedidos();
+             }
         });
-    });
+      })
+    );
   }
 
   distribuirPedidos(pedidos: any[]) {
-    // Limpiamos listas para evitar duplicados al recargar
-    this.nuevosPedidos = [];
-    this.listosPedidos = [];
-    pedidos.forEach(p => this.procesarPedidoEntrante(p));
+    // Reiniciamos las listas para evitar duplicados al refrescar
+    const nuevosTemp: ComandaCompleta[] = [];
+    const listosTemp: ComandaCompleta[] = [];
+
+    pedidos.forEach(p => {
+        // Filtro: Solo nos importan los pedidos que tengan bebidas (BARRA)
+        const tieneBebida = p.items.some((item: any) => item.producto?.destino === 'BARRA');
+        
+        if (tieneBebida) {
+            // Lógica Fast Track: Pendiente o Preparando -> A la lista de "Por Servir"
+            if (p.estado === 'PENDIENTE' || p.estado === 'EN_PREPARACION') {
+                nuevosTemp.push(p);
+            } 
+            // Si ya está lista -> A la lista de "Entregar"
+            else if (p.estado === 'LISTA') {
+                listosTemp.push(p);
+            }
+        }
+    });
+
+    this.nuevosPedidos = nuevosTemp;
+    this.listosPedidos = listosTemp;
   }
 
   procesarPedidoEntrante(pedido: any) {
-    // ⚠️ FILTRO MÁGICO: Solo aceptamos la orden si tiene algo para la BARRA
+    // ⚠️ FILTRO: Verificamos si este pedido nuevo trae cosas de BARRA
     const tieneBebida = pedido.items.some((item: any) => item.producto?.destino === 'BARRA');
     
-    if (!tieneBebida) return;
+    if (!tieneBebida) return; // Si es pura comida, lo ignoramos en esta pantalla
 
-    // Evitar duplicados visuales si ya existe
+    // Evitar duplicados si ya lo tenemos en pantalla
     if (this.existePedido(pedido.id)) return;
 
-    // ✅ LÓGICA SIMPLIFICADA: 
-    // Si está Pendiente o En Preparación -> Va a "Nuevos" (Por servir)
-    // Si está Lista -> Va a "Listos"
+    // Agregar a la lista correspondiente
     if (pedido.estado === 'PENDIENTE' || pedido.estado === 'EN_PREPARACION') {
         this.nuevosPedidos.push(pedido);
     } else if (pedido.estado === 'LISTA') {
@@ -92,23 +131,26 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
     return [...this.nuevosPedidos, ...this.listosPedidos].some(p => p.id === id);
   }
 
-  // ✅ ACCIÓN RÁPIDA: De Pendiente a LISTO directamente
+  // ✅ ACCIÓN RÁPIDA: Marca como LISTA directamente (Salta "Preparando")
   marcarComoServido(pedido: ComandaCompleta) {
-      // 1. Llamada a la API (Backend) -> Directo a LISTA
+      // 1. Quitamos visualmente de inmediato para sensación de rapidez
+      const index = this.nuevosPedidos.findIndex(p => p.id === pedido.id);
+      if (index !== -1) {
+        this.nuevosPedidos.splice(index, 1);
+        const pedidoListo = { ...pedido, estado: 'LISTA' };
+        this.listosPedidos.push(pedidoListo);
+      }
+
+      // 2. Enviamos la actualización al backend
       this.pedidosService.actualizarEstado(pedido.id, 'LISTA').subscribe({
         next: (ordenActualizada) => {
-          console.log('✅ Bebida servida (Estado: LISTA)');
-          
-          // 2. Mover visualmente
-          const index = this.nuevosPedidos.findIndex(p => p.id === pedido.id);
-          if (index !== -1) {
-            this.nuevosPedidos.splice(index, 1);
-            // Actualizamos el estado localmente para reflejar el cambio
-            const pedidoActualizado = { ...pedido, estado: 'LISTA' };
-            this.listosPedidos.push(pedidoActualizado);
-          }
+          console.log('✅ Bebida servida confirmada en BD');
         },
-        error: (err) => alert('Error al actualizar estado: ' + err.message)
+        error: (err) => {
+          console.error('❌ Error al actualizar estado:', err);
+          // Si falla, recargamos para corregir la vista
+          this.cargarPedidos();
+        }
       });
   }
  
@@ -123,6 +165,6 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.socketSub) this.socketSub.unsubscribe();
+    this.subscriptions.unsubscribe();
   }
 }
