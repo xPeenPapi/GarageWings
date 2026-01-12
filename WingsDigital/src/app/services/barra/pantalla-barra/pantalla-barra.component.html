@@ -23,23 +23,15 @@
   <section class="kpi-section">
     <div class="kpi-card pending">
       <div class="kpi-content">
-        <span class="label">Pendientes</span>
+        <span class="label">Por Servir</span>
         <strong class="count">{{ conteoPendientes }}</strong>
       </div>
-      <div class="kpi-icon"><i class="far fa-clock"></i></div>
-    </div>
-
-    <div class="kpi-card preparing">
-      <div class="kpi-content">
-        <span class="label">Preparando</span>
-        <strong class="count">{{ conteoPreparando }}</strong>
-      </div>
-      <div class="kpi-icon"><i class="fas fa-mug-hot"></i></div>
+      <div class="kpi-icon"><i class="fas fa-glass-martini-alt"></i></div>
     </div>
 
     <div class="kpi-card ready">
       <div class="kpi-content">
-        <span class="label">Listas</span>
+        <span class="label">Listas / Entregar</span>
         <strong class="count">{{ conteoListas }}</strong>
       </div>
       <div class="kpi-icon"><i class="far fa-check-circle"></i></div>
@@ -48,57 +40,33 @@
 
   <div class="filters-bar">
     <button class="filter-chip active">
-      <i class="far fa-clock"></i> Pendientes ({{ conteoPendientes }})
+      <i class="fas fa-glass-martini-alt"></i> Por Servir ({{ conteoPendientes }})
     </button>
     <button class="filter-chip">
-      <i class="fas fa-mug-hot"></i> Preparando ({{ conteoPreparando }})
-    </button>
-    <button class="filter-chip">
-      <i class="far fa-check-circle"></i> Listas ({{ conteoListas }})
+      <i class="far fa-check-circle"></i> Para Entregar ({{ conteoListas }})
     </button>
   </div>
 
   <main class="orders-grid">
     
-    <div *ngFor="let item of itemsPendientes" class="order-card simple">
-      <div class="card-content">
-        <div class="product-icon">
-          <i class="fas fa-tint"></i> </div>
-        
-        <div class="product-info">
-          <h3>{{ item.productoNombre }}</h3>
-          <div class="tags">
-            <span class="tag-mesa">Mesa {{ item.mesaNumero }}</span>
-            <span class="tag-type">Simple</span>
-          </div>
-        </div>
-
-        <div class="product-meta">
-          <span class="qty">{{ item.cantidad }}x</span>
-          <span class="timer"><i class="far fa-clock"></i> {{ item.tiempo }} min</span>
-        </div>
-      </div>
-
-      <div class="notes-box" *ngIf="item.notas">
-        <i class="fas fa-exclamation-circle"></i> {{ item.notas }}
-      </div>
-
-      <button class="btn-action simple" (click)="completarItem(item)">
-        <i class="far fa-check-circle"></i> Servir y Completar
-      </button>
+    <div *ngIf="itemsPendientes.length === 0" class="empty-state">
+        <i class="fas fa-check-circle"></i>
+        <p>¡Todo limpio! No hay bebidas pendientes.</p>
     </div>
 
-    <div *ngFor="let item of itemsPreparando" class="order-card elaborated">
+    <div *ngFor="let item of itemsPendientes" class="order-card" [ngClass]="item.esElaborada ? 'elaborated' : 'simple'">
       <div class="card-content">
         <div class="product-icon">
-          <i class="fas fa-cocktail"></i>
+          <i [class]="item.esElaborada ? 'fas fa-cocktail' : 'fas fa-tint'"></i> 
         </div>
         
         <div class="product-info">
           <h3>{{ item.productoNombre }}</h3>
           <div class="tags">
             <span class="tag-mesa">Mesa {{ item.mesaNumero }}</span>
-            <span class="tag-type elaborated">Elaborada</span>
+            <span class="tag-type" [class.elaborated]="item.esElaborada">
+                {{ item.esElaborada ? 'Elaborada' : 'Simple' }}
+            </span>
           </div>
         </div>
 
@@ -111,9 +79,14 @@
       <div class="notes-box" *ngIf="item.notas">
         <i class="fas fa-exclamation-circle"></i> {{ item.notas }}
       </div>
+      
+      <div class="extras-box" *ngIf="item.opciones">
+         <span *ngFor="let op of item.opciones | keyvalue">• {{ op.value }}</span>
+      </div>
 
-      <button class="btn-action elaborated" (click)="terminarPreparacion(item)">
-        <i class="fas fa-check"></i> Terminar Preparación
+      <button class="btn-action" [ngClass]="item.esElaborada ? 'elaborated' : 'simple'" (click)="marcarItemComoListo(item)">
+        <i class="fas fa-check"></i> 
+        {{ item.esElaborada ? 'Terminar Preparación' : 'Servir y Completar' }}
       </button>
     </div>
 
