@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environments';
+import { environment } from '../../environments/environment';
 
 
 // ✅ MANTENEMOS TU INTERFAZ FLEXIBLE (Para que no falle el HTML)

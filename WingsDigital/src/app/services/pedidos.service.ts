@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { OrdenBackend } from '../models/api-models'; // Asegúrate de tener este modelo o quita el tipo si da error
-import { environment } from '../../environments/environments';
+import { environment } from '../../environments/environment';
 
 
 export interface CreatePedidoDto {
@@ -28,7 +28,7 @@ export interface CreatePedidoDto {
 })
 export class PedidosService {
   
-  private apiUrl = `${environment.apiUrl}/api/pedidos`; // ✅ ACTUALIZADO
+  private apiUrl = `${environment.apiUrl}/pedidos`; // ✅ ACTUALIZADO
 
   constructor(private http: HttpClient) {}
 
