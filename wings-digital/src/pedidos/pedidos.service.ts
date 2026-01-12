@@ -11,7 +11,7 @@ export class PedidosService {
   ) {}
   
   // ===================================================
-  // 1. CREAR O ACTUALIZAR ORDEN
+  // 1. CREAR O ACTUALIZAR ORDEN (VERSIÓN CORREGIDA)
   // ===================================================
   async create(dto: any) {
     console.log('📦 [INICIO] Crear Pedido. DTO:', JSON.stringify(dto));
@@ -34,7 +34,7 @@ export class PedidosService {
         throw new BadRequestException('No se puede crear un pedido nuevo sin productos.');
     }
 
-    // 🛠️ PROCESAMIENTO DE ITEMS (SANITIZACIÓN + VALIDACIÓN DE DESTINO)
+    // 🔥 PROCESAMIENTO DE ITEMS CON VALIDACIÓN DE DESTINO
     const itemsProcesados = dto.items && dto.items.length > 0 
       ? await Promise.all(dto.items.map(async (item: any, index: number) => {
         
@@ -58,11 +58,13 @@ export class PedidosService {
 
         const opcionesFinales = item.opcionesElegidas || []; 
 
-        // ✅ VALIDACIÓN Y ASIGNACIÓN INTELIGENTE DE DESTINO
+        // ✅ VALIDACIÓN INTELIGENTE DE DESTINO
         let destinoFinal = item.destino;
         
-        // Si no viene destino, lo buscamos en la base de datos
+        // Si no viene destino desde el frontend, lo buscamos en BD
         if (!destinoFinal) {
+          console.log(`⚠️ Item sin destino. Buscando en BD...`);
+          
           const producto = await this.prisma.producto.findUnique({
             where: { id: productoIdFinal },
             select: { 
@@ -73,11 +75,11 @@ export class PedidosService {
           });
           
           if (producto?.destino) {
-            // El producto tiene destino definido en BD
+            // ✅ El producto tiene destino en BD
             destinoFinal = producto.destino;
-            console.log(`📍 Destino obtenido de BD para "${producto.nombre}": ${destinoFinal}`);
+            console.log(`✅ Destino obtenido de BD: "${producto.nombre}" → ${destinoFinal}`);
           } else {
-            // FALLBACK: Calculamos por categoría si no existe en BD
+            // ❌ FALLBACK: Calcular por categoría
             const nombreCategoria = (producto?.categoria?.nombre || '').toLowerCase();
             const esBebida = 
               nombreCategoria.includes('bebida') ||
@@ -89,8 +91,10 @@ export class PedidosService {
               nombreCategoria.includes('café');
 
             destinoFinal = esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA;
-            console.warn(`⚠️ Producto "${producto?.nombre}" sin destino en BD. Calculado: ${destinoFinal}`);
+            console.warn(`⚠️ Producto sin destino en BD: "${producto?.nombre}". Calculado por categoría: ${destinoFinal}`);
           }
+        } else {
+          console.log(`✅ Destino recibido desde frontend: ${destinoFinal}`);
         }
 
         return {
@@ -100,9 +104,17 @@ export class PedidosService {
             notas: item.notas || '',
             opcionesElegidas: opcionesFinales,
             estado: EstadoOrden.PENDIENTE,
-            destino: destinoFinal // ✅ Ahora SIEMPRE tiene valor válido
+            destino: destinoFinal // ✅ SIEMPRE tiene valor
         };
     })) : [];
+
+    // Log de verificación
+    console.log('📋 Items procesados con destino:', 
+      itemsProcesados.map(i => ({ 
+        productoId: i.productoId, 
+        destino: i.destino 
+      }))
+    );
 
     try {
         // B. CASO 1: Agregar items a orden existente
@@ -198,7 +210,7 @@ export class PedidosService {
   }
 
   // ===================================================
-  // 3. OBTENER VENTAS DEL DÍA (CAJA)
+  // RESTO DE MÉTODOS (sin cambios)
   // ===================================================
   async obtenerOrdenesDelDia() {
     const hoyInicio = new Date();
@@ -235,17 +247,11 @@ export class PedidosService {
     });
   }
 
-  // ===================================================
-  // 4. ACTUALIZAR ESTADO ORDEN COMPLETA
-  // ===================================================
   async actualizarEstado(id: number, estado: EstadoOrden) {
     await this.prisma.orden.update({ where: { id }, data: { estado } });
     return this.obtenerOrdenCompleta(id);
   }
 
-  // ===================================================
-  // 5. SOLICITAR CUENTA
-  // ===================================================
   async solicitarCuenta(id: number) {
     const ordenActual = await this.prisma.orden.findUnique({ where: { id } });
 
@@ -265,9 +271,6 @@ export class PedidosService {
     }
   }
 
-  // ===================================================
-  // 6. FINALIZAR / COBRAR
-  // ===================================================
   async finalizarOrden(id: number, datosPago: any) {
     const ordenPagada = await this.prisma.orden.update({
       where: { id },
@@ -290,9 +293,6 @@ export class PedidosService {
     return ordenPagada;
   }
 
-  // ===================================================
-  // 7. CANCELAR
-  // ===================================================
   async cancelarOrden(id: number) {
     const orden = await this.prisma.orden.findUnique({ where: { id } });
     if (!orden) throw new NotFoundException('Orden no encontrada');
@@ -321,11 +321,7 @@ export class PedidosService {
     return { mensaje: 'Orden cancelada' };
   }
 
-  // ===================================================
-  // 8. ✅ ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina)
-  // ===================================================
   async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
-    // 1. Actualizamos el item específico
     const itemActualizado = await this.prisma.itemOrden.update({
       where: { id: itemId },
       data: { estado: estado },
@@ -340,23 +336,20 @@ export class PedidosService {
       }
     });
 
-    // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
     const ordenPadre = itemActualizado.orden;
     
-    // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
     const itemsPendientes = ordenPadre.items.filter(i => 
         i.estado !== EstadoOrden.LISTA && 
         i.estado !== EstadoOrden.ENTREGADA && 
         i.estado !== EstadoOrden.CANCELADA
     );
 
-    // Si ya no hay pendientes, cerramos la orden padre
     if (itemsPendientes.length === 0 && 
         ordenPadre.estado !== EstadoOrden.LISTA && 
         ordenPadre.estado !== EstadoOrden.ENTREGADA && 
         ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
         
-       console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
+       console.log(`✨ Orden ${ordenPadre.id} completada automáticamente`);
        
        const ordenActualizada = await this.prisma.orden.update({
          where: { id: ordenPadre.id },
@@ -368,10 +361,9 @@ export class PedidosService {
          }
        });
 
-       // 🔥 EMITIR WEBSOCKET: Notificar que el pedido está listo
        try {
          this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
-         console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo para cobrar`);
+         console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo`);
        } catch (error) {
          console.warn('⚠️ Error al emitir WebSocket:', error);
        }
@@ -382,9 +374,6 @@ export class PedidosService {
     return itemActualizado;
   }
 
-  // ===================================================
-  // HELPERS
-  // ===================================================
   public async obtenerOrdenCompleta(id: number) {
     return this.prisma.orden.findUnique({
       where: { id },
