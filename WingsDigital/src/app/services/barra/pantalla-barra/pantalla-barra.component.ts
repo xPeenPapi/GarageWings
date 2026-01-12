@@ -17,13 +17,21 @@ import { PedidosService } from '../../pedidos.service';
 })
 export class PantallaBarraComponent implements OnInit, OnDestroy {
   
-  // ✅ Solo 2 listas: Por Servir (Pendientes) y Para Entregar (Listos)
+  // ✅ Listas de pedidos
   nuevosPedidos: ComandaCompleta[] = [];
   listosPedidos: ComandaCompleta[] = [];
   
+  // ✅ Variables para la UI (Nuevo Diseño)
+  nombreBarista: string = '';
+  horaActual: string = '';
+  conteoPendientes: number = 0;
+  conteoListas: number = 0;
+  // Agregamos este aunque no lo usemos visualmente para evitar errores en HTML si lo requiere
+  conteoPreparando: number = 0; 
+
   private subscriptions = new Subscription();
 
-  // Iconos temáticos de BARRA 🍸
+  // Iconos temáticos
   iconos = {
     nuevos: 'fas fa-wine-bottle', 
     servir: 'fas fa-hand-holding-water',
@@ -37,26 +45,36 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private zone: NgZone
-  ) {}
+  ) {
+    // Inicializar datos del usuario
+    this.nombreBarista = this.authService.getNombreUsuario() || 'Barista';
+
+    // Iniciar Reloj
+    this.actualizarReloj();
+    setInterval(() => this.actualizarReloj(), 1000);
+  }
 
   ngOnInit(): void {
-    // 1. Carga inicial de datos
+    // 1. Carga inicial
     this.cargarPedidos();
 
-    // 2. Intervalo de seguridad (polling) cada 15 segundos
-    // Esto asegura que si el socket falla, las bebidas lleguen igual.
+    // 2. Intervalo de seguridad (15s)
     this.subscriptions.add(
       interval(15000).subscribe(() => this.cargarPedidos())
     );
 
-    // 3. Conexión por WebSockets (Tiempo real)
+    // 3. Conexión Socket
     this.conectarSocket();
+  }
+
+  actualizarReloj() {
+    const now = new Date();
+    this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
-        // console.log('📥 Barra: Sincronizando pedidos...', pedidos.length);
         this.distribuirPedidos(pedidos);
       },
       error: (err) => console.error('Error cargando pedidos:', err)
@@ -66,15 +84,10 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   conectarSocket() {
     if (!this.socketService.isConnected()) this.socketService.reconnect();
 
-    // ✅ CORRECCIÓN IMPORTANTE: Escuchamos 'escucharNuevosPedidos', no 'PedidosParaCobrar'
-    // La barra necesita ver el pedido en cuanto el mesero lo envía.
     this.subscriptions.add(
       this.socketService.escucharNuevosPedidos().subscribe((pedido) => {
         this.zone.run(() => {
-             console.log('🔔 Barra: Nuevo pedido detectado por socket');
-             // Si el socket devuelve solo el ID o un objeto parcial, recargamos todo para evitar errores
-             // Si devuelve el objeto completo, lo procesamos directo.
-             // Por seguridad, aquí llamamos a procesar si es completo, o recargamos.
+             console.log('🔔 Barra: Nuevo pedido detectado');
              if (pedido && pedido.items) {
                 this.procesarPedidoEntrante(pedido as any);
              } else {
@@ -86,21 +99,16 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   }
 
   distribuirPedidos(pedidos: any[]) {
-    // Reiniciamos las listas para evitar duplicados al refrescar
     const nuevosTemp: ComandaCompleta[] = [];
     const listosTemp: ComandaCompleta[] = [];
 
     pedidos.forEach(p => {
-        // Filtro: Solo nos importan los pedidos que tengan bebidas (BARRA)
         const tieneBebida = p.items.some((item: any) => item.producto?.destino === 'BARRA');
         
         if (tieneBebida) {
-            // Lógica Fast Track: Pendiente o Preparando -> A la lista de "Por Servir"
             if (p.estado === 'PENDIENTE' || p.estado === 'EN_PREPARACION') {
                 nuevosTemp.push(p);
-            } 
-            // Si ya está lista -> A la lista de "Entregar"
-            else if (p.estado === 'LISTA') {
+            } else if (p.estado === 'LISTA') {
                 listosTemp.push(p);
             }
         }
@@ -108,48 +116,50 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
 
     this.nuevosPedidos = nuevosTemp;
     this.listosPedidos = listosTemp;
+    this.actualizarContadores();
   }
 
   procesarPedidoEntrante(pedido: any) {
-    // ⚠️ FILTRO: Verificamos si este pedido nuevo trae cosas de BARRA
     const tieneBebida = pedido.items.some((item: any) => item.producto?.destino === 'BARRA');
-    
-    if (!tieneBebida) return; // Si es pura comida, lo ignoramos en esta pantalla
+    if (!tieneBebida) return;
 
-    // Evitar duplicados si ya lo tenemos en pantalla
     if (this.existePedido(pedido.id)) return;
 
-    // Agregar a la lista correspondiente
     if (pedido.estado === 'PENDIENTE' || pedido.estado === 'EN_PREPARACION') {
         this.nuevosPedidos.push(pedido);
     } else if (pedido.estado === 'LISTA') {
         this.listosPedidos.push(pedido);
     }
+    this.actualizarContadores();
   }
 
   existePedido(id: number): boolean {
     return [...this.nuevosPedidos, ...this.listosPedidos].some(p => p.id === id);
   }
 
-  // ✅ ACCIÓN RÁPIDA: Marca como LISTA directamente (Salta "Preparando")
+  // ✅ Actualiza los números del encabezado (KPIs)
+  actualizarContadores() {
+    this.conteoPendientes = this.nuevosPedidos.length;
+    this.conteoListas = this.listosPedidos.length;
+    this.conteoPreparando = 0; // No usamos estado intermedio en este diseño
+  }
+
   marcarComoServido(pedido: ComandaCompleta) {
-      // 1. Quitamos visualmente de inmediato para sensación de rapidez
+      // Optimistic UI Update (Inmediato)
       const index = this.nuevosPedidos.findIndex(p => p.id === pedido.id);
       if (index !== -1) {
         this.nuevosPedidos.splice(index, 1);
         const pedidoListo = { ...pedido, estado: 'LISTA' };
         this.listosPedidos.push(pedidoListo);
+        this.actualizarContadores();
       }
 
-      // 2. Enviamos la actualización al backend
+      // Backend Update
       this.pedidosService.actualizarEstado(pedido.id, 'LISTA').subscribe({
-        next: (ordenActualizada) => {
-          console.log('✅ Bebida servida confirmada en BD');
-        },
+        next: () => console.log('✅ Bebida servida confirmada en BD'),
         error: (err) => {
-          console.error('❌ Error al actualizar estado:', err);
-          // Si falla, recargamos para corregir la vista
-          this.cargarPedidos();
+          console.error('❌ Error al actualizar:', err);
+          this.cargarPedidos(); // Revertir si falla
         }
       });
   }
