@@ -94,33 +94,83 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   }
 
   // 🔥🔥🔥 FILTRO BLINDADO ANTI-BEBIDAS 🔥🔥🔥
-  esItemDeCocina(item: any): boolean {
-    // CAPA 1: Revisar etiqueta directa del pedido (Prioridad Máxima)
-    if (item.destino === 'BARRA') return false; // Si dice BARRA, adiós.
-    if (item.destino === 'COCINA') return true;
+esItemDeCocina(item: any): boolean {
+  // ========================================
+  // POLÍTICA: Solo entra lo que EXPLÍCITAMENTE dice "COCINA"
+  // Si tiene destino NULL o es ambiguo -> BLOQUEADO
+  // ========================================
 
-    // CAPA 2: Revisar configuración del producto (Por si el pedido es viejo o NULL)
-    if (item.producto?.destino === 'BARRA') return false;
-    if (item.producto?.destino === 'COCINA') return true;
+  // CAPA 1: Revisar etiqueta directa del item (Máxima Prioridad)
+  if (item.destino === 'COCINA') return true;   // ✅ Sí es de cocina
+  if (item.destino === 'BARRA') return false;   // ❌ Es de barra
+  
+  // CAPA 2: Revisar configuración del producto
+  if (item.producto?.destino === 'COCINA') return true;
+  if (item.producto?.destino === 'BARRA') return false;
 
-    // CAPA 3: FILTRO DE EMERGENCIA POR NOMBRE (Para los items NULL en BD)
-    // Si llegamos aquí, el destino es NULL. Verificamos si parece bebida por su nombre.
-    const nombre = (item.producto?.nombre || '').toLowerCase();
-    const palabrasProhibidas = [
-        'cerveza', 'coca', 'refresco', 'bebida', 'pepsi', 
-        'limonada', 'naranjada', 'agua', 'te ', 'té ', 
-        'café', 'cafe', 'latte', 'copa', 'vino', 'michelada', 
-        'margarita', 'botella', 'trago'
-    ];
+  // ========================================
+  // CAPA 3: Si llegamos aquí, el destino es NULL/undefined
+  // NUEVO ENFOQUE: Bloqueamos TODO lo que parezca bebida
+  // ========================================
+  
+  const nombre = (item.producto?.nombre || '').toLowerCase();
+  
+  // Lista expandida de palabras que indican BEBIDA
+  const palabrasProhibidas = [
+    // Bebidas generales
+    'bebida', 'refresco', 'agua', 'jugo', 'nectar',
+    
+    // Gaseosas
+    'coca', 'pepsi', 'sprite', 'fanta', 'manzanita', 
+    'squirt', 'sidral', 'fresca',
+    
+    // Cervezas
+    'cerveza', 'corona', 'modelo', 'victoria', 'indio',
+    'pacifico', 'bohemia', 'heineken', 'stella',
+    
+    // Bebidas calientes
+    'cafe', 'café', 'capuchino', 'latte', 'espresso',
+    'te ', 'té ', 'tisana', 'infusion',
+    
+    // Cocteles y licores
+    'coctel', 'margarita', 'piña colada', 'mojito',
+    'daiquiri', 'caipirinha', 'tequila', 'vodka',
+    'ron', 'whisky', 'ginebra', 'mezcal',
+    
+    // Otros
+    'michelada', 'chelada', 'clamato', 'vino',
+    'copa', 'trago', 'shot', 'botella', 'lata',
+    'smoothie', 'frappe', 'batido', 'limonada',
+    'naranjada', 'horchata', 'jamaica'
+  ];
 
-    // Si el nombre contiene alguna palabra de bebida, lo bloqueamos
-    if (palabrasProhibidas.some(p => nombre.includes(p))) {
-        return false;
-    }
-
-    // Si pasó todas las pruebas, asumimos que es comida
-    return true;
+  // Si contiene alguna palabra prohibida -> BLOQUEAR
+  if (palabrasProhibidas.some(p => nombre.includes(p))) {
+    console.warn(`🚫 BLOQUEADO en cocina: "${nombre}" (parece bebida)`);
+    return false;
   }
+
+  // ========================================
+  // CAPA 4 (NUEVA): Validación por categoría
+  // ========================================
+  const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
+  
+  const categoriasProhibidas = [
+    'bebida', 'cerveza', 'refresco', 'coctel', 'licor',
+    'barra', 'vino', 'cafe', 'café', 'bar', 'tragos'
+  ];
+
+  if (categoriasProhibidas.some(c => categoria.includes(c))) {
+    console.warn(`🚫 BLOQUEADO en cocina: "${nombre}" (categoría: ${categoria})`);
+    return false;
+  }
+
+  // ========================================
+  // Si pasó TODAS las validaciones -> SÍ es comida
+  // ========================================
+  console.log(`✅ Aceptado en cocina: "${nombre}"`);
+  return true;
+}
 
   procesarListasVisuales() {
       this.itemsPendientes = [];

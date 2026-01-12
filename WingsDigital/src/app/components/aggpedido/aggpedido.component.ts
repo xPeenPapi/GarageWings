@@ -354,84 +354,112 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCocina = true;
   }
 
-  procesarConfirmacionCocina(): void {
-    if (!this.empleadoId) return;
+// aggpedido.component.ts - VERSIÓN MEJORADA
 
-    // ✅ LÓGICA DE SEPARACIÓN (COCINA vs BARRA)
-    const itemsDto = this.pedido.map(item => {
-        // 1. Buscamos la categoría del producto
-        const categoria = this.categorias.find(c => c.id === item.categoriaId);
-        const nombreCategoria = categoria ? categoria.nombre.toLowerCase() : '';
+procesarConfirmacionCocina(): void {
+  if (!this.empleadoId) return;
 
-        // 2. Definimos palabras clave que indican que es para BARRA
-        const esBebida = 
-            nombreCategoria.includes('bebida') ||
-            nombreCategoria.includes('cerveza') ||
-            nombreCategoria.includes('refresco') ||
-            nombreCategoria.includes('coctel') ||
-            nombreCategoria.includes('licor') ||
-            nombreCategoria.includes('barra') ||
-            nombreCategoria.includes('vino') ||
-            nombreCategoria.includes('café') ||
-            nombreCategoria.includes('cafe');
+  // ✅ LÓGICA MEJORADA: Obtiene destino del producto directamente
+  const itemsDto = this.pedido.map(item => {
+    // 1. Buscar el producto completo (incluye destino y categoría)
+    const productoCompleto = this.productos.find(p => p.id === item.id);
+    
+    let destinoFinal: string;
 
-        // 3. Asignamos el destino automáticamente
-        const destino = esBebida ? 'BARRA' : 'COCINA';
+    // 2. PRIORIDAD 1: Usar el destino del producto si existe
+    if (productoCompleto?.destino) {
+      destinoFinal = productoCompleto.destino;
+      console.log(`✅ Destino desde producto: "${item.nombre}" → ${destinoFinal}`);
+    } 
+    // 3. PRIORIDAD 2: Calcular por categoría (fallback)
+    else {
+      const categoria = this.categorias.find(c => c.id === item.categoriaId);
+      const nombreCategoria = (categoria?.nombre || '').toLowerCase();
+      
+      // Lista expandida de palabras clave para BARRA
+      const esBebida = 
+        nombreCategoria.includes('bebida') ||
+        nombreCategoria.includes('bar') ||
+        nombreCategoria.includes('cerveza') ||
+        nombreCategoria.includes('refresco') ||
+        nombreCategoria.includes('coctel') ||
+        nombreCategoria.includes('licor') ||
+        nombreCategoria.includes('barra') ||
+        nombreCategoria.includes('vino') ||
+        nombreCategoria.includes('café') ||
+        nombreCategoria.includes('cafe');
 
-        return {
-            producto_id: item.id,
-            cantidad: item.cantidad,
-            precio_item: item.precio || item.precioBase,
-            notas: item.notas || null,
-            opcionesElegidas: item.opcionesElegidas || null,
-            destino: destino // Enviamos el destino al backend
-        };
-    });
-
-    const pedidoDto: any = {
-      mesa_id: this.mesaId,
-      empleado_id: this.empleadoId,
-      mesero_id: this.empleadoId,
-      items: itemsDto,
-    };
-
-    if (this.ordenId) {
-        pedidoDto.orden_id = this.ordenId; 
-    } else {
-        pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
+      destinoFinal = esBebida ? 'BARRA' : 'COCINA';
+      console.warn(`⚠️ Destino calculado por categoría: "${item.nombre}" (${categoria?.nombre}) → ${destinoFinal}`);
     }
 
-    console.log('📤 Enviando pedido (Destinos calculados)...', pedidoDto);
+    return {
+      producto_id: item.id,
+      cantidad: item.cantidad,
+      precio_item: item.precio || item.precioBase,
+      notas: item.notas || null,
+      opcionesElegidas: item.opcionesElegidas || null,
+      destino: destinoFinal // ✅ Siempre tiene valor (BARRA o COCINA)
+    };
+  });
 
-    this.pedidosService.crearPedido(pedidoDto).subscribe({
-      next: (ordenCreada: any) => {
-        alert(`✅ Pedido enviado correctamente`);
-        
-        this.ordenId = ordenCreada.id;
-        this.ordenActiva = ordenCreada;
-        this.nombreClienteTemporal = '';
+  const pedidoDto: any = {
+    mesa_id: this.mesaId,
+    empleado_id: this.empleadoId,
+    mesero_id: this.empleadoId,
+    items: itemsDto,
+  };
 
-        if (this.mesaId) {
-            this.recargarDatosMesa();
-        } else {
-            this.itemsEnCocina = ordenCreada.items || [];
-            this.hayConsumo = true; 
-        }
-
-        this.pedido = []; 
-        this.calcularTotales();
-        this.mostrarModalCocina = false;
-        
-        if (!this.esEscritorio) {
-            this.vistaMovilActual = 'resumen';
-        }
-      },
-      error: (error: any) => {
-        console.error('❌ Error al guardar:', error);
-        alert('Error al enviar el pedido. Intenta de nuevo.');
-      }
-    });
+  if (this.ordenId) {
+    pedidoDto.orden_id = this.ordenId; 
+  } else {
+    pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
   }
+
+  console.log('📤 Enviando pedido con destinos validados:', pedidoDto);
+
+  this.pedidosService.crearPedido(pedidoDto).subscribe({
+    next: (ordenCreada: any) => {
+      // ✅ Mostrar resumen de destinos
+      const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
+      const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
+      
+      let mensaje = '✅ Pedido enviado correctamente';
+      if (itemsBarra > 0 && itemsCocina > 0) {
+        mensaje += `\n🍹 ${itemsBarra} item(s) → Barra\n🍔 ${itemsCocina} item(s) → Cocina`;
+      } else if (itemsBarra > 0) {
+        mensaje += `\n🍹 ${itemsBarra} item(s) → Barra`;
+      } else {
+        mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
+      }
+      
+      alert(mensaje);
+      
+      this.ordenId = ordenCreada.id;
+      this.ordenActiva = ordenCreada;
+      this.nombreClienteTemporal = '';
+
+      if (this.mesaId) {
+        this.recargarDatosMesa();
+      } else {
+        this.itemsEnCocina = ordenCreada.items || [];
+        this.hayConsumo = true; 
+      }
+
+      this.pedido = []; 
+      this.calcularTotales();
+      this.mostrarModalCocina = false;
+      
+      if (!this.esEscritorio) {
+        this.vistaMovilActual = 'resumen';
+      }
+    },
+    error: (error: any) => {
+      console.error('❌ Error al guardar:', error);
+      alert('Error al enviar el pedido. Intenta de nuevo.');
+    }
+  });
+}
 
   // =========================================================
   // CUENTA Y LIBERACIÓN

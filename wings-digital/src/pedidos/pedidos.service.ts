@@ -1,18 +1,15 @@
-import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EstadoOrden, EstadoMesa } from '@prisma/client';
-import { PedidosGateway } from './pedidos.gateway'; // ← AGREGAR
-
-
+import { EstadoOrden, EstadoMesa, DestinoProducto } from '@prisma/client';
+import { PedidosGateway } from './pedidos.gateway';
 
 @Injectable()
 export class PedidosService {
   constructor(
     private prisma: PrismaService,     
-    private pedidosGateway: PedidosGateway // ← AGREGAR
-) {}
+    private pedidosGateway: PedidosGateway
+  ) {}
   
-
   // ===================================================
   // 1. CREAR O ACTUALIZAR ORDEN
   // ===================================================
@@ -37,8 +34,9 @@ export class PedidosService {
         throw new BadRequestException('No se puede crear un pedido nuevo sin productos.');
     }
 
-    // 🛠️ PROCESAMIENTO DE ITEMS (SANITIZACIÓN)
-    const itemsProcesados = dto.items && dto.items.length > 0 ? dto.items.map((item: any, index: number) => {
+    // 🛠️ PROCESAMIENTO DE ITEMS (SANITIZACIÓN + VALIDACIÓN DE DESTINO)
+    const itemsProcesados = dto.items && dto.items.length > 0 
+      ? await Promise.all(dto.items.map(async (item: any, index: number) => {
         
         const idProd = item.producto_id || item.productoId || item.id;
         const precio = item.precio_item || item.precio || item.precioUnitario || item.precioBase;
@@ -48,11 +46,52 @@ export class PedidosService {
         const cantidadFinal = Number(cant);
         const precioFinal = parseFloat(precio);
 
-        if (isNaN(productoIdFinal)) throw new BadRequestException(`El item #${index + 1} no tiene un ID de producto válido.`);
-        if (isNaN(cantidadFinal) || cantidadFinal <= 0) throw new BadRequestException(`El item #${index + 1} tiene una cantidad inválida.`);
-        if (isNaN(precioFinal) || precioFinal < 0) throw new BadRequestException(`El item #${index + 1} tiene un precio inválido.`);
+        if (isNaN(productoIdFinal)) {
+          throw new BadRequestException(`El item #${index + 1} no tiene un ID de producto válido.`);
+        }
+        if (isNaN(cantidadFinal) || cantidadFinal <= 0) {
+          throw new BadRequestException(`El item #${index + 1} tiene una cantidad inválida.`);
+        }
+        if (isNaN(precioFinal) || precioFinal < 0) {
+          throw new BadRequestException(`El item #${index + 1} tiene un precio inválido.`);
+        }
 
         const opcionesFinales = item.opcionesElegidas || []; 
+
+        // ✅ VALIDACIÓN Y ASIGNACIÓN INTELIGENTE DE DESTINO
+        let destinoFinal = item.destino;
+        
+        // Si no viene destino, lo buscamos en la base de datos
+        if (!destinoFinal) {
+          const producto = await this.prisma.producto.findUnique({
+            where: { id: productoIdFinal },
+            select: { 
+              destino: true, 
+              nombre: true,
+              categoria: { select: { nombre: true } }
+            }
+          });
+          
+          if (producto?.destino) {
+            // El producto tiene destino definido en BD
+            destinoFinal = producto.destino;
+            console.log(`📍 Destino obtenido de BD para "${producto.nombre}": ${destinoFinal}`);
+          } else {
+            // FALLBACK: Calculamos por categoría si no existe en BD
+            const nombreCategoria = (producto?.categoria?.nombre || '').toLowerCase();
+            const esBebida = 
+              nombreCategoria.includes('bebida') ||
+              nombreCategoria.includes('bar') ||
+              nombreCategoria.includes('cerveza') ||
+              nombreCategoria.includes('coctel') ||
+              nombreCategoria.includes('licor') ||
+              nombreCategoria.includes('cafe') ||
+              nombreCategoria.includes('café');
+
+            destinoFinal = esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA;
+            console.warn(`⚠️ Producto "${producto?.nombre}" sin destino en BD. Calculado: ${destinoFinal}`);
+          }
+        }
 
         return {
             productoId: productoIdFinal,
@@ -61,10 +100,9 @@ export class PedidosService {
             notas: item.notas || '',
             opcionesElegidas: opcionesFinales,
             estado: EstadoOrden.PENDIENTE,
-            // Guardamos el destino si viene del frontend (BARRA / COCINA)
-            destino: item.destino || null 
+            destino: destinoFinal // ✅ Ahora SIEMPRE tiene valor válido
         };
-    }) : [];
+    })) : [];
 
     try {
         // B. CASO 1: Agregar items a orden existente
@@ -149,7 +187,6 @@ export class PedidosService {
         mesero: true, 
         mesa: true,
         items: { 
-            // Traemos todos los items activos para poder filtrar en frontend
             where: {
                 estado: { not: EstadoOrden.CANCELADA }
             },
@@ -285,65 +322,66 @@ export class PedidosService {
   }
 
   // ===================================================
-  // 8. ✅ ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina Independientes)
+  // 8. ✅ ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina)
   // ===================================================
-async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
-  // 1. Actualizamos el item específico
-  const itemActualizado = await this.prisma.itemOrden.update({
-    where: { id: itemId },
-    data: { estado: estado },
-    include: { 
-      orden: { 
-        include: { 
-          items: { include: { producto: true } },
-          mesa: true,
-          mesero: true
+  async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
+    // 1. Actualizamos el item específico
+    const itemActualizado = await this.prisma.itemOrden.update({
+      where: { id: itemId },
+      data: { estado: estado },
+      include: { 
+        orden: { 
+          include: { 
+            items: { include: { producto: true } },
+            mesa: true,
+            mesero: true
+          } 
         } 
-      } 
-    }
-  });
+      }
+    });
 
-  // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
-  const ordenPadre = itemActualizado.orden;
-  
-  // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
-  const itemsPendientes = ordenPadre.items.filter(i => 
-      i.estado !== EstadoOrden.LISTA && 
-      i.estado !== EstadoOrden.ENTREGADA && 
-      i.estado !== EstadoOrden.CANCELADA
-  );
+    // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
+    const ordenPadre = itemActualizado.orden;
+    
+    // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
+    const itemsPendientes = ordenPadre.items.filter(i => 
+        i.estado !== EstadoOrden.LISTA && 
+        i.estado !== EstadoOrden.ENTREGADA && 
+        i.estado !== EstadoOrden.CANCELADA
+    );
 
-  // Si ya no hay pendientes, cerramos la orden padre
-  if (itemsPendientes.length === 0 && 
-      ordenPadre.estado !== EstadoOrden.LISTA && 
-      ordenPadre.estado !== EstadoOrden.ENTREGADA && 
-      ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
-      
-     console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
-     
-     const ordenActualizada = await this.prisma.orden.update({
-       where: { id: ordenPadre.id },
-       data: { estado: EstadoOrden.LISTA },
-       include: {
-         items: { include: { producto: true } },
-         mesa: true,
-         mesero: true
+    // Si ya no hay pendientes, cerramos la orden padre
+    if (itemsPendientes.length === 0 && 
+        ordenPadre.estado !== EstadoOrden.LISTA && 
+        ordenPadre.estado !== EstadoOrden.ENTREGADA && 
+        ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
+        
+       console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
+       
+       const ordenActualizada = await this.prisma.orden.update({
+         where: { id: ordenPadre.id },
+         data: { estado: EstadoOrden.LISTA },
+         include: {
+           items: { include: { producto: true } },
+           mesa: true,
+           mesero: true
+         }
+       });
+
+       // 🔥 EMITIR WEBSOCKET: Notificar que el pedido está listo
+       try {
+         this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
+         console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo para cobrar`);
+       } catch (error) {
+         console.warn('⚠️ Error al emitir WebSocket:', error);
        }
-     });
 
-     // 🔥 EMITIR WEBSOCKET: Notificar que el pedido está listo
-     try {
-       this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
-       console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo para cobrar`);
-     } catch (error) {
-       console.warn('⚠️ Error al emitir WebSocket:', error);
-     }
+       return ordenActualizada;
+    }
 
-     return ordenActualizada;
+    return itemActualizado;
   }
 
-  return itemActualizado;
-}
   // ===================================================
   // HELPERS
   // ===================================================
