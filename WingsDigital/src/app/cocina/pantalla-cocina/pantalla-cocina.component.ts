@@ -2,7 +2,8 @@ import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Subscription, interval, forkJoin } from 'rxjs'; // ✅ Agregado forkJoin
+import { Subscription, interval, forkJoin, of } from 'rxjs'; // ✅ Agregado 'of'
+import { catchError } from 'rxjs/operators'; // ✅ Importante para manejo de errores
 import { SocketService, ComandaCompleta } from '../../services/socket.service';
 import { AuthService } from '../../services/auth.service';
 import { PedidosService } from '../../services/pedidos.service';
@@ -37,7 +38,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   // Almacén de datos crudos (Todas las órdenes que tienen ALGO activo)
   todasLasOrdenes: ComandaCompleta[] = [];
   
-  // VISTAS APLANADAS
+  // VISTAS APLANADAS (Aquí está la clave: Listas de ITEMS, no de órdenes)
   itemsPendientes: ItemCocina[] = [];
   itemsPreparando: ItemCocina[] = [];
   listosPedidos: any[] = []; // Agrupado por orden para el historial
@@ -80,21 +81,25 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // 1. CARGA DE DATOS
+  // 1. CARGA DE DATOS (Sin filtrar todavía)
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
         this.todasLasOrdenes = pedidos;
-        this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia
+        this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia de filtrado y ordenamiento
       },
-      error: (err) => console.error(err)
+      error: (err) => console.error('Error cargando pedidos:', err)
     });
   }
 
   conectarSocket() {
     if (!this.socketService.isConnected()) this.socketService.reconnect();
+    
+    // 🔥 IMPORTANTE: Escuchar cambios para que cuando el mesero entregue, se quite de aquí.
+    // También actualiza cuando llega una nueva orden.
     this.subscriptions.add(
       this.socketService.escucharNuevosPedidos().subscribe(() => {
+        console.log('🔔 Cambio detectado por Socket (Nuevo/Entregado/Cancelado)');
         this.zone.run(() => this.cargarPedidos());
       })
     );
@@ -104,20 +109,10 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   // 🔥🔥🔥 FILTRO BLINDADO ANTI-BEBIDAS (4 CAPAS DE SEGURIDAD) 🔥🔥🔥
   // ==============================================================================
   esItemDeCocina(item: any): boolean {
-    // 🔍 DEBUG: Información completa del item para rastreo
-    // const infoDebug = {
-    //   nombre: item.producto?.nombre,
-    //   itemDestino: item.destino,
-    //   productoDestino: item.producto?.destino,
-    //   categoria: item.producto?.categoria?.nombre,
-    //   estado: item.estado
-    // };
-    // console.log('🔍 Evaluando item:', infoDebug);
-
     // CAPA 1: Destino del ITEM (Campo directo en la orden)
     if (item.destino) {
       const destinoItem = String(item.destino).toUpperCase();
-      if (destinoItem === 'BARRA') return false;
+      if (destinoItem === 'BARRA') return false; // Si dice BARRA, adiós.
       if (destinoItem === 'COCINA') return true;
     }
 
@@ -128,7 +123,8 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
       if (destinoProducto === 'COCINA') return true;
     }
 
-    // CAPA 3: Filtro por NOMBRE (Palabras clave prohibidas en cocina)
+    // CAPA 3: Filtro por NOMBRE (Palabras clave prohibidas en cocina - Fallback)
+    // Si llegamos aquí, el destino es NULL. Verificamos si parece bebida por su nombre.
     const nombre = (item.producto?.nombre || '').toLowerCase();
     const palabrasProhibidas = [
       // Bebidas generales
@@ -146,18 +142,16 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     ];
 
     if (palabrasProhibidas.some(p => nombre.includes(p))) {
-      // console.log(`❌ BLOQUEADO POR NOMBRE: "${item.producto?.nombre}"`);
       return false;
     }
 
     // CAPA 4: Filtro por CATEGORÍA
     const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
     const categoriasProhibidas = [
-      'bebida', 'cerveza', 'refresco', 'coctel', 'cóctel', 'licor', 'barra', 'bar', 'vino', 'cafe', 'café', 'tragos'
+      'bebida', 'cerveza', 'refresco', 'coctel', 'cóctel', 'licor', 'barra', 'bar', 'vino', 'cafe', 'café', 'tragos', 'cafeteria', 'licores'
     ];
 
     if (categoriasProhibidas.some(c => categoria.includes(c))) {
-      // console.log(`❌ BLOQUEADO POR CATEGORÍA: "${categoria}"`);
       return false;
     }
 
@@ -169,14 +163,9 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   // 🚜 PROCESADOR VISUAL (Clasifica items en columnas)
   // ==============================================================================
   procesarListasVisuales() {
-    // console.log('🔄 ===== PROCESANDO LISTAS COCINA =====');
-    
     this.itemsPendientes = [];
     this.itemsPreparando = [];
     const mapaListos = new Map<number, any>();
-
-    let itemsBloqueados = 0;
-    let itemsAceptados = 0;
 
     this.todasLasOrdenes.forEach(pedido => {
         const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
@@ -184,14 +173,8 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
         
         pedido.items.forEach((item: any) => {
             // ✅ APLICAR EL FILTRO BLINDADO
-            const esParaCocina = this.esItemDeCocina(item);
-            
-            if (!esParaCocina) {
-                itemsBloqueados++;
-                return; // No es de cocina, lo ignoramos
-            }
-
-            itemsAceptados++;
+            // Solo nos interesa procesar items que sean responsabilidad de la cocina
+            if (!this.esItemDeCocina(item)) return;
 
             const visualItem: ItemCocina = {
                 pedidoId: pedido.id,
@@ -205,6 +188,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
                 horaInicio: horaInicio
             };
 
+            // Clasificar según el estado DEL ITEM (Independiente de la Orden)
             switch (item.estado) {
                 case 'PENDIENTE':
                     this.itemsPendientes.push(visualItem);
@@ -224,16 +208,15 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
                     }
                     mapaListos.get(pedido.id).items.push(item);
                     break;
+                
+                // Si el estado es 'ENTREGADA', no hacemos nada (el item se ignora y desaparece de la vista)
             }
         });
     });
 
+    // Convertimos el mapa de listos a array para el HTML y actualizamos contadores
     this.listosPedidos = Array.from(mapaListos.values());
-    this.conteoPendientes = this.itemsPendientes.length;
-    this.conteoPreparando = this.itemsPreparando.length;
-    this.conteoListos = this.listosPedidos.length;
-
-    // console.log(`📊 Reporte: ${itemsAceptados} aceptados, ${itemsBloqueados} bebidas bloqueadas.`);
+    this.actualizarConteos();
   }
 
   // ==============================================================================
@@ -241,54 +224,76 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   // ==============================================================================
 
   empezarPreparacion(itemVisual: ItemCocina) {
-      // 1. UI Optimista (Mover tarjeta instantáneamente)
+      // 1. UI Optimista (Mover tarjeta instantáneamente sin esperar al server)
       const index = this.itemsPendientes.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           const item = this.itemsPendientes[index];
           this.itemsPendientes.splice(index, 1);
           this.itemsPreparando.push(item);
       }
-      this.conteoPendientes = this.itemsPendientes.length;
-      this.conteoPreparando = this.itemsPreparando.length;
+      this.actualizarConteos();
 
-      // 2. Llamada al Backend
+      // 2. Llamada al Backend (Solo actualiza ESTE item)
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'EN_PREPARACION' })
           .subscribe({ error: (e) => console.error(e) });
   }
 
   terminarPreparacion(itemVisual: ItemCocina) {
-      // 1. UI Optimista
+      // 1. UI Optimista (Quitar de pantalla instantáneamente)
       const index = this.itemsPreparando.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           this.itemsPreparando.splice(index, 1);
       }
-      this.conteoPreparando = this.itemsPreparando.length;
+      this.actualizarConteos();
       
       // 2. Llamada al Backend
+      // Al pasar a LISTA, el backend notificará al mesero vía socket.
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'LISTA' }).subscribe({
           next: () => {
-              this.cargarPedidos(); // Recargar para mover a "Listos" y verificar cierre de orden
+              // 3. Recargamos para que el item aparezca en la columna "Listos"
+              this.cargarPedidos(); 
           }
       });
   }
 
-  // ✅ FUNCIÓN PARA EL BOTÓN "CHECK" (LIMPIAR PANTALLA)
-  // Cambia el estado de LISTA a ENTREGADA, haciendo que desaparezca de la cocina.
+  // ✅ FUNCIÓN PARA EL BOTÓN "CHECK" (LIMPIAR PANTALLA / BACKUP)
+  // Esta función es un respaldo por si el mesero no marca el plato como entregado.
+  // Cambia el estado de 'LISTA' a 'ENTREGADA', haciendo que desaparezca de la cocina.
   limpiarOrdenLista(pedidoVisual: any) {
-      if (!pedidoVisual || !pedidoVisual.items) return;
+      if (!pedidoVisual || !pedidoVisual.items || pedidoVisual.items.length === 0) return;
 
-      // Creamos un array de peticiones para actualizar todos los items de esa tarjeta
-      const peticiones = pedidoVisual.items.map((item: any) => {
-          return this.http.patch(`${this.apiUrl}/items/${item.id}`, { estado: 'ENTREGADA' });
+      console.log(`🧹 Limpiando orden de mesa ${pedidoVisual.mesa?.numero}...`);
+
+      // 1. FILTRAR: Solo items que sean de Cocina Y que estén en estado 'LISTA'
+      // Esto es crucial para evitar errores. No intentamos tocar bebidas ni cosas ya entregadas.
+      const itemsParaLimpiar = pedidoVisual.items.filter((item: any) => 
+          this.esItemDeCocina(item) && item.estado === 'LISTA'
+      );
+
+      if (itemsParaLimpiar.length === 0) {
+          console.log('⚠️ No hay items válidos para limpiar (quizás ya se entregaron o son bebidas). Recargando...');
+          this.cargarPedidos();
+          return;
+      }
+
+      // 2. Ejecutar actualizaciones de forma segura (una por una en paralelo)
+      const peticiones = itemsParaLimpiar.map((item: any) => {
+          return this.http.patch(`${this.apiUrl}/items/${item.id}`, { estado: 'ENTREGADA' }).pipe(
+              catchError(error => {
+                  console.warn(`Error limpiando item ${item.id}`, error);
+                  return of(null); // Continuar aunque falle uno, evita que se rompa todo el proceso
+              })
+          );
       });
 
-      // Ejecutamos todas las peticiones en paralelo
+      // 3. Ejecutar todas las peticiones
       forkJoin(peticiones).subscribe({
           next: () => {
-              // Recargamos para que la tarjeta desaparezca de la columna "Listos"
+              // Al terminar, recargamos. Como ahora el estado es 'ENTREGADA', 
+              // el procesador visual los ignorará y la tarjeta desaparecerá.
               this.cargarPedidos();
           },
-          error: (err) => console.error('Error al limpiar orden', err)
+          error: (err) => console.error('Error general al limpiar orden', err)
       });
   }
 
@@ -302,6 +307,12 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
       [...this.itemsPendientes, ...this.itemsPreparando].forEach(item => {
           item.tiempo = this.getMinutosTranscurridos(item.horaInicio);
       });
+  }
+
+  actualizarConteos() {
+      this.conteoPendientes = this.itemsPendientes.length;
+      this.conteoPreparando = this.itemsPreparando.length;
+      this.conteoListos = this.listosPedidos.length;
   }
 
   salir() { this.authService.logout(); this.router.navigate(['/login']); }
