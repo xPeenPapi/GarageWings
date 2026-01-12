@@ -234,6 +234,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  position: relative; /* Importante para badges flotantes */
 }
 .mesa-info-movil {
   text-align: center;
@@ -1275,42 +1276,71 @@ body {
   font-size: 0.8rem;
 }
 
-/* --- MÓVIL (CHIPS HORIZONTALES) --- */
-.scroll-chips-container {
-  padding: 12px 15px;
-  overflow-x: auto;
-  white-space: nowrap;
+/* --- MÓVIL (CHIPS HORIZONTALES) - AGREGADO --- */
+.pedidos-llevar-movil-container {
+  padding: 10px 15px;
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 10px;
+}
+.titulo-seccion-movil {
+  font-size: 0.8rem;
+  color: #adb5bd;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.scroll-horizontal {
   display: flex;
+  overflow-x: auto;
   gap: 10px;
-  background: #f4f6f7;
-  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px; /* Para el scrollbar */
 }
-
-.chip-llevar {
-  background: white;
-  color: #333;
-  padding: 8px 15px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  display: inline-flex;
+.chip-pedido {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid #e0e0e0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  padding: 8px 12px;
+  border-radius: 20px;
+  min-width: 160px;
+  cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
-
-.chip-llevar:active {
-  background: #f1c40f;
-  color: black;
+.chip-pedido:active {
+  background-color: #e2e6ea;
+  transform: scale(0.98);
 }
-
-.chip-llevar i {
-  color: #f39c12;
+.chip-icon {
+  background: #ffc107;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 0.8rem;
 }
-
+.chip-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden; /* Importante para el texto */
+}
 .chip-nombre {
-  font-weight: 600;
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: #343a40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip-id {
+  font-size: 0.7rem;
+  color: #868e96;
 }
 
 /* ========================================= */
@@ -1395,4 +1425,46 @@ body {
         width: 85%;
         padding: 20px;
     }
+}
+
+/* ========================================= */
+/* ✅ NUEVO: ANIMACIÓN NOTIFICACIONES        */
+/* ========================================= */
+
+@keyframes blink-animation {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.parpadeo {
+  animation: blink-animation 1s infinite;
+}
+
+/* Estilo Escritorio */
+.icono-comida-lista {
+  color: #e74c3c; /* Rojo intenso */
+  background: #fff;
+  padding: 4px;
+  border-radius: 50%;
+  margin-left: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Estilo Móvil Flotante */
+.floating-badge-comida {
+  position: absolute;
+  top: -8px;
+  right: -8px; /* Esquina superior derecha */
+  background-color: #e74c3c;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

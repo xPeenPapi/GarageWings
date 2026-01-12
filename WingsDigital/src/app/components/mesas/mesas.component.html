@@ -197,6 +197,8 @@
                 <i *ngIf="mesa.estado === 'sucia'" class="fas fa-broom" style="color: white;"></i>
                 
                 <i *ngIf="mesa.mesaPadreId" class="fas fa-link texto-unida"></i>
+
+                <i *ngIf="mesa.tienePedidoListo" class="fas fa-utensils icono-comida-lista parpadeo"></i>
               </h3>
             </div>
             
@@ -228,7 +230,7 @@
                       <small>{{ mesa.tiempoTranscurrido }}</small>
                     </p>
                     <div *ngIf="esTiempoExcedido(mesa.horaInicio)" style="margin-top: 5px; color: #c0392b; font-size: 0.8rem; font-weight: bold;">
-                       <i class="fas fa-exclamation-triangle"></i> Tiempo excedido (+2h)
+                        <i class="fas fa-exclamation-triangle"></i> Tiempo excedido (+2h)
                     </div>
                   </ng-container>
 
@@ -288,6 +290,24 @@
         <button class="filter-btn btn-llevar-movil" (click)="crearOrdenParaLlevar()"><i class="fas fa-shopping-bag"></i></button>
     </div>
 
+    <div *ngIf="ordenesParaLlevarActivas.length > 0" class="pedidos-llevar-movil-container">
+        <h6 class="titulo-seccion-movil">
+          <i class="fas fa-motorcycle"></i> En Curso ({{ ordenesParaLlevarActivas.length }})
+        </h6>
+        <div class="scroll-horizontal">
+          <div *ngFor="let orden of ordenesParaLlevarActivas" 
+               class="chip-pedido" 
+               (click)="irAPedidoParaLlevar(orden.id)">
+            <div class="chip-icon"><i class="fas fa-shopping-bag"></i></div>
+            <div class="chip-info">
+              <span class="chip-nombre">{{ orden.notaGeneral || 'Cliente' }}</span>
+              <span class="chip-id">#{{ orden.id }}</span>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
+    </div>
+
     <div class="tables-container">
       <ng-container *ngFor="let mesa of mesasFiltradas">
         <div class="mesa-card-movil" 
@@ -302,6 +322,10 @@
              (click)="seleccionarMesa(mesa)">
           
           <div *ngIf="mesa.mesaPadreId" class="floating-badge-hija"><i class="fas fa-link"></i></div>
+
+          <div *ngIf="mesa.tienePedidoListo" class="floating-badge-comida parpadeo">
+            <i class="fas fa-utensils"></i> ¡Listo!
+          </div>
 
           <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
           <div class="mesa-info-movil">
