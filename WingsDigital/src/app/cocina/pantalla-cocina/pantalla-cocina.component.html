@@ -4,133 +4,148 @@
     <div class="brand-area">
       <div class="icon-box"><i class="fas fa-utensils"></i></div>
       <div class="title-info">
-        <h1>Estación de Cocina</h1>
-        <p>Chef: {{ nombreChef || 'Turno General' }}</p>
+        <h1>Cocina</h1>
+        <p class="desktop-only">Chef: {{ nombreChef || 'General' }}</p>
       </div>
     </div>
     
     <div class="actions-area">
-      <div class="time-info">
-        <span>Hora actual</span>
+      <div class="time-info desktop-only">
         <strong>{{ horaActual }}</strong>
       </div>
       <button class="btn-salir" (click)="salir()">
-        <i class="fas fa-sign-out-alt"></i> Salir
+        <i class="fas fa-sign-out-alt"></i> <span class="desktop-only">Salir</span>
       </button>
     </div>
   </header>
 
-  <section class="kpi-section">
-    <div class="kpi-card pending">
-      <div class="kpi-content">
-        <span class="label">Nuevos</span>
-        <strong class="count">{{ conteoPendientes }}</strong>
-      </div>
-      <div class="kpi-icon"><i class="far fa-bell"></i></div>
-    </div>
-
-    <div class="kpi-card preparing">
-      <div class="kpi-content">
-        <span class="label">Cocinando</span>
-        <strong class="count">{{ conteoPreparando }}</strong>
-      </div>
-      <div class="kpi-icon"><i class="fas fa-fire"></i></div>
-    </div>
-
-    <div class="kpi-card ready">
-      <div class="kpi-content">
-        <span class="label">Listos</span>
-        <strong class="count">{{ conteoListos }}</strong>
-      </div>
-      <div class="kpi-icon"><i class="far fa-check-circle"></i></div>
-    </div>
-  </section>
+  <nav class="mobile-nav">
+    <button class="nav-item" [class.active]="activeMobileTab === 'nuevos'" (click)="setActiveTab('nuevos')">
+      <i class="far fa-bell"></i>
+      <span>Nuevos ({{ conteoPendientes }})</span>
+    </button>
+    <button class="nav-item warning" [class.active]="activeMobileTab === 'preparando'" (click)="setActiveTab('preparando')">
+      <i class="fas fa-fire"></i>
+      <span>En Fuego ({{ conteoPreparando }})</span>
+    </button>
+    <button class="nav-item success" [class.active]="activeMobileTab === 'listos'" (click)="setActiveTab('listos')">
+      <i class="far fa-check-circle"></i>
+      <span>Listos ({{ conteoListos }})</span>
+    </button>
+  </nav>
 
   <main class="kanban-grid">
     
-    <div class="kanban-column">
+    <div class="kanban-column pending-col" [class.mobile-hidden]="activeMobileTab !== 'nuevos'">
       <div class="column-header pending">
-        <h3><i class="far fa-bell"></i> Nuevos</h3>
+        <h3><i class="far fa-bell"></i> Nuevos <span class="count-badge">{{ conteoPendientes }}</span></h3>
       </div>
       <div class="column-content">
         
         <div *ngIf="itemsPendientes.length === 0" class="empty-state">
-           <p>Oído cocina... todo tranquilo</p>
+           <i class="fas fa-check-circle big-icon"></i>
+           <p>Sin órdenes nuevas</p>
         </div>
 
-        <div *ngFor="let item of itemsPendientes" class="order-card pending">
-          <div class="card-content">
-            <div class="product-info">
-              <h3>{{ item.productoNombre }}</h3>
-              <div class="tags">
-                <span class="tag-mesa">Mesa {{ item.mesaNumero }}</span>
-                <span class="timer"><i class="far fa-clock"></i> {{ item.tiempo }} min</span>
-              </div>
-            </div>
+        <div *ngFor="let item of itemsPendientes" class="order-card pending animate-in">
+          <div class="card-main">
             <div class="product-qty">
-              <span class="qty">{{ item.cantidad }}x</span>
+              {{ item.cantidad }}<small>x</small>
+            </div>
+            <div class="product-details">
+              <h3>{{ item.productoNombre }}</h3>
+              <div class="meta-tags">
+                <span class="tag-mesa"><i class="fas fa-table"></i> Mesa {{ item.mesaNumero }}</span>
+                <span class="timer" [ngClass]="{'urgent': item.tiempo > 15}">
+                  <i class="far fa-clock"></i> {{ item.tiempo }} min
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="notes-box" *ngIf="item.notas">
-            <i class="fas fa-exclamation-circle"></i> {{ item.notas }}
+          <div class="extras-container" *ngIf="item.notas || (item.opciones && item.opciones.length > 0)">
+             <div class="notes-box" *ngIf="item.notas">
+                <i class="fas fa-exclamation-triangle"></i> {{ item.notas }}
+              </div>
+              <div class="opciones-box" *ngIf="item.opciones">
+                 <span *ngFor="let op of item.opciones | keyvalue" class="opcion-tag">{{ op.value }}</span>
+              </div>
           </div>
 
           <button class="btn-action start" (click)="empezarPreparacion(item)">
-            <i class="fas fa-fire"></i> Cocinar
+            <i class="fas fa-fire"></i> COCINAR
           </button>
         </div>
 
       </div>
     </div>
 
-    <div class="kanban-column">
+    <div class="kanban-column preparing-col" [class.mobile-hidden]="activeMobileTab !== 'preparando'">
       <div class="column-header preparing">
-        <h3><i class="fas fa-fire"></i> En Fuego</h3>
+        <h3><i class="fas fa-fire"></i> Cocinando <span class="count-badge">{{ conteoPreparando }}</span></h3>
       </div>
       <div class="column-content">
         
-        <div *ngFor="let item of itemsPreparando" class="order-card preparing">
-          <div class="card-content">
-            <div class="product-info">
+        <div *ngIf="itemsPreparando.length === 0" class="empty-state">
+           <i class="fas fa-utensils big-icon"></i>
+           <p>Nada en el fuego</p>
+        </div>
+
+        <div *ngFor="let item of itemsPreparando" class="order-card preparing animate-in">
+          <div class="card-main">
+            <div class="product-qty">
+              {{ item.cantidad }}<small>x</small>
+            </div>
+            <div class="product-details">
               <h3>{{ item.productoNombre }}</h3>
-              <div class="tags">
-                <span class="tag-mesa">Mesa {{ item.mesaNumero }}</span>
-                <span class="timer active"><i class="fas fa-stopwatch"></i> {{ item.tiempo }} min</span>
+              <div class="meta-tags">
+                <span class="tag-mesa"><i class="fas fa-table"></i> Mesa {{ item.mesaNumero }}</span>
+                <span class="timer active" [ngClass]="{'urgent': item.tiempo > 20}">
+                  <i class="fas fa-stopwatch"></i> {{ item.tiempo }} min
+                </span>
               </div>
             </div>
-            <div class="product-qty">
-              <span class="qty">{{ item.cantidad }}x</span>
-            </div>
           </div>
 
-          <div class="notes-box" *ngIf="item.notas">
-            <i class="fas fa-exclamation-circle"></i> {{ item.notas }}
-          </div>
+           <div class="extras-container" *ngIf="item.notas || (item.opciones && item.opciones.length > 0)">
+              <div class="notes-box" *ngIf="item.notas">
+                 <i class="fas fa-exclamation-triangle"></i> {{ item.notas }}
+               </div>
+               <div class="opciones-box" *ngIf="item.opciones">
+                  <span *ngFor="let op of item.opciones | keyvalue" class="opcion-tag">{{ op.value }}</span>
+               </div>
+           </div>
 
           <button class="btn-action finish" (click)="terminarPreparacion(item)">
-            <i class="fas fa-check"></i> Terminar
+            <i class="fas fa-check"></i> TERMINAR
           </button>
         </div>
 
       </div>
     </div>
 
-    <div class="kanban-column">
+    <div class="kanban-column ready-col" [class.mobile-hidden]="activeMobileTab !== 'listos'">
       <div class="column-header ready">
-        <h3><i class="fas fa-check-double"></i> Para Llevar</h3>
+        <h3><i class="fas fa-check-double"></i> Listos <span class="count-badge">{{ conteoListos }}</span></h3>
       </div>
-      <div class="column-content">
+      <div class="column-content column-content-ready">
+         
+        <div *ngIf="listosPedidos.length === 0" class="empty-state">
+            <p>Historial vacío por ahora</p>
+         </div>
+
          <div class="ready-list-container">
-             <div *ngFor="let pedido of listosPedidos" class="ready-item-compact">
+             <div *ngFor="let pedido of listosPedidos" class="ready-item-compact animate-in">
                  <div class="ready-header">
                      <strong>Mesa {{ pedido.mesa?.numero || 'S/N' }}</strong>
                      <span class="status-check">✓</span>
                  </div>
                  <div class="ready-items">
-                     <span *ngFor="let i of pedido.items">
-                         <span *ngIf="esItemDeCocina(i)">{{ i.cantidad }}x {{ i.producto?.nombre }}</span>
-                     </span>
+                     <ng-container *ngFor="let i of pedido.items">
+                        <div *ngIf="esItemDeCocina(i)" class="ready-subitem">
+                           <span>{{ i.cantidad }}x</span> {{ i.producto?.nombre }}
+                        </div>
+                     </ng-container>
                  </div>
              </div>
          </div>

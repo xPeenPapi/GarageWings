@@ -6,7 +6,7 @@ import { SocketService, ComandaCompleta } from '../../services/socket.service';
 import { AuthService } from '../../services/auth.service';
 import { PedidosService } from '../../services/pedidos.service';
 
-// ✅ Interfaz definida como ItemCocina
+// Interfaz visual adaptada para cocina
 interface ItemCocina {
   pedidoId: number;
   itemId: number;
@@ -19,6 +19,9 @@ interface ItemCocina {
   horaInicio: Date;
 }
 
+// ✅ Definimos los tipos de pestañas móviles disponibles
+type MobileTab = 'nuevos' | 'preparando' | 'listos';
+
 @Component({
   selector: 'app-pantalla-cocina',
   standalone: true,
@@ -28,6 +31,9 @@ interface ItemCocina {
 })
 export class PantallaCocinaComponent implements OnInit, OnDestroy {
   
+  // ✅ Variable para controlar la pestaña activa en móvil
+  activeMobileTab: MobileTab = 'nuevos';
+
   // Listas de Cocina
   nuevosPedidos: ComandaCompleta[] = [];
   preparandoPedidos: ComandaCompleta[] = []; 
@@ -65,6 +71,11 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.conectarSocket();
   }
 
+  // ✅ Función para cambiar pestaña en móvil
+  setActiveTab(tab: MobileTab) {
+    this.activeMobileTab = tab;
+  }
+
   actualizarReloj() {
     const now = new Date();
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -97,6 +108,7 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
       if (item.producto?.destino) {
           return item.producto.destino === 'COCINA';
       }
+      // Si no tiene destino, asumimos que es COMIDA por defecto, a menos que sea explícitamente BARRA.
       return item.producto?.destino !== 'BARRA';
   }
 
@@ -140,7 +152,6 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
       this.itemsPendientes = [];
       this.itemsPreparando = [];
       
-      // ✅ CORRECCIÓN AQUÍ: Usamos ItemCocina en lugar de ItemVisual
       const procesarLista = (listaPedidos: any[], listaVisual: ItemCocina[]) => {
           listaPedidos.forEach(pedido => {
               const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || (pedido as any).fecha || new Date();
@@ -174,7 +185,6 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
 
   // Acciones de Cocina
   empezarPreparacion(itemVisual: ItemCocina) {
-      // Mover visualmente a "Preparando"
       const item = this.itemsPendientes.find(i => i.pedidoId === itemVisual.pedidoId && i.itemId === itemVisual.itemId);
       if(item) {
           this.itemsPendientes = this.itemsPendientes.filter(i => i !== item);
@@ -185,18 +195,15 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   }
 
   terminarPreparacion(itemVisual: ItemCocina) {
-      // Quitar de preparación
       this.itemsPreparando = this.itemsPreparando.filter(i => 
           !(i.pedidoId === itemVisual.pedidoId && i.itemId === itemVisual.itemId)
       );
       this.conteoPreparando = this.itemsPreparando.length;
 
-      // Verificar si quedan items pendientes de esa orden en cocina
       const quedanItems = this.itemsPreparando.some(i => i.pedidoId === itemVisual.pedidoId) || 
                           this.itemsPendientes.some(i => i.pedidoId === itemVisual.pedidoId);
 
       if (!quedanItems) {
-          // Orden lista para entregar
           this.pedidosService.actualizarEstado(itemVisual.pedidoId, 'LISTA').subscribe({
               next: () => this.cargarPedidos()
           });
