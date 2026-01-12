@@ -96,8 +96,7 @@ export class PedidosService {
   // Actualizar estado GENERAL de la orden (PENDIENTE -> LISTA -> ENTREGADA)
   actualizarEstado(ordenId: number, nuevoEstado: string): Observable<any> {
     // Nota: Se envía a la raíz ID, el backend decide qué hacer con el body { estado: ... }
-    return this.http.patch(`${this.apiUrl}/${ordenId}`, { estado: nuevoEstado }, { headers: this.getHeaders() });
-  }
+    return this.http.patch(`${this.apiUrl}/${ordenId}`, { estado: nuevoEstado }, { headers: this.getHeaders() });  }
 
   // ✅ MÉTODO FALTANTE AGREGADO: Actualizar estado de UN ITEM (Platillo individual)
   // Esto es lo que permite que el checkmark funcione item por item y notifique a cocina

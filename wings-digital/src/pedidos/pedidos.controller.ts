@@ -22,7 +22,6 @@ export class PedidosController {
   // ✅ 3. Obtener pedidos pendientes
   @Get('pendientes')
   findPendientes() {
-    // console.log('🔍 Consultando pedidos pendientes...');
     return this.pedidosService.findPendientes();
   }
 
@@ -38,13 +37,23 @@ export class PedidosController {
     return this.pedidosService.obtenerOrdenCompleta(id);
   }
 
-  // ✅ 6. Actualizar estado (DE LA ORDEN COMPLETA)
-  @Patch(':id/estado')
+  // ✅ 6. Actualizar estado (CORREGIDO PARA EVITAR 404)
+  // Ahora acepta tanto /pedidos/8 como /pedidos/8/estado
+  @Patch(':id')
   actualizarEstado(
     @Param('id', ParseIntPipe) id: number, 
     @Body('estado') estado: EstadoOrden
   ) {
     console.log(`🔄 Actualizando ORDEN ${id} a estado: ${estado}`);
+    return this.pedidosService.actualizarEstado(id, estado);
+  }
+
+  // Soporte para la ruta antigua por si acaso
+  @Patch(':id/estado')
+  actualizarEstadoLegacy(
+    @Param('id', ParseIntPipe) id: number, 
+    @Body('estado') estado: EstadoOrden
+  ) {
     return this.pedidosService.actualizarEstado(id, estado);
   }
 
@@ -66,6 +75,11 @@ export class PedidosController {
   }
 
   // ✅ 9. Cancelar orden
+  @Delete(':id') // Cambiado a Delete para ser más estándar, pero mantengo Patch abajo
+  cancelarOrdenStandard(@Param('id', ParseIntPipe) id: number) {
+    return this.pedidosService.cancelarOrden(id);
+  }
+
   @Patch(':id/cancelar')
   cancelarOrden(@Param('id', ParseIntPipe) id: number) {
     console.log(`❌ Cancelando orden ${id}`);
@@ -73,7 +87,7 @@ export class PedidosController {
   }
 
   // =======================================================
-  // 🔥 NUEVO: ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina)
+  // 🔥 ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina)
   // =======================================================
   @Patch('items/:itemId')
   actualizarItem(

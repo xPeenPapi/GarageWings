@@ -578,30 +578,30 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
-  confirmarEntrega(pedido: any) {
-    // 1. Actualizar estado general de la orden
-    this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
-        next: () => {
-            // 2. IMPORTANTE: Actualizar cada item que esté en 'LISTA' a 'ENTREGADA' 
-            // Esto hace que desaparezcan de la pantalla de cocina y se sincronicen en la base de datos
-            if (pedido.items && Array.isArray(pedido.items)) {
-                pedido.items.forEach((item: any) => {
-                    if (item.estado === 'LISTA') {
-                        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
-                    }
-                });
-            }
-
-            this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
-            this.contadorNotificaciones = this.pedidosListos.length;
-            
-            if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
-                this.recargarDatosMesa();
-            }
-        },
-        error: (err) => console.error('Error al confirmar entrega:', err)
-    });
-  }
+confirmarEntrega(pedido: any) {
+  // 1. Llamamos a actualizar la orden (esto ya no dará 404)
+  this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
+    next: () => {
+      // 2. IMPORTANTE: Recorremos los ítems para marcarlos como entregados en la BD
+      if (pedido.items && pedido.items.length > 0) {
+        pedido.items.forEach((item: any) => {
+          if (item.estado === 'LISTA') {
+            this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+          }
+        });
+      }
+      
+      // Limpiamos la UI
+      this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
+      this.contadorNotificaciones = this.pedidosListos.length;
+      alert('Pedido entregado correctamente');
+    },
+    error: (err) => {
+      console.error('Error al confirmar entrega:', err);
+      alert('Error de conexión con el servidor (404). Revisa las rutas del backend.');
+    }
+  });
+}
 
   limpiarNotificaciones() { 
       const copia = [...this.pedidosListos];
