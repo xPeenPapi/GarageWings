@@ -105,7 +105,7 @@ export class MesasComponent implements OnInit, OnDestroy {
     // Intervalos de actualización
     this.subscriptions.add(interval(60000).subscribe(() => { this.cargarMesas(); this.cargarOrdenesParaLlevar(); }));
     
-    // Intervalo de notificaciones (5s) - ACTUALIZADO para usar la nueva lógica
+    // Intervalo de notificaciones (5s)
     this.subscriptions.add(interval(5000).subscribe(() => { 
         this.verificarNotificacionesComida(); 
         this.cargarOrdenesParaLlevar(); 
@@ -231,7 +231,7 @@ export class MesasComponent implements OnInit, OnDestroy {
       }); 
   }
   
-  // ✅ VERIFICACIÓN DE NOTIFICACIONES (CORREGIDA Y MEJORADA)
+  // VERIFICACIÓN DE NOTIFICACIONES
   verificarNotificacionesComida() { 
       this.pedidosService.obtenerPendientes().subscribe({ 
           next: (ordenes: any[]) => { 
@@ -264,7 +264,7 @@ export class MesasComponent implements OnInit, OnDestroy {
 
                   return {
                       id: o.id,
-                      mesaId: o.mesa?.numero || 'Llevar', // Manejo visual para pedidos llevar
+                      mesaId: o.mesa?.numero || 'Llevar', 
                       total: o.total || totalCalculado,
                       items: o.items,
                       estado: o.estado
@@ -287,7 +287,6 @@ export class MesasComponent implements OnInit, OnDestroy {
   
   esTiempoExcedido(fecha?: string): boolean { if (!fecha) return false; const inicio = new Date(fecha).getTime(); const ahora = new Date().getTime(); return (ahora - inicio) > (2 * 60 * 60 * 1000); }
   
-  // ✅ MODIFICADO: Incluye conteo de SUCIAS
   actualizarContadores() { 
       this.totalMesas = this.mesas.length; 
       this.totalDisponibles = this.mesas.filter(m => m.estado === 'disponible').length; 
@@ -359,7 +358,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   }
 
   // ==========================================
-  // ✅ LÓGICA DE SELECCIÓN MAESTRA (ACTUALIZADA: MESA HUÉRFANA)
+  // ✅ LÓGICA DE SELECCIÓN MAESTRA
   // ==========================================
   
   seleccionarMesa(mesa: MesaVisual): void {
@@ -390,7 +389,6 @@ export class MesasComponent implements OnInit, OnDestroy {
                 return;
             }
             
-            // ✅ CORREGIDO: Si la mesa no tiene dueño (huérfana), permitimos moverla
             const esMia = mesa.meseroId === this.usuarioActualId;
             const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
             const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
@@ -418,7 +416,6 @@ export class MesasComponent implements OnInit, OnDestroy {
             return;
         }
         
-        // ✅ CORREGIDO: Permitir si es huérfana
         const esMia = mesa.meseroId === this.usuarioActualId;
         const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
         const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
@@ -441,13 +438,10 @@ export class MesasComponent implements OnInit, OnDestroy {
     // --- 3. MODO NORMAL (ENTRAR A LA MESA) ---
     if (mesa.estado === 'ocupada') {
       
-      // ✅ LÓGICA DE PROPIEDAD CORREGIDA PARA MESAS "ZOMBIE"
       const esMia = mesa.meseroId === this.usuarioActualId;
       const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
-      const esHuerfana = !mesa.meseroId || mesa.meseroId === 0; // Si es null o 0, no tiene dueño
+      const esHuerfana = !mesa.meseroId || mesa.meseroId === 0; 
 
-      // Si NO es mía, NO soy gerente, y la mesa SÍ tiene un dueño válido -> BLOQUEAR
-      // (Si es huérfana, esta condición es falsa y te deja pasar)
       if (!esMia && !soyGerente && !esHuerfana) {
           const nombreOwner = mesa.mesero ? mesa.mesero : 'otro mesero';
           this.mostrarAlerta(`⛔ ACCESO DENEGADO. Esta mesa está siendo atendida por ${nombreOwner}.`, 'error');
@@ -624,7 +618,6 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.subscriptions.add(this.socketService.escucharPedidosParaCobrar().subscribe({
       next: (pedido: ComandaCompleta) => {
         if(pedido.estado === 'PAGADA' || pedido.estado === 'CANCELADA') this.cargarMesas();
-        // El socket solo fuerza la actualización, la lógica de lista la maneja el intervalo para ser consistente con AggPedido
         if (pedido.mesero === this.nombreMesero) {
             this.verificarNotificacionesComida();
         }
@@ -632,11 +625,9 @@ export class MesasComponent implements OnInit, OnDestroy {
     }));
   }
 
-  // Mantenemos este método por compatibilidad con el socket antiguo, pero la lógica fuerte está en verificarNotificacionesComida
+  // Mantenemos este método por compatibilidad con el socket antiguo
   agregarNotificacion(pedido: ComandaCompleta) {
-    // Ya no es necesario insertar manualmente si usamos el polling, pero por seguridad:
     if (!this.pedidosListos.find(p => p.id === pedido.id)) {
-      // Ajuste rápido de tipo
       const p: any = pedido; 
       p.mesaId = pedido.mesaId || 'Llevar';
       this.pedidosListos.unshift(p);
@@ -647,16 +638,24 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
   
+  // ✅ FUNCIÓN CORREGIDA: Ahora llama al backend para todos los pedidos de la lista
   limpiarNotificaciones() { 
-      // Al limpiar, idealmente marcaríamos como "visto" en backend o local, 
-      // aquí simplemente limpiamos la vista
+      const copiaPendientes = [...this.pedidosListos];
+      copiaPendientes.forEach(p => {
+          this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe();
+      });
+
       this.pedidosListos = []; 
       this.contadorNotificaciones = 0; 
       this.mostrarListaNotificaciones = false; 
+      
+      setTimeout(() => this.verificarNotificacionesComida(), 500);
   }
 
   irAMesa(pedido: any) { 
-      this.marcarComoVista(pedido); 
+      // ✅ Confirmamos entrega antes de navegar
+      this.confirmarEntrega(pedido);
+      
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
           this.router.navigate(['/pedido', pedido.mesaId]); 
       } else {
@@ -666,12 +665,24 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   irAPedidoParaLlevar(id: number) { this.router.navigate(['/pedido/orden', id]); }
   
-  marcarComoVista(p: any) { 
-      const idx = this.pedidosListos.indexOf(p); 
-      if(idx > -1) { 
-          this.pedidosListos.splice(idx, 1); 
-          this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
-      } 
+  // ✅ FUNCIÓN NUEVA: Marca como ENTREGADA en backend y quita de la lista local
+  confirmarEntrega(p: any) { 
+      this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe({
+          next: () => {
+              const idx = this.pedidosListos.indexOf(p); 
+              if(idx > -1) { 
+                  this.pedidosListos.splice(idx, 1); 
+                  this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
+              } 
+              this.verificarNotificacionesComida();
+          },
+          error: (err) => console.error('Error al confirmar entrega:', err)
+      });
+  }
+  
+  // ALIAS (Por si el HTML viejo llamaba marcarComoVista)
+  marcarComoVista(p: any) {
+      this.confirmarEntrega(p);
   }
   
   Logout() { this.authService.logout(); }

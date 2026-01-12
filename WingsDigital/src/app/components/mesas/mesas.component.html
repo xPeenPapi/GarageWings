@@ -122,8 +122,8 @@
                     <h5>Mesa {{ pedido.mesaId }} - Listo</h5>
                     <p>Total: {{ pedido.total | currency }}</p>
                   </div>
-                  <button class="btn-cerrar-notificacion" (click)="marcarComoVista(pedido); $event.stopPropagation()">
-                    <i class="fas fa-times"></i>
+                  <button class="btn-cerrar-notificacion" (click)="confirmarEntrega(pedido); $event.stopPropagation()" title="Marcar como entregado">
+                    <i class="fas fa-check" style="color: #2ecc71;"></i>
                   </button>
                 </div>
               </div>
@@ -369,7 +369,7 @@
                 <p>Pedido #{{ pedido.id }} • {{ pedido.total | currency }}</p>
               </div>
             </div>
-            <button class="btn-cerrar-notificacion" style="font-size: 1.2rem; padding: 10px;" (click)="marcarComoVista(pedido); $event.stopPropagation()">
+            <button class="btn-cerrar-notificacion" style="font-size: 1.2rem; padding: 10px;" (click)="confirmarEntrega(pedido); $event.stopPropagation()">
               <i class="fas fa-check"></i>
             </button>
           </div>
