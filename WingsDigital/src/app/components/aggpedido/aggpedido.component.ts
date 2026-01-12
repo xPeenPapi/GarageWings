@@ -173,7 +173,13 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   recargarDatosMesa() {
     if (!this.mesaId) return;
 
-    this.mesaService.actualizarEstadoMesa(this.mesaId!, 'ocupada', this.nombreMesero).subscribe();
+    // ✅ CORREGIDO: Pasar true para NO sobrescribir horaApertura
+    this.mesaService.actualizarEstadoMesa(
+      this.mesaId!, 
+      'ocupada', 
+      this.nombreMesero,
+      true // ✅ Mantener horaApertura existente (es una reentrada, no apertura nueva)
+    ).subscribe();
 
     this.pedidosService.getPedidosPorMesa(this.mesaId!).subscribe({
         next: (ordenes: any[]) => {

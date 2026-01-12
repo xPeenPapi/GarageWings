@@ -1,35 +1,34 @@
+// mesa.service.ts - VERSIÓN CORREGIDA (No sobrescribe horaApertura)
+
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-
 export interface Mesa {
   id: number;
   numero: string;
-  estado: string; // 'disponible' | 'ocupada' | 'sucia' | 'reservada'
+  estado: string;
   capacidad: number;
-  tipo?: string;  // 'cuadrada' | 'rectangular'
+  tipo?: string;
   tiempo?: string;
   mesero?: string;
-  posX?: number;
-  posY?: number;
-  // Propiedades opcionales para la lógica visual
-  mesaPadreId?: number | null;
   meseroId?: number | null;
   meseroNombre?: string | null;
+  horaApertura?: string | null; // ✅ Campo para timestamp
+  posX?: number;
+  posY?: number;
+  mesaPadreId?: number | null;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class MesaService {
-  // ⚠️ Asegúrate de que esta URL coincida con tu backend
-  private apiUrl = `${environment.apiUrl}/mesas`; // ✅ ACTUALIZADO
+  private apiUrl = `${environment.apiUrl}/mesas`;
 
   constructor(private http: HttpClient) {}
 
-  // Helper para obtener el token (Autorización)
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
     return new HttpHeaders({
@@ -38,30 +37,49 @@ export class MesaService {
     });
   }
 
-  // Obtener todas las mesas
   getMesas(): Observable<Mesa[]> {
     return this.http.get<Mesa[]>(this.apiUrl, { headers: this.getHeaders() });
   }
 
-  // Actualizar estado (Ocupar, Liberar, Unir)
+  /**
+   * ✅ MÉTODO CORREGIDO: Solo crea horaApertura si se está abriendo la mesa
+   * @param mantenerHoraApertura - Si true, NO sobrescribe horaApertura (para reentradas)
+   */
   actualizarEstadoMesa(
-    mesaId: number, 
-    estado: 'disponible' | 'ocupada' | 'sucia', 
-    mesero: string
-  ): Observable<any> {
+    id: number, 
+    estado: string, 
+    mesero: string,
+    mantenerHoraApertura: boolean = false // ✅ NUEVO parámetro opcional
+  ): Observable<Mesa> {
     const body: any = { estado };
     
+    // Si se está ocupando la mesa
     if (estado === 'ocupada') {
       body.mesero = mesero;
-      body.horaApertura = new Date(); // ✅ Agregar timestamp de apertura
-    } else if (estado === 'disponible') {
-      body.mesero = ''; // ✅ Limpiar mesero al liberar
-      body.horaApertura = null; // ✅ Limpiar timestamp
+      
+      // ✅ SOLO crear timestamp si NO queremos mantener el existente
+      if (!mantenerHoraApertura) {
+        body.horaApertura = new Date().toISOString();
+        console.log(`✅ Abriendo mesa ${id} - Nuevo timestamp: ${body.horaApertura}`);
+      } else {
+        console.log(`ℹ️ Reentrada a mesa ${id} - Manteniendo horaApertura existente`);
+      }
     }
     
-    return this.http.patch(`${this.apiUrl}/${mesaId}`, body);
+    // Si se está liberando la mesa
+    if (estado === 'disponible') {
+      body.mesero = ''; // ✅ Limpiar mesero
+      body.horaApertura = null; // ✅ Limpiar timestamp
+      console.log(`🧹 Liberando mesa ${id}`);
+    }
+    
+    return this.http.patch<Mesa>(
+      `${this.apiUrl}/${id}/estado`, 
+      body,
+      { headers: this.getHeaders() }
+    );
   }
-  // ✅ NUEVO MÉTODO: Transferir cuenta de una mesa a otra
+
   transferirMesa(origenId: number, destinoId: number): Observable<any> {
     return this.http.post<any>(
       `${this.apiUrl}/transferir`, 

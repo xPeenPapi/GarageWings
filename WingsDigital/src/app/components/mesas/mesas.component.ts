@@ -620,14 +620,16 @@ crearOrdenBackend(mesaId: number | null, comensales: number, nota: string = '') 
     next: (orden: any) => {
       this.cerrarModales();
       
-      // ✅ Si es una mesa, actualizar su estado con horaApertura
+      // ✅ Si es una mesa, actualizar su estado con horaApertura NUEVA
       if (mesaId) {
         this.mesaService.actualizarEstadoMesa(
           mesaId, 
           'ocupada', 
-          this.nombreMesero
+          this.nombreMesero,
+          false // ✅ false = CREAR nuevo horaApertura (es una apertura nueva)
         ).subscribe({
           next: () => {
+            console.log(`✅ Mesa ${mesaId} abierta con nuevo timestamp`);
             this.router.navigate(['/pedido', mesaId]);
           },
           error: () => {
