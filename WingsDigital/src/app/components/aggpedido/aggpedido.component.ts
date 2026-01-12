@@ -364,7 +364,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
       if (productoCompleto?.destino) {
         destinoFinal = productoCompleto.destino;
-        console.log(`✅ Destino desde producto: "${item.nombre}" → ${destinoFinal}`);
       } 
       else {
         const categoria = this.categorias.find(c => c.id === item.categoriaId);
@@ -383,7 +382,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
           nombreCategoria.includes('cafe');
 
         destinoFinal = esBebida ? 'BARRA' : 'COCINA';
-        console.warn(`⚠️ Destino calculado por categoría: "${item.nombre}" (${categoria?.nombre}) → ${destinoFinal}`);
       }
 
       return {
@@ -408,8 +406,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     } else {
       pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
     }
-
-    console.log('📤 Enviando pedido con destinos validados:', pedidoDto);
 
     this.pedidosService.crearPedido(pedidoDto).subscribe({
       next: (ordenCreada: any) => {
@@ -469,6 +465,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     const idParaCuenta = this.ordenId; 
     if (!idParaCuenta) return;
 
+    // ✅ Actualizado para usar la ruta correcta configurada en el service
     this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
         next: () => {
             this.mostrarModalCuenta = false;
@@ -480,8 +477,8 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
             this.regresar();
         },
         error: (err: any) => {
-            console.error(err);
-            alert('Error al solicitar la cuenta.');
+            console.error('Error al solicitar la cuenta:', err);
+            alert('Error al solicitar la cuenta. Intenta de nuevo.');
         }
     });
   }
@@ -578,30 +575,34 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
-confirmarEntrega(pedido: any) {
-  // 1. Llamamos a actualizar la orden (esto ya no dará 404)
-  this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
-    next: () => {
-      // 2. IMPORTANTE: Recorremos los ítems para marcarlos como entregados en la BD
-      if (pedido.items && pedido.items.length > 0) {
-        pedido.items.forEach((item: any) => {
-          if (item.estado === 'LISTA') {
-            this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
-          }
-        });
+  confirmarEntrega(pedido: any) {
+    // 1. Llamamos a actualizar la orden (Se sincroniza con el backend corregido sin /estado para evitar 404)
+    this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
+      next: () => {
+        // 2. 🔥 LIMPIEZA DE COCINA 🔥: Marcamos cada ítem de la orden como entregado individualmente
+        // Esto es necesario para que el backend emita los eventos de socket que borran los items de las pantallas de cocina
+        if (pedido.items && pedido.items.length > 0) {
+          pedido.items.forEach((item: any) => {
+            if (item.estado === 'LISTA') {
+              this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+            }
+          });
+        }
+        
+        // 3. Limpiamos la interfaz local
+        this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
+        this.contadorNotificaciones = this.pedidosListos.length;
+        
+        if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
+          this.recargarDatosMesa();
+        }
+      },
+      error: (err) => {
+        console.error('Error al confirmar entrega:', err);
+        alert('Error al conectar con el servidor. Revisa las rutas del backend.');
       }
-      
-      // Limpiamos la UI
-      this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
-      this.contadorNotificaciones = this.pedidosListos.length;
-      alert('Pedido entregado correctamente');
-    },
-    error: (err) => {
-      console.error('Error al confirmar entrega:', err);
-      alert('Error de conexión con el servidor (404). Revisa las rutas del backend.');
-    }
-  });
-}
+    });
+  }
 
   limpiarNotificaciones() { 
       const copia = [...this.pedidosListos];
