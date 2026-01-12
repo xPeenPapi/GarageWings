@@ -93,6 +93,11 @@ export class PagarComponent implements OnInit, OnDestroy {
   pagadosHoy: Orden[] = [];
 
   private mesasPagadasLocamente = new Set<string>();
+  
+  // ✅ NUEVO: Estructura para manejar las uniones en memoria y persistencia
+  // Key: ID Orden Principal, Value: Array de IDs Hijos
+  private unionesTemporales: { [key: number]: number[] } = {}; 
+
   private socketSub: Subscription | undefined;
   private refreshSub: Subscription | undefined;
   private audio: HTMLAudioElement | null = null;
@@ -107,13 +112,26 @@ export class PagarComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.verificarEstadoTurno();
+    this.recuperarUnionesDeStorage(); // ✅ Recuperar uniones al recargar página
     this.conectarSocket();
     this.refreshSub = interval(5000).subscribe(() => { 
         if (this.turnoAbierto) this.cargarDatosDelDia();
     });
   }
 
-  // --- PERSISTENCIA LOCAL ---
+  // --- PERSISTENCIA DE UNIONES (NUEVO) ---
+  guardarUnionesEnStorage() {
+    localStorage.setItem('uniones_temporales_caja', JSON.stringify(this.unionesTemporales));
+  }
+
+  recuperarUnionesDeStorage() {
+    const data = localStorage.getItem('uniones_temporales_caja');
+    if (data) {
+        this.unionesTemporales = JSON.parse(data);
+    }
+  }
+
+  // --- PERSISTENCIA LOCAL (DIVISIÓN) ---
   guardarDivisionEnStorage(ordenId: number, subcuentas: ClienteCuenta[]) {
     localStorage.setItem(`split_order_${ordenId}`, JSON.stringify(subcuentas));
   }
@@ -170,7 +188,7 @@ export class PagarComponent implements OnInit, OnDestroy {
       next: (pedidosBackend: any[]) => { 
         const calcularTotal = (items: any[]) => (items || []).reduce((acc: number, i: any) => acc + (Number(i.precioUnitario) * i.cantidad), 0);
 
-        // 1. PAGADOS (Backend real)
+        // 1. PAGADOS
         const pagadas = pedidosBackend.filter(p => {
             const esPagada = p.estado === 'PAGADA';
             if (!esPagada) return false;
@@ -179,19 +197,16 @@ export class PagarComponent implements OnInit, OnDestroy {
             return fechaCierre >= this.inicioTurnoTimestamp;
         });
         
-        // Recuperar desglose del Storage para las pagadas también
         const pagadasReales = pagadas.map(p => {
             const orden = this.convertirAOrden(p);
-            // Intentar recuperar el desglose detallado (métodos de pago por subcuenta)
             const splitStorage = this.obtenerDivisionDeStorage(orden.id);
             if(splitStorage) {
                 orden.subcuentas = splitStorage;
-                orden.estado = 'DIVIDIDA'; // Forzar estado para que calcularTotales use el desglose
+                orden.estado = 'DIVIDIDA';
             }
             return orden;
         });
 
-        // Fusionamos manteniendo las locales que acabamos de pagar pero que el backend quizás aún no envía
         this.pagadosHoy = [...pagadasReales, ...this.pagadosHoy.filter(local => !pagadasReales.some(real => real.id === local.id))];
 
         // 2. PENDIENTES
@@ -206,7 +221,6 @@ export class PagarComponent implements OnInit, OnDestroy {
               else tituloMesa = `Pedido para llevar de ${p.notaGeneral || 'Cliente'}`; 
             }
 
-            // Si ya la marcamos como pagada localmente, no la mostramos en pendientes
             if (this.mesasPagadasLocamente.has(tituloMesa.toString())) {
                 return false;
             }
@@ -215,12 +229,66 @@ export class PagarComponent implements OnInit, OnDestroy {
         });
         
         const ordenesPlanas = pendientes.map(p => this.convertirAOrden(p));
-        this.listosParaCobrar = this.agruparPedidosPorMesa(ordenesPlanas);
+        
+        // 1. Agrupar por mesa backend (lógica normal)
+        let listos = this.agruparPedidosPorMesa(ordenesPlanas);
+
+        // 2. ✅ APLICAR UNIONES TEMPORALES (Fix para que no se borren a los 5s)
+        listos = this.aplicarUnionesLogicas(listos);
+
+        this.listosParaCobrar = listos;
         
         this.calcularTotales();
       },
       error: (err) => console.error('Error cargando caja:', err)
     });
+  }
+
+  // ✅ NUEVA FUNCIÓN: Aplica las uniones guardadas en this.unionesTemporales a los datos frescos
+  aplicarUnionesLogicas(ordenes: Orden[]): Orden[] {
+    // Convertimos el array a un mapa para acceso rápido
+    const mapaOrdenes = new Map(ordenes.map(o => [o.id, o]));
+    const idsHijosGlobales = new Set<number>();
+
+    // Recorremos las uniones guardadas
+    Object.keys(this.unionesTemporales).forEach(key => {
+        const idPadre = Number(key);
+        const idsHijos = this.unionesTemporales[idPadre];
+        
+        const ordenPadre = mapaOrdenes.get(idPadre);
+
+        if (ordenPadre) {
+            // Si existe el padre, le sumamos los hijos que encontremos
+            idsHijos.forEach(idHijo => {
+                const ordenHijo = mapaOrdenes.get(idHijo);
+                if (ordenHijo) {
+                    // Sumar y combinar
+                    ordenPadre.total += ordenHijo.total;
+                    ordenPadre.items = [...ordenPadre.items, ...ordenHijo.items];
+                    
+                    if (!ordenPadre.idsAgrupados) ordenPadre.idsAgrupados = [ordenPadre.id];
+                    
+                    // Si el hijo ya tenía agrupados (raro pero posible), los traemos, si no, solo el ID
+                    if (ordenHijo.idsAgrupados) {
+                        ordenPadre.idsAgrupados.push(...ordenHijo.idsAgrupados);
+                    } else {
+                        ordenPadre.idsAgrupados.push(ordenHijo.id);
+                    }
+
+                    // Marcamos para actualizar nombre visual solo si no se ha hecho ya
+                    if (!ordenPadre.mesa.toString().includes('(+')) {
+                         ordenPadre.mesa = `${ordenPadre.mesa} (+ Union)`;
+                    }
+
+                    // Marcar hijo para eliminar de la lista principal
+                    idsHijosGlobales.add(idHijo);
+                }
+            });
+        }
+    });
+
+    // Retornamos la lista sin los hijos que ya fueron absorbidos
+    return ordenes.filter(o => !idsHijosGlobales.has(o.id));
   }
 
   conectarSocket() {
@@ -261,7 +329,6 @@ export class PagarComponent implements OnInit, OnDestroy {
             orden.subcuentas = divisionGuardada;
             orden.estado = 'DIVIDIDA';
             
-            // Verificar si ya se pagó completo
             const todoPagado = orden.subcuentas.every(c => c.pagado);
             if (todoPagado) {
                this.mesasPagadasLocamente.add(orden.mesa.toString());
@@ -279,7 +346,7 @@ export class PagarComponent implements OnInit, OnDestroy {
   cancelarConfirmacion() { this.mostrarConfirmacion = false; this.accionConfirmacion = () => {}; }
   confirmarAccion() { this.accionConfirmacion(); this.mostrarConfirmacion = false; }
   
-  // --- UNIR CUENTAS (LOGICA AGREGADA) ---
+  // --- UNIR CUENTAS (LOGICA CORREGIDA) ---
   toggleSeleccionMesa(orden: Orden) { 
     orden.seleccionada = !orden.seleccionada; 
   }
@@ -288,60 +355,46 @@ export class PagarComponent implements OnInit, OnDestroy {
     return this.listosParaCobrar.filter(o => o.seleccionada); 
   }
   
-  ejecutarUnirCuentas() { // Renombrado para claridad
+  ejecutarUnirCuentas() { 
     const seleccionadas = this.obtenerMesasSeleccionadas();
     
     if (seleccionadas.length < 2) {
-        // En lugar de alert, se podría usar un modal de alerta si lo prefieres
         alert("Selecciona al menos 2 cuentas para unir.");
         return; 
     }
 
-    // La primera seleccionada será la "Principal" (la que paga)
     const cuentaPrincipal = seleccionadas[0];
     const cuentasAUnir = seleccionadas.slice(1);
-
     const nombresAUnir = cuentasAUnir.map(c => c.mesa).join(', ');
 
     this.abrirConfirmacion(`¿Cobrar la cuenta de ${nombresAUnir} junto con ${cuentaPrincipal.mesa}?`, () => {
         
-        // 1. Inicializar array de IDs agrupados si no existe
-        if (!cuentaPrincipal.idsAgrupados) {
-            cuentaPrincipal.idsAgrupados = [cuentaPrincipal.id];
+        // 1. Guardar la definición de la unión en memoria/storage
+        if (!this.unionesTemporales[cuentaPrincipal.id]) {
+            this.unionesTemporales[cuentaPrincipal.id] = [];
         }
 
-        // 2. Recorrer las cuentas secundarias para fusionar datos
-        cuentasAUnir.forEach(cuentaSecundaria => {
-            // Sumar Total
-            cuentaPrincipal.total += cuentaSecundaria.total;
-            
-            // Fusionar Items (Para que el ticket salga completo)
-            cuentaPrincipal.items = [...cuentaPrincipal.items, ...cuentaSecundaria.items];
-
-            // Agregar ID al array de cobro masivo
-            // Si la secundaria ya tenía agrupados, los traemos también
-            if (cuentaSecundaria.idsAgrupados) {
-                cuentaPrincipal.idsAgrupados!.push(...cuentaSecundaria.idsAgrupados);
-            } else {
-                cuentaPrincipal.idsAgrupados!.push(cuentaSecundaria.id);
+        cuentasAUnir.forEach(c => {
+            this.unionesTemporales[cuentaPrincipal.id].push(c.id);
+            // Si la cuenta que unimos también era padre de otras, nos traemos sus hijos (aplanar)
+            if (this.unionesTemporales[c.id]) {
+                this.unionesTemporales[cuentaPrincipal.id].push(...this.unionesTemporales[c.id]);
+                delete this.unionesTemporales[c.id]; // Borramos la referencia vieja
             }
         });
 
-        // 3. Actualizar nombre visual para referencia
-        cuentaPrincipal.mesa = `${cuentaPrincipal.mesa} (+ ${cuentasAUnir.length})`;
+        this.guardarUnionesEnStorage();
 
-        // 4. Eliminar las cuentas secundarias de la lista visual "Listos para Cobrar"
-        // (Para que no aparezcan duplicadas, ya que ahora viven dentro de la principal)
-        const idsEliminar = new Set(cuentasAUnir.map(c => c.id));
-        this.listosParaCobrar = this.listosParaCobrar.filter(orden => !idsEliminar.has(orden.id));
-
-        // 5. Limpiar selección y mandar a cobrar
-        cuentaPrincipal.seleccionada = false;
+        // 2. Recargar datos inmediatamente para ver el cambio reflejado
+        this.cargarDatosDelDia();
         
-        // Opcional: Ir directo a la pestaña de pedidos o abrir modal de cobro
         this.activeTab = 'pedidos';
-        this.cobrar(cuentaPrincipal); // Abrimos el modal de cobro inmediatamente con la suma total
     });
+  }
+
+  // ALIAS
+  ejecutarUnirMesas() {
+      this.ejecutarUnirCuentas();
   }
 
   // --- DIVISIÓN ---
@@ -418,8 +471,16 @@ export class PagarComponent implements OnInit, OnDestroy {
     
     forkJoin(peticiones).subscribe({
       next: () => { 
-          // Si pagamos TOTAL, entonces sí borramos el storage porque se unificó todo
-          if(this.ordenParaCobrar) this.borrarDivisionDeStorage(this.ordenParaCobrar.id);
+          // Si pagamos TOTAL, limpiamos storage de divisiones
+          if(this.ordenParaCobrar) {
+              this.borrarDivisionDeStorage(this.ordenParaCobrar.id);
+              
+              // ✅ TAMBIÉN LIMPIAMOS LA UNIÓN DEL STORAGE
+              if (this.unionesTemporales[this.ordenParaCobrar.id]) {
+                  delete this.unionesTemporales[this.ordenParaCobrar.id];
+                  this.guardarUnionesEnStorage();
+              }
+          }
           this.cargarDatosDelDia(); 
           this.limpiarVariablesCobro(); 
       },
@@ -469,9 +530,6 @@ export class PagarComponent implements OnInit, OnDestroy {
       
       forkJoin(peticiones).subscribe({
           next: () => {
-              // ❌ NO BORRAMOS EL STORAGE AQUÍ PARA MANTENER EL DESGLOSE VISUAL
-              // this.borrarDivisionDeStorage(orden.id);
-              
               this.mesasPagadasLocamente.delete(orden.mesa.toString());
               this.cargarDatosDelDia();
           },
@@ -479,7 +537,7 @@ export class PagarComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ✅ CÁLCULO DE TOTALES (Con 'as any' para acceder a props guardadas)
+  // ✅ CÁLCULO DE TOTALES
   calcularTotales(): void {
     this.ventasEfectivo = 0; 
     this.ventasTarjeta = 0; 
@@ -497,10 +555,8 @@ export class PagarComponent implements OnInit, OnDestroy {
     }, 0);
 
     for (const orden of this.pagadosHoy) {
-      // Si tiene subcuentas (ya sean locales o recuperadas del storage), usamos su desglose
       if (orden.subcuentas && orden.subcuentas.length > 0) {
           orden.subcuentas.forEach(sub => {
-              // Nota: Asumimos pagado=true porque la orden padre está en pagadosHoy
               if (sub.pagado || orden.estado === 'PAGADA') {
                   const metodo = (sub as any).metodoPago || 'Efectivo';
                   const prop = Number((sub as any).propina) || 0;
@@ -511,7 +567,6 @@ export class PagarComponent implements OnInit, OnDestroy {
               }
           });
       } 
-      // Orden normal (sin división)
       else {
           this.sumarAlMetodo(orden.metodoPago || 'Efectivo', orden.total);
           this.propinasTurno += (Number(orden.propina) || 0);
@@ -519,7 +574,6 @@ export class PagarComponent implements OnInit, OnDestroy {
       }
     }
     
-    // Sumar también los PAGOS PARCIALES de las mesas que siguen en "Listos para Cobrar"
     for (const orden of this.listosParaCobrar) {
         if (orden.subcuentas) {
             orden.subcuentas.forEach(sub => {
@@ -564,8 +618,8 @@ export class PagarComponent implements OnInit, OnDestroy {
     this.generarPDFCorte();
     localStorage.removeItem('inicioTurno');
     localStorage.removeItem('montoInicial');
+    localStorage.removeItem('uniones_temporales_caja'); // Limpiar uniones al cerrar
     
-    // Limpiamos los splits al cerrar turno
     Object.keys(localStorage).forEach(key => {
         if(key.startsWith('split_order_')) localStorage.removeItem(key);
     });
@@ -576,6 +630,7 @@ export class PagarComponent implements OnInit, OnDestroy {
     this.turnoAbierto = false;
     this.mostrarModalCierreTurno = false;
     this.mesasPagadasLocamente.clear();
+    this.unionesTemporales = {}; // Limpiar memoria
   }
 
   generarPDFCorte() {
