@@ -29,7 +29,7 @@ export class MesaService {
       const ordenActiva = mesa.ordenes[0];
       return {
         ...mesa,
-        // Prioridad: Si hay orden activa, usamos sus datos. Si no, los de la mesa.
+        // Prioridad: Si hay orden activa, usamos sus datos. Si no, los de la mesa (si persistieran).
         meseroNombre: ordenActiva?.mesero?.nombre || mesa.mesero || null,
         meseroId: ordenActiva?.meseroId || mesa.meseroId || null,
         comensales: ordenActiva?.comensales || 0,
@@ -65,12 +65,13 @@ export class MesaService {
   }
 
   // ===================================================
-  // 3. ACTUALIZAR ESTADO (Lógica Ocupar / Liberar / Limpiar)
+  // 3. ACTUALIZAR ESTADO (Lógica Ocupar / Liberar)
   // ===================================================
   async actualizarEstadoMesa(id: number, updateData: any) {
     console.log(`📍 Intento cambio estado Mesa ${id}:`, updateData);
 
     // 1. NORMALIZACIÓN: Convertimos a Mayúsculas para que Prisma no falle con "disponible" vs "DISPONIBLE"
+    // Esto es crucial porque el frontend puede mandar "disponible" en minúscula
     const estadoInput = String(updateData.estado).toUpperCase();
     let estadoFinal: EstadoMesa;
 
@@ -78,11 +79,13 @@ export class MesaService {
     if (Object.values(EstadoMesa).includes(estadoInput as EstadoMesa)) {
         estadoFinal = estadoInput as EstadoMesa;
     } else {
+        // Si no es válido, lanzamos error
         throw new BadRequestException(`El estado '${updateData.estado}' no es válido.`);
     }
 
+    // Preparamos el objeto data con el estado validado (Mayúscula)
     const data: any = {
-      estado: estadoFinal // Usamos el valor validado en mayúsculas
+      estado: estadoFinal 
     };
     
     // CASO A: OCUPAR MESA
@@ -93,7 +96,7 @@ export class MesaService {
         data.meseroId = Number(updateData.meseroId);
       }
 
-      // Guardamos la hora de apertura
+      // Guardamos la hora de apertura (si no viene, usamos la actual)
       data.horaApertura = updateData.horaApertura 
         ? new Date(updateData.horaApertura) 
         : new Date(); 
@@ -101,8 +104,7 @@ export class MesaService {
       console.log(`✅ Mesa ${id} marcada como OCUPADA a las ${data.horaApertura}`);
     }
     
-    // CASO B: LIBERAR MESA (LIMPIEZA)
-    // Esto borra los datos de la mesa cuando pasa a DISPONIBLE (ej. después de limpiarla)
+    // CASO B: LIBERAR MESA
     if (estadoFinal === EstadoMesa.DISPONIBLE) {
       data.mesero = null; 
       data.meseroId = null; 
@@ -111,7 +113,7 @@ export class MesaService {
       console.log(`🧹 Mesa ${id} liberada y datos limpiados`);
     }
 
-    // CASO C: SUCIA (Solo cambia estado, mantiene datos por seguridad)
+    // CASO C: SUCIA (Solo cambio de estado)
     if (estadoFinal === EstadoMesa.SUCIA) {
         console.log(`⚠️ Mesa ${id} marcada como SUCIA`);
     }
@@ -138,7 +140,7 @@ export class MesaService {
       throw new BadRequestException('La mesa de origen no tiene una orden activa para transferir.');
     }
 
-    // B. Validar mesa de destino (Debe existir y no estar ocupada)
+    // B. Validar mesa de destino (Debe existir y estar DISPONIBLE)
     const mesaDestino = await this.prisma.mesa.findUnique({
       where: { id: destinoId }
     });
@@ -175,7 +177,10 @@ export class MesaService {
         data: { 
             estado: EstadoMesa.OCUPADA,
             meseroId: ordenActiva.meseroId,
-            horaApertura: new Date() // Reiniciamos contador en nueva mesa (opcional)
+            // Mantenemos la hora original de apertura de la mesa anterior si queremos continuidad
+            // O usamos new Date() si queremos reiniciar el contador en la nueva ubicación.
+            // Aquí reiniciamos la "apertura en esta mesa", pero la orden conserva su 'creadaEn'.
+            horaApertura: new Date() 
         }
       });
 
