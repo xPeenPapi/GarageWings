@@ -93,135 +93,193 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     );
   }
 
-  // 🔥🔥🔥 FILTRO BLINDADO ANTI-BEBIDAS 🔥🔥🔥
+
+
 esItemDeCocina(item: any): boolean {
   // ========================================
-  // POLÍTICA: Solo entra lo que EXPLÍCITAMENTE dice "COCINA"
-  // Si tiene destino NULL o es ambiguo -> BLOQUEADO
+  // 🔍 DEBUG: Información completa del item
   // ========================================
-
-  // CAPA 1: Revisar etiqueta directa del item (Máxima Prioridad)
-  if (item.destino === 'COCINA') return true;   // ✅ Sí es de cocina
-  if (item.destino === 'BARRA') return false;   // ❌ Es de barra
+  const infoDebug = {
+    nombre: item.producto?.nombre,
+    itemDestino: item.destino,
+    productoDestino: item.producto?.destino,
+    categoria: item.producto?.categoria?.nombre,
+    estado: item.estado
+  };
   
-  // CAPA 2: Revisar configuración del producto
-  if (item.producto?.destino === 'COCINA') return true;
-  if (item.producto?.destino === 'BARRA') return false;
+  console.log('🔍 Evaluando item:', infoDebug);
 
   // ========================================
-  // CAPA 3: Si llegamos aquí, el destino es NULL/undefined
-  // NUEVO ENFOQUE: Bloqueamos TODO lo que parezca bebida
+  // CAPA 1: Destino del ITEM (campo en ItemOrden)
   // ========================================
-  
+  if (item.destino) {
+    const destinoItem = String(item.destino).toUpperCase();
+    
+    if (destinoItem === 'BARRA') {
+      console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → item.destino = BARRA`);
+      return false;
+    }
+    
+    if (destinoItem === 'COCINA') {
+      console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → item.destino = COCINA`);
+      return true;
+    }
+  }
+
+  // ========================================
+  // CAPA 2: Destino del PRODUCTO (campo en Producto)
+  // ========================================
+  if (item.producto?.destino) {
+    const destinoProducto = String(item.producto.destino).toUpperCase();
+    
+    if (destinoProducto === 'BARRA') {
+      console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → producto.destino = BARRA`);
+      return false;
+    }
+    
+    if (destinoProducto === 'COCINA') {
+      console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → producto.destino = COCINA`);
+      return true;
+    }
+  }
+
+  // ========================================
+  // CAPA 3: Filtro por NOMBRE (para items sin destino)
+  // ========================================
   const nombre = (item.producto?.nombre || '').toLowerCase();
   
-  // Lista expandida de palabras que indican BEBIDA
   const palabrasProhibidas = [
     // Bebidas generales
-    'bebida', 'refresco', 'agua', 'jugo', 'nectar',
+    'bebida', 'refresco', 'agua', 'jugo', 'nectar', 'soda',
+    
+    // Cervezas (marcas específicas)
+    'cerveza', 'corona', 'modelo', 'tecate', 'victoria', 'indio',
+    'pacifico', 'bohemia', 'heineken', 'stella', 'dos equis',
     
     // Gaseosas
     'coca', 'pepsi', 'sprite', 'fanta', 'manzanita', 
-    'squirt', 'sidral', 'fresca',
-    
-    // Cervezas
-    'cerveza', 'corona', 'modelo', 'victoria', 'indio',
-    'pacifico', 'bohemia', 'heineken', 'stella',
+    'squirt', 'sidral', 'fresca', 'mirinda',
     
     // Bebidas calientes
-    'cafe', 'café', 'capuchino', 'latte', 'espresso',
-    'te ', 'té ', 'tisana', 'infusion',
+    'cafe', 'café', 'capuchino', 'latte', 'espresso', 'americano',
+    'te ', 'té ', 'tisana', 'infusion', 'infusión',
     
     // Cocteles y licores
-    'coctel', 'margarita', 'piña colada', 'mojito',
-    'daiquiri', 'caipirinha', 'tequila', 'vodka',
-    'ron', 'whisky', 'ginebra', 'mezcal',
+    'coctel', 'cóctel', 'margarita', 'mojito', 'daiquiri',
+    'caipirinha', 'piña colada', 'tequila', 'vodka',
+    'ron', 'whisky', 'whiskey', 'ginebra', 'mezcal',
     
     // Otros
-    'michelada', 'chelada', 'clamato', 'vino',
-    'copa', 'trago', 'shot', 'botella', 'lata',
-    'smoothie', 'frappe', 'batido', 'limonada',
-    'naranjada', 'horchata', 'jamaica'
+    'michelada', 'chelada', 'clamato', 'vino', 'champagne',
+    'copa', 'trago', 'shot', 'botella', 'lata', 'barril',
+    'smoothie', 'frappe', 'frappé', 'batido', 'malteada',
+    'limonada', 'naranjada', 'horchata', 'jamaica'
   ];
 
-  // Si contiene alguna palabra prohibida -> BLOQUEAR
   if (palabrasProhibidas.some(p => nombre.includes(p))) {
-    console.warn(`🚫 BLOQUEADO en cocina: "${nombre}" (parece bebida)`);
+    console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → nombre contiene palabra de bebida`);
     return false;
   }
 
   // ========================================
-  // CAPA 4 (NUEVA): Validación por categoría
+  // CAPA 4: Filtro por CATEGORÍA
   // ========================================
   const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
   
   const categoriasProhibidas = [
-    'bebida', 'cerveza', 'refresco', 'coctel', 'licor',
-    'barra', 'vino', 'cafe', 'café', 'bar', 'tragos'
+    'bebida', 'cerveza', 'refresco', 'coctel', 'cóctel', 
+    'licor', 'barra', 'bar', 'vino', 'cafe', 'café', 'tragos'
   ];
 
   if (categoriasProhibidas.some(c => categoria.includes(c))) {
-    console.warn(`🚫 BLOQUEADO en cocina: "${nombre}" (categoría: ${categoria})`);
+    console.log(`❌ BLOQUEADO: "${item.producto?.nombre}" → categoría "${categoria}" es de bebidas`);
     return false;
   }
 
   // ========================================
-  // Si pasó TODAS las validaciones -> SÍ es comida
+  // ✅ Si pasó TODOS los filtros → Es comida
   // ========================================
-  console.log(`✅ Aceptado en cocina: "${nombre}"`);
+  console.log(`✅ ACEPTADO: "${item.producto?.nombre}" → pasó todos los filtros (es comida)`);
   return true;
 }
 
-  procesarListasVisuales() {
-      this.itemsPendientes = [];
-      this.itemsPreparando = [];
-      const mapaListos = new Map<number, any>();
+// 🔥 Reemplaza procesarListasVisuales() en pantalla-cocina.component.ts
 
-      this.todasLasOrdenes.forEach(pedido => {
-          const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
-          const horaInicio = new Date(fechaOrigen);
-          
-          pedido.items.forEach((item: any) => {
-              // 1. APLICAMOS EL FILTRO BLINDADO
-              if (!this.esItemDeCocina(item)) return;
+procesarListasVisuales() {
+    console.log('🔄 ===== PROCESANDO LISTAS COCINA =====');
+    console.log(`📦 Total órdenes recibidas: ${this.todasLasOrdenes.length}`);
+    
+    this.itemsPendientes = [];
+    this.itemsPreparando = [];
+    const mapaListos = new Map<number, any>();
 
-              const visualItem: ItemCocina = {
-                  pedidoId: pedido.id,
-                  itemId: item.id,
-                  productoNombre: item.producto.nombre,
-                  cantidad: item.cantidad,
-                  mesaNumero: pedido.mesa?.numero || 'S/N',
-                  tiempo: this.getMinutosTranscurridos(horaInicio),
-                  notas: item.notas,
-                  opciones: item.opcionesElegidas,
-                  horaInicio: horaInicio
-              };
+    let itemsBloqueados = 0;
+    let itemsAceptados = 0;
 
-              switch (item.estado) {
-                  case 'PENDIENTE':
-                      this.itemsPendientes.push(visualItem);
-                      break;
-                  case 'EN_PREPARACION':
-                      this.itemsPreparando.push(visualItem);
-                      break;
-                  case 'LISTA':
-                      if (!mapaListos.has(pedido.id)) {
-                          mapaListos.set(pedido.id, { 
-                              ...pedido, 
-                              items: [] 
-                          });
-                      }
-                      mapaListos.get(pedido.id).items.push(item);
-                      break;
-              }
-          });
-      });
+    this.todasLasOrdenes.forEach(pedido => {
+        const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
+        const horaInicio = new Date(fechaOrigen);
+        
+        console.log(`📋 Orden #${pedido.id} - Mesa: ${pedido.mesa?.numero || 'S/N'} - Items: ${pedido.items.length}`);
+        
+        pedido.items.forEach((item: any) => {
+            // ✅ APLICAR FILTRO (con logs incluidos)
+            const esParaCocina = this.esItemDeCocina(item);
+            
+            if (!esParaCocina) {
+                itemsBloqueados++;
+                return; // No es de cocina, lo ignoramos
+            }
 
-      this.listosPedidos = Array.from(mapaListos.values());
-      this.conteoPendientes = this.itemsPendientes.length;
-      this.conteoPreparando = this.itemsPreparando.length;
-      this.conteoListos = this.listosPedidos.length;
-  }
+            itemsAceptados++;
+
+            const visualItem: ItemCocina = {
+                pedidoId: pedido.id,
+                itemId: item.id,
+                productoNombre: item.producto.nombre,
+                cantidad: item.cantidad,
+                mesaNumero: pedido.mesa?.numero || 'S/N',
+                tiempo: this.getMinutosTranscurridos(horaInicio),
+                notas: item.notas,
+                opciones: item.opcionesElegidas,
+                horaInicio: horaInicio
+            };
+
+            switch (item.estado) {
+                case 'PENDIENTE':
+                    this.itemsPendientes.push(visualItem);
+                    break;
+                    
+                case 'EN_PREPARACION':
+                    this.itemsPreparando.push(visualItem);
+                    break;
+                    
+                case 'LISTA':
+                    if (!mapaListos.has(pedido.id)) {
+                        mapaListos.set(pedido.id, { 
+                            ...pedido, 
+                            items: [] 
+                        });
+                    }
+                    mapaListos.get(pedido.id).items.push(item);
+                    break;
+            }
+        });
+    });
+
+    this.listosPedidos = Array.from(mapaListos.values());
+    this.conteoPendientes = this.itemsPendientes.length;
+    this.conteoPreparando = this.itemsPreparando.length;
+    this.conteoListos = this.listosPedidos.length;
+
+    console.log('📊 ===== RESUMEN COCINA =====');
+    console.log(`✅ Items aceptados: ${itemsAceptados}`);
+    console.log(`❌ Items bloqueados: ${itemsBloqueados}`);
+    console.log(`📋 Pendientes: ${this.conteoPendientes}`);
+    console.log(`👨‍🍳 Preparando: ${this.conteoPreparando}`);
+    console.log(`🍽️ Listos: ${this.conteoListos}`);
+    console.log('=====================================\n');
+}
 
   empezarPreparacion(itemVisual: ItemCocina) {
       const index = this.itemsPendientes.findIndex(i => i.itemId === itemVisual.itemId);
