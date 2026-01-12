@@ -354,104 +354,104 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCocina = true;
   }
 
-procesarConfirmacionCocina(): void {
-  if (!this.empleadoId) return;
+  procesarConfirmacionCocina(): void {
+    if (!this.empleadoId) return;
 
-  const itemsDto = this.pedido.map(item => {
-    const productoCompleto = this.productos.find(p => p.id === item.id);
-    
-    let destinoFinal: string;
-
-    if (productoCompleto?.destino) {
-      destinoFinal = productoCompleto.destino;
-      console.log(`✅ Destino desde producto: "${item.nombre}" → ${destinoFinal}`);
-    } 
-    else {
-      const categoria = this.categorias.find(c => c.id === item.categoriaId);
-      const nombreCategoria = (categoria?.nombre || '').toLowerCase();
+    const itemsDto = this.pedido.map(item => {
+      const productoCompleto = this.productos.find(p => p.id === item.id);
       
-      const esBebida = 
-        nombreCategoria.includes('bebida') ||
-        nombreCategoria.includes('bar') ||
-        nombreCategoria.includes('cerveza') ||
-        nombreCategoria.includes('refresco') ||
-        nombreCategoria.includes('coctel') ||
-        nombreCategoria.includes('licor') ||
-        nombreCategoria.includes('barra') ||
-        nombreCategoria.includes('vino') ||
-        nombreCategoria.includes('café') ||
-        nombreCategoria.includes('cafe');
+      let destinoFinal: string;
 
-      destinoFinal = esBebida ? 'BARRA' : 'COCINA';
-      console.warn(`⚠️ Destino calculado por categoría: "${item.nombre}" (${categoria?.nombre}) → ${destinoFinal}`);
-    }
+      if (productoCompleto?.destino) {
+        destinoFinal = productoCompleto.destino;
+        console.log(`✅ Destino desde producto: "${item.nombre}" → ${destinoFinal}`);
+      } 
+      else {
+        const categoria = this.categorias.find(c => c.id === item.categoriaId);
+        const nombreCategoria = (categoria?.nombre || '').toLowerCase();
+        
+        const esBebida = 
+          nombreCategoria.includes('bebida') ||
+          nombreCategoria.includes('bar') ||
+          nombreCategoria.includes('cerveza') ||
+          nombreCategoria.includes('refresco') ||
+          nombreCategoria.includes('coctel') ||
+          nombreCategoria.includes('licor') ||
+          nombreCategoria.includes('barra') ||
+          nombreCategoria.includes('vino') ||
+          nombreCategoria.includes('café') ||
+          nombreCategoria.includes('cafe');
 
-    return {
-      producto_id: item.id,
-      cantidad: item.cantidad,
-      precio_item: item.precio || item.precioBase,
-      notas: item.notas || null,
-      opcionesElegidas: item.opcionesElegidas || null,
-      destino: destinoFinal 
+        destinoFinal = esBebida ? 'BARRA' : 'COCINA';
+        console.warn(`⚠️ Destino calculado por categoría: "${item.nombre}" (${categoria?.nombre}) → ${destinoFinal}`);
+      }
+
+      return {
+        producto_id: item.id,
+        cantidad: item.cantidad,
+        precio_item: item.precio || item.precioBase,
+        notas: item.notas || null,
+        opcionesElegidas: item.opcionesElegidas || null,
+        destino: destinoFinal 
+      };
+    });
+
+    const pedidoDto: any = {
+      mesa_id: this.mesaId,
+      empleado_id: this.empleadoId,
+      mesero_id: this.empleadoId,
+      items: itemsDto,
     };
-  });
 
-  const pedidoDto: any = {
-    mesa_id: this.mesaId,
-    empleado_id: this.empleadoId,
-    mesero_id: this.empleadoId,
-    items: itemsDto,
-  };
-
-  if (this.ordenId) {
-    pedidoDto.orden_id = this.ordenId; 
-  } else {
-    pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
-  }
-
-  console.log('📤 Enviando pedido con destinos validados:', pedidoDto);
-
-  this.pedidosService.crearPedido(pedidoDto).subscribe({
-    next: (ordenCreada: any) => {
-      const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
-      const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
-      
-      let mensaje = '✅ Pedido enviado correctamente';
-      if (itemsBarra > 0 && itemsCocina > 0) {
-        mensaje += `\n🍹 ${itemsBarra} item(s) → Barra\n🍔 ${itemsCocina} item(s) → Cocina`;
-      } else if (itemsBarra > 0) {
-        mensaje += `\n🍹 ${itemsBarra} item(s) → Barra`;
-      } else {
-        mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
-      }
-      
-      alert(mensaje);
-      
-      this.ordenId = ordenCreada.id;
-      this.ordenActiva = ordenCreada;
-      this.nombreClienteTemporal = '';
-
-      if (this.mesaId) {
-        this.recargarDatosMesa();
-      } else {
-        this.itemsEnCocina = ordenCreada.items || [];
-        this.hayConsumo = true; 
-      }
-
-      this.pedido = []; 
-      this.calcularTotales();
-      this.mostrarModalCocina = false;
-      
-      if (!this.esEscritorio) {
-        this.vistaMovilActual = 'resumen';
-      }
-    },
-    error: (error: any) => {
-      console.error('❌ Error al guardar:', error);
-      alert('Error al enviar el pedido. Intenta de nuevo.');
+    if (this.ordenId) {
+      pedidoDto.orden_id = this.ordenId; 
+    } else {
+      pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
     }
-  });
-}
+
+    console.log('📤 Enviando pedido con destinos validados:', pedidoDto);
+
+    this.pedidosService.crearPedido(pedidoDto).subscribe({
+      next: (ordenCreada: any) => {
+        const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
+        const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
+        
+        let mensaje = '✅ Pedido enviado correctamente';
+        if (itemsBarra > 0 && itemsCocina > 0) {
+          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra\n🍔 ${itemsCocina} item(s) → Cocina`;
+        } else if (itemsBarra > 0) {
+          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra`;
+        } else {
+          mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
+        }
+        
+        alert(mensaje);
+        
+        this.ordenId = ordenCreada.id;
+        this.ordenActiva = ordenCreada;
+        this.nombreClienteTemporal = '';
+
+        if (this.mesaId) {
+          this.recargarDatosMesa();
+        } else {
+          this.itemsEnCocina = ordenCreada.items || [];
+          this.hayConsumo = true; 
+        }
+
+        this.pedido = []; 
+        this.calcularTotales();
+        this.mostrarModalCocina = false;
+        
+        if (!this.esEscritorio) {
+          this.vistaMovilActual = 'resumen';
+        }
+      },
+      error: (error: any) => {
+        console.error('❌ Error al guardar:', error);
+        alert('Error al enviar el pedido. Intenta de nuevo.');
+      }
+    });
+  }
 
   // =========================================================
   // CUENTA Y LIBERACIÓN
@@ -508,27 +508,27 @@ procesarConfirmacionCocina(): void {
   }
 
   finalizarLiberacion() {
-  if (this.mesaId) {
-    console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
-    
-    this.mesaService.actualizarEstadoMesa(
-      this.mesaId, 
-      'disponible', 
-      '' 
-    ).subscribe({
-      next: () => {
-        console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
-        this.regresar();
-      },
-      error: (err) => {
-        console.error('❌ Error al liberar mesa:', err);
-        this.regresar(); 
-      }
-    });
-  } else {
-    this.regresar();
+    if (this.mesaId) {
+      console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
+      
+      this.mesaService.actualizarEstadoMesa(
+        this.mesaId, 
+        'disponible', 
+        '' 
+      ).subscribe({
+        next: () => {
+          console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
+          this.regresar();
+        },
+        error: (err) => {
+          console.error('❌ Error al liberar mesa:', err);
+          this.regresar(); 
+        }
+      });
+    } else {
+      this.regresar();
+    }
   }
-}
 
   // =========================================================
   // NOTIFICACIONES
@@ -577,15 +577,15 @@ procesarConfirmacionCocina(): void {
     });
   }
 
-  // ✅ FUNCIÓN CORREGIDA: Marca Orden y sus Items como ENTREGADA 
-  // Esto hará que desaparezcan automáticamente de la pantalla de Cocina
+  // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
   confirmarEntrega(pedido: any) {
+    // 1. Actualizar estado general de la orden
     this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
         next: () => {
-            // Actualizar el estado de cada ítem de la orden a ENTREGADA
+            // 2. IMPORTANTE: Actualizar cada item que esté en 'LISTA' a 'ENTREGADA' 
+            // Esto hace que desaparezcan de la pantalla de cocina y se sincronicen en la base de datos
             if (pedido.items && Array.isArray(pedido.items)) {
                 pedido.items.forEach((item: any) => {
-                    // Solo marcamos como entregados los que ya están en LISTA
                     if (item.estado === 'LISTA') {
                         this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
                     }
@@ -617,7 +617,8 @@ procesarConfirmacionCocina(): void {
   
   irAMesa(pedido: any) {
       this.mostrarListaNotificaciones = false;
-      // Confirmamos entrega antes de navegar para limpiar cocina
+      
+      // ✅ Confirmamos entrega antes de navegar para que se limpie en cocina y BD
       this.confirmarEntrega(pedido); 
 
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {

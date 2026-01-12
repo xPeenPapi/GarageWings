@@ -84,7 +84,6 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.audio = new Audio('assets/sounds/notification.mp3');
     const user = this.authService.currentUser; 
     this.usuarioActualId = user ? user.id : 0;
-    // Asumimos que el objeto user tiene una propiedad 'rol'
     this.rolUsuario = user ? (user.rol || '') : ''; 
   }
 
@@ -308,7 +307,7 @@ cargarMesas() {
         return `${horas}h ${minutos}min`;
     }
     return `${minutos}min`;
-    }  
+    }   
   esTiempoExcedido(fecha?: string): boolean { if (!fecha) return false; const inicio = new Date(fecha).getTime(); const ahora = new Date().getTime(); return (ahora - inicio) > (2 * 60 * 60 * 1000); }
   
   actualizarContadores() { 
@@ -682,10 +681,11 @@ crearOrdenBackend(mesaId: number | null, comensales: number, nota: string = '') 
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
   
   // ✅ FUNCIÓN CORREGIDA: Ahora llama al backend para todos los pedidos de la lista
+  // Y cierra tanto la orden como sus ítems individuales para limpiar cocina
   limpiarNotificaciones() { 
       const copiaPendientes = [...this.pedidosListos];
       copiaPendientes.forEach(p => {
-          this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe();
+          this.confirmarEntrega(p);
       });
 
       this.pedidosListos = []; 
@@ -708,10 +708,19 @@ crearOrdenBackend(mesaId: number | null, comensales: number, nota: string = '') 
 
   irAPedidoParaLlevar(id: number) { this.router.navigate(['/pedido/orden', id]); }
   
-  // ✅ FUNCIÓN NUEVA: Marca como ENTREGADA en backend y quita de la lista local
+  // ✅ FUNCIÓN ACTUALIZADA: Marca como ENTREGADA en backend (orden e ítems) y quita de la lista local
   confirmarEntrega(p: any) { 
       this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe({
           next: () => {
+              // ✅ ACTUALIZAR ÍTEMS INDIVIDUALES PARA LIMPIAR COCINA
+              if (p.items && p.items.length > 0) {
+                  p.items.forEach((item: any) => {
+                      if (item.estado === 'LISTA') {
+                          this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+                      }
+                  });
+              }
+
               const idx = this.pedidosListos.indexOf(p); 
               if(idx > -1) { 
                   this.pedidosListos.splice(idx, 1); 
