@@ -179,7 +179,7 @@ export class PagarComponent implements OnInit, OnDestroy {
             return fechaCierre >= this.inicioTurnoTimestamp;
         });
         
-        // ✅ CORRECCIÓN CRÍTICA: Recuperar desglose del Storage para las pagadas también
+        // Recuperar desglose del Storage para las pagadas también
         const pagadasReales = pagadas.map(p => {
             const orden = this.convertirAOrden(p);
             // Intentar recuperar el desglose detallado (métodos de pago por subcuenta)
@@ -279,14 +279,69 @@ export class PagarComponent implements OnInit, OnDestroy {
   cancelarConfirmacion() { this.mostrarConfirmacion = false; this.accionConfirmacion = () => {}; }
   confirmarAccion() { this.accionConfirmacion(); this.mostrarConfirmacion = false; }
   
-  toggleSeleccionMesa(orden: Orden) { orden.seleccionada = !orden.seleccionada; }
-  obtenerMesasSeleccionadas() { return this.listosParaCobrar.filter(o => o.seleccionada); }
+  // --- UNIR CUENTAS (LOGICA AGREGADA) ---
+  toggleSeleccionMesa(orden: Orden) { 
+    orden.seleccionada = !orden.seleccionada; 
+  }
+
+  obtenerMesasSeleccionadas() { 
+    return this.listosParaCobrar.filter(o => o.seleccionada); 
+  }
   
-  ejecutarUnirMesas() {
+  ejecutarUnirCuentas() { // Renombrado para claridad
     const seleccionadas = this.obtenerMesasSeleccionadas();
-    if (seleccionadas.length < 2) return; 
-    const mesaDestino = seleccionadas[0];
-    this.abrirConfirmacion(`¿Unir cuentas a ${mesaDestino.mesa}?`, () => { this.cargarDatosDelDia(); });
+    
+    if (seleccionadas.length < 2) {
+        // En lugar de alert, se podría usar un modal de alerta si lo prefieres
+        alert("Selecciona al menos 2 cuentas para unir.");
+        return; 
+    }
+
+    // La primera seleccionada será la "Principal" (la que paga)
+    const cuentaPrincipal = seleccionadas[0];
+    const cuentasAUnir = seleccionadas.slice(1);
+
+    const nombresAUnir = cuentasAUnir.map(c => c.mesa).join(', ');
+
+    this.abrirConfirmacion(`¿Cobrar la cuenta de ${nombresAUnir} junto con ${cuentaPrincipal.mesa}?`, () => {
+        
+        // 1. Inicializar array de IDs agrupados si no existe
+        if (!cuentaPrincipal.idsAgrupados) {
+            cuentaPrincipal.idsAgrupados = [cuentaPrincipal.id];
+        }
+
+        // 2. Recorrer las cuentas secundarias para fusionar datos
+        cuentasAUnir.forEach(cuentaSecundaria => {
+            // Sumar Total
+            cuentaPrincipal.total += cuentaSecundaria.total;
+            
+            // Fusionar Items (Para que el ticket salga completo)
+            cuentaPrincipal.items = [...cuentaPrincipal.items, ...cuentaSecundaria.items];
+
+            // Agregar ID al array de cobro masivo
+            // Si la secundaria ya tenía agrupados, los traemos también
+            if (cuentaSecundaria.idsAgrupados) {
+                cuentaPrincipal.idsAgrupados!.push(...cuentaSecundaria.idsAgrupados);
+            } else {
+                cuentaPrincipal.idsAgrupados!.push(cuentaSecundaria.id);
+            }
+        });
+
+        // 3. Actualizar nombre visual para referencia
+        cuentaPrincipal.mesa = `${cuentaPrincipal.mesa} (+ ${cuentasAUnir.length})`;
+
+        // 4. Eliminar las cuentas secundarias de la lista visual "Listos para Cobrar"
+        // (Para que no aparezcan duplicadas, ya que ahora viven dentro de la principal)
+        const idsEliminar = new Set(cuentasAUnir.map(c => c.id));
+        this.listosParaCobrar = this.listosParaCobrar.filter(orden => !idsEliminar.has(orden.id));
+
+        // 5. Limpiar selección y mandar a cobrar
+        cuentaPrincipal.seleccionada = false;
+        
+        // Opcional: Ir directo a la pestaña de pedidos o abrir modal de cobro
+        this.activeTab = 'pedidos';
+        this.cobrar(cuentaPrincipal); // Abrimos el modal de cobro inmediatamente con la suma total
+    });
   }
 
   // --- DIVISIÓN ---
@@ -543,9 +598,9 @@ export class PagarComponent implements OnInit, OnDestroy {
     doc.text('Desglose de Ventas:', 15, 110);
     doc.setFontSize(11);
     doc.text(`Efectivo:`, 25, 120);      doc.text(`$${this.ventasEfectivo.toFixed(2)}`, 180, 120, { align: 'right' });
-    doc.text(`Tarjeta:`, 25, 130);       doc.text(`$${this.ventasTarjeta.toFixed(2)}`, 180, 130, { align: 'right' });
+    doc.text(`Tarjeta:`, 25, 130);      doc.text(`$${this.ventasTarjeta.toFixed(2)}`, 180, 130, { align: 'right' });
     doc.text(`Transferencia:`, 25, 140); doc.text(`$${this.ventasTransferencia.toFixed(2)}`, 180, 140, { align: 'right' });
-    doc.text(`Otros:`, 25, 150);         doc.text(`$${this.ventasOtros.toFixed(2)}`, 180, 150, { align: 'right' });
+    doc.text(`Otros:`, 25, 150);        doc.text(`$${this.ventasOtros.toFixed(2)}`, 180, 150, { align: 'right' });
     
     doc.line(15, 160, 195, 160);
     doc.setFontSize(12);

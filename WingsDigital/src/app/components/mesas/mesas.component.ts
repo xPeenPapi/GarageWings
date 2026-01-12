@@ -389,7 +389,6 @@ export class MesasComponent implements OnInit, OnDestroy {
                 return;
             }
             
-            // ✅ CORREGIDO: Si la mesa no tiene dueño (huérfana), permitimos moverla
             const esMia = mesa.meseroId === this.usuarioActualId;
             const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
             const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
@@ -417,7 +416,6 @@ export class MesasComponent implements OnInit, OnDestroy {
             return;
         }
         
-        // ✅ CORREGIDO: Permitir si es huérfana
         const esMia = mesa.meseroId === this.usuarioActualId;
         const esHuerfana = !mesa.meseroId || mesa.meseroId === 0;
         const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
@@ -440,13 +438,10 @@ export class MesasComponent implements OnInit, OnDestroy {
     // --- 3. MODO NORMAL (ENTRAR A LA MESA) ---
     if (mesa.estado === 'ocupada') {
       
-      // ✅ LÓGICA DE PROPIEDAD CORREGIDA PARA MESAS "ZOMBIE"
       const esMia = mesa.meseroId === this.usuarioActualId;
       const soyGerente = this.rolUsuario === 'GERENTE' || this.rolUsuario === 'ADMIN_EMPRESA';
-      const esHuerfana = !mesa.meseroId || mesa.meseroId === 0; // Si es null o 0, no tiene dueño
+      const esHuerfana = !mesa.meseroId || mesa.meseroId === 0; 
 
-      // Si NO es mía, NO soy gerente, y la mesa SÍ tiene un dueño válido -> BLOQUEAR
-      // (Si es huérfana, esta condición es falsa y te deja pasar)
       if (!esMia && !soyGerente && !esHuerfana) {
           const nombreOwner = mesa.mesero ? mesa.mesero : 'otro mesero';
           this.mostrarAlerta(`⛔ ACCESO DENEGADO. Esta mesa está siendo atendida por ${nombreOwner}.`, 'error');
@@ -623,7 +618,6 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.subscriptions.add(this.socketService.escucharPedidosParaCobrar().subscribe({
       next: (pedido: ComandaCompleta) => {
         if(pedido.estado === 'PAGADA' || pedido.estado === 'CANCELADA') this.cargarMesas();
-        // El socket solo fuerza la actualización, la lógica de lista la maneja el intervalo para ser consistente con AggPedido
         if (pedido.mesero === this.nombreMesero) {
             this.verificarNotificacionesComida();
         }
@@ -633,9 +627,7 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   // Mantenemos este método por compatibilidad con el socket antiguo
   agregarNotificacion(pedido: ComandaCompleta) {
-    // Ya no es necesario insertar manualmente si usamos el polling, pero por seguridad:
     if (!this.pedidosListos.find(p => p.id === pedido.id)) {
-      // Ajuste rápido de tipo
       const p: any = pedido; 
       p.mesaId = pedido.mesaId || 'Llevar';
       this.pedidosListos.unshift(p);
@@ -646,27 +638,22 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
   
-  // ✅ FUNCIÓN CORREGIDA: Limpia visualmente y en backend
+  // ✅ FUNCIÓN CORREGIDA: Ahora llama al backend para todos los pedidos de la lista
   limpiarNotificaciones() { 
-      // 1. Limpieza visual inmediata
+      const copiaPendientes = [...this.pedidosListos];
+      copiaPendientes.forEach(p => {
+          this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe();
+      });
+
       this.pedidosListos = []; 
       this.contadorNotificaciones = 0; 
       this.mostrarListaNotificaciones = false; 
-
-      // 2. Llamada al backend (ya que el array visual está vacío, obtenemos nuevos datos o usamos caché)
-      // Pero mejor, iterar sobre lo que acabamos de borrar.
-      // NOTA: Como borramos `this.pedidosListos`, necesitamos haber hecho una copia antes si quisiéramos iterar.
-      // Como no lo hicimos, simplemente forzamos actualización al backend para todo lo que sea "mío" y esté LISTO.
-      this.pedidosService.obtenerPendientes().subscribe((ordenes: any[]) => {
-          const misPendientes = ordenes.filter(o => o.estado === 'LISTA' && String(o.meseroId) === String(this.usuarioActualId));
-          misPendientes.forEach(p => {
-              this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe();
-          });
-      });
+      
+      setTimeout(() => this.verificarNotificacionesComida(), 500);
   }
 
   irAMesa(pedido: any) { 
-      // ✅ Confirmamos entrega antes de navegar (Optimistic Update)
+      // ✅ Confirmamos entrega antes de navegar
       this.confirmarEntrega(pedido);
       
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
@@ -678,21 +665,16 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   irAPedidoParaLlevar(id: number) { this.router.navigate(['/pedido/orden', id]); }
   
-  // ✅ FUNCIÓN NUEVA Y CLAVE: Actualización Optimista
+  // ✅ FUNCIÓN NUEVA: Marca como ENTREGADA en backend y quita de la lista local
   confirmarEntrega(p: any) { 
-      // 1. Quitamos de la lista LOCALMENTE de inmediato (para que no siga saliendo)
-      const idx = this.pedidosListos.findIndex(item => item.id === p.id); 
-      if(idx > -1) { 
-          this.pedidosListos.splice(idx, 1); 
-          this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
-      } 
-
-      // 2. Enviamos al backend
       this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe({
           next: () => {
-              // Éxito silencioso. NO llamamos a verificarNotificacionesComida() aquí
-              // para evitar que el backend nos devuelva el dato viejo antes de que se actualice.
-              // El intervalo de 5s se encargará de sincronizar después.
+              const idx = this.pedidosListos.indexOf(p); 
+              if(idx > -1) { 
+                  this.pedidosListos.splice(idx, 1); 
+                  this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
+              } 
+              this.verificarNotificacionesComida();
           },
           error: (err) => console.error('Error al confirmar entrega:', err)
       });

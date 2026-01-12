@@ -113,7 +113,7 @@
       <div class="main-actions">
         <button class="btn-main-action" [class.activo]="activeTab === 'pedidos'" (click)="cambiarTab('pedidos')">Pedidos</button>
         <button class="btn-main-action" [class.activo]="activeTab === 'dividir'" (click)="cambiarTab('dividir')">Dividir Cuentas</button>
-        <button class="btn-main-action" [class.activo]="activeTab === 'unir'" (click)="cambiarTab('unir')">Unir Mesas</button>
+        <button class="btn-main-action" [class.activo]="activeTab === 'unir'" (click)="cambiarTab('unir')">Unir Cuentas</button>
       </div>
 
       <div class="order-lists-grid" *ngIf="activeTab === 'pedidos'">
@@ -204,8 +204,8 @@
 
       <div class="view-container" *ngIf="activeTab === 'unir'">
          <div class="tab-header-actions">
-          <div class="tab-text"><h3>Unir Mesas</h3><p>{{ obtenerMesasSeleccionadas().length }} seleccionadas</p></div>
-          <button class="btn-pink-solid" [disabled]="obtenerMesasSeleccionadas().length < 2" (click)="ejecutarUnirMesas()"><fa-icon [icon]="iconos.flechaUnir"></fa-icon> Unir Mesas</button>
+          <div class="tab-text"><h3>Unir Cuentas</h3><p>{{ obtenerMesasSeleccionadas().length }} seleccionadas</p></div>
+          <button class="btn-pink-solid" [disabled]="obtenerMesasSeleccionadas().length < 2" (click)="ejecutarUnirCuentas()"><fa-icon [icon]="iconos.flechaUnir"></fa-icon> Unir Cuentas</button>
         </div>
         <div class="clean-list">
           <div *ngFor="let orden of listosParaCobrar" class="clean-card merge-layout" (click)="toggleSeleccionMesa(orden)">
