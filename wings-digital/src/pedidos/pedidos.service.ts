@@ -1,10 +1,17 @@
-import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, forwardRef, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoOrden, EstadoMesa } from '@prisma/client';
+import { PedidosGateway } from './pedidos.gateway'; // ← AGREGAR
+
+
 
 @Injectable()
 export class PedidosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,     
+    private pedidosGateway: PedidosGateway // ← AGREGAR
+) {}
+  
 
   // ===================================================
   // 1. CREAR O ACTUALIZAR ORDEN
@@ -280,42 +287,63 @@ export class PedidosService {
   // ===================================================
   // 8. ✅ ACTUALIZAR ITEM INDIVIDUAL (Barra/Cocina Independientes)
   // ===================================================
-  async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
-    // 1. Actualizamos el item específico
-    const itemActualizado = await this.prisma.itemOrden.update({
-      where: { id: itemId },
-      data: { estado: estado },
-      include: { 
-        orden: { include: { items: true } } 
-      }
-    });
-
-    // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
-    const ordenPadre = itemActualizado.orden;
-    
-    // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
-    const itemsPendientes = ordenPadre.items.filter(i => 
-        i.estado !== EstadoOrden.LISTA && 
-        i.estado !== EstadoOrden.ENTREGADA && 
-        i.estado !== EstadoOrden.CANCELADA
-    );
-
-    // Si ya no hay pendientes, cerramos la orden padre
-    if (itemsPendientes.length === 0 && 
-        ordenPadre.estado !== EstadoOrden.LISTA && 
-        ordenPadre.estado !== EstadoOrden.ENTREGADA && 
-        ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
-        
-       console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
-       await this.prisma.orden.update({
-         where: { id: ordenPadre.id },
-         data: { estado: EstadoOrden.LISTA }
-       });
+async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
+  // 1. Actualizamos el item específico
+  const itemActualizado = await this.prisma.itemOrden.update({
+    where: { id: itemId },
+    data: { estado: estado },
+    include: { 
+      orden: { 
+        include: { 
+          items: { include: { producto: true } },
+          mesa: true,
+          mesero: true
+        } 
+      } 
     }
+  });
 
-    return itemActualizado;
+  // 2. LÓGICA INTELIGENTE: Verificar si la orden completa ya está lista
+  const ordenPadre = itemActualizado.orden;
+  
+  // Verificamos si queda algún item que NO esté listo (ignorando los cancelados)
+  const itemsPendientes = ordenPadre.items.filter(i => 
+      i.estado !== EstadoOrden.LISTA && 
+      i.estado !== EstadoOrden.ENTREGADA && 
+      i.estado !== EstadoOrden.CANCELADA
+  );
+
+  // Si ya no hay pendientes, cerramos la orden padre
+  if (itemsPendientes.length === 0 && 
+      ordenPadre.estado !== EstadoOrden.LISTA && 
+      ordenPadre.estado !== EstadoOrden.ENTREGADA && 
+      ordenPadre.estado !== EstadoOrden.POR_COBRAR) {
+      
+     console.log(`✨ Orden ${ordenPadre.id} completada automáticamente (todos los items listos)`);
+     
+     const ordenActualizada = await this.prisma.orden.update({
+       where: { id: ordenPadre.id },
+       data: { estado: EstadoOrden.LISTA },
+       include: {
+         items: { include: { producto: true } },
+         mesa: true,
+         mesero: true
+       }
+     });
+
+     // 🔥 EMITIR WEBSOCKET: Notificar que el pedido está listo
+     try {
+       this.pedidosGateway.notificarNuevoPedido(ordenActualizada);
+       console.log(`🔔 WebSocket emitido: Pedido ${ordenPadre.id} listo para cobrar`);
+     } catch (error) {
+       console.warn('⚠️ Error al emitir WebSocket:', error);
+     }
+
+     return ordenActualizada;
   }
 
+  return itemActualizado;
+}
   // ===================================================
   // HELPERS
   // ===================================================

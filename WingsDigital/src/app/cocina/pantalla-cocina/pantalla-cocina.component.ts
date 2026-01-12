@@ -8,7 +8,6 @@ import { AuthService } from '../../services/auth.service';
 import { PedidosService } from '../../services/pedidos.service';
 import { environment } from '../../../environments/environment';
 
-// Interfaz para la vista (Item Individual)
 interface ItemCocina {
   pedidoId: number;
   itemId: number;
@@ -33,16 +32,12 @@ type MobileTab = 'nuevos' | 'preparando' | 'listos';
 export class PantallaCocinaComponent implements OnInit, OnDestroy {
   
   activeMobileTab: MobileTab = 'nuevos';
-
-  // Almacén de datos crudos (Todas las órdenes que tienen ALGO activo)
   todasLasOrdenes: ComandaCompleta[] = [];
   
-  // VISTAS APLANADAS (Aquí está la clave: Listas de ITEMS, no de órdenes)
   itemsPendientes: ItemCocina[] = [];
   itemsPreparando: ItemCocina[] = [];
-  listosPedidos: any[] = []; // Agrupado por orden para el historial
+  listosPedidos: any[] = [];
 
-  // UI
   nombreChef: string = '';
   horaActual: string = '';
   conteoPendientes: number = 0;
@@ -68,7 +63,6 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cargarPedidos();
-    // Polling de seguridad cada 10s por si falla el socket
     this.subscriptions.add(interval(10000).subscribe(() => this.cargarPedidos()));
     this.conectarSocket();
   }
@@ -80,12 +74,11 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // 1. CARGA DE DATOS (Sin filtrar todavía)
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
         this.todasLasOrdenes = pedidos;
-        this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia
+        this.procesarListasVisuales();
       },
       error: (err) => console.error(err)
     });
@@ -100,33 +93,48 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     );
   }
 
-  // 2. FILTRO INTELIGENTE: ¿Es responsabilidad de Cocina?
+  // 🔥🔥🔥 FILTRO BLINDADO ANTI-BEBIDAS 🔥🔥🔥
   esItemDeCocina(item: any): boolean {
-    // A. Si tiene la etiqueta nueva 'destino' (Gracias a la actualización de DB)
-    if (item.destino) return item.destino === 'COCINA';
-    
-    // B. Fallback: Si no tiene etiqueta, miramos el producto
-    if (item.producto?.destino) return item.producto.destino === 'COCINA';
-    
-    // C. Último recurso: Si no dice BARRA, es COCINA.
-    return item.producto?.destino !== 'BARRA';
+    // CAPA 1: Revisar etiqueta directa del pedido (Prioridad Máxima)
+    if (item.destino === 'BARRA') return false; // Si dice BARRA, adiós.
+    if (item.destino === 'COCINA') return true;
+
+    // CAPA 2: Revisar configuración del producto (Por si el pedido es viejo o NULL)
+    if (item.producto?.destino === 'BARRA') return false;
+    if (item.producto?.destino === 'COCINA') return true;
+
+    // CAPA 3: FILTRO DE EMERGENCIA POR NOMBRE (Para los items NULL en BD)
+    // Si llegamos aquí, el destino es NULL. Verificamos si parece bebida por su nombre.
+    const nombre = (item.producto?.nombre || '').toLowerCase();
+    const palabrasProhibidas = [
+        'cerveza', 'coca', 'refresco', 'bebida', 'pepsi', 
+        'limonada', 'naranjada', 'agua', 'te ', 'té ', 
+        'café', 'cafe', 'latte', 'copa', 'vino', 'michelada', 
+        'margarita', 'botella', 'trago'
+    ];
+
+    // Si el nombre contiene alguna palabra de bebida, lo bloqueamos
+    if (palabrasProhibidas.some(p => nombre.includes(p))) {
+        return false;
+    }
+
+    // Si pasó todas las pruebas, asumimos que es comida
+    return true;
   }
 
-  // 3. PROCESAMIENTO (Convierte Órdenes complejas en Lista de Tareas Simple)
   procesarListasVisuales() {
       this.itemsPendientes = [];
       this.itemsPreparando = [];
-      const mapaListos = new Map<number, any>(); // Map para agrupar "Listos" por mesa
+      const mapaListos = new Map<number, any>();
 
       this.todasLasOrdenes.forEach(pedido => {
           const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
           const horaInicio = new Date(fechaOrigen);
           
           pedido.items.forEach((item: any) => {
-              // PASO A: ¿Este item es mío (Cocina)?
+              // 1. APLICAMOS EL FILTRO BLINDADO
               if (!this.esItemDeCocina(item)) return;
 
-              // PASO B: Crear objeto visual
               const visualItem: ItemCocina = {
                   pedidoId: pedido.id,
                   itemId: item.id,
@@ -139,45 +147,33 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
                   horaInicio: horaInicio
               };
 
-              // PASO C: Clasificar según el estado DEL ITEM (Independiente de la Orden)
               switch (item.estado) {
                   case 'PENDIENTE':
                       this.itemsPendientes.push(visualItem);
                       break;
-                  
                   case 'EN_PREPARACION':
                       this.itemsPreparando.push(visualItem);
                       break;
-                  
                   case 'LISTA':
-                      // Agrupamos para mostrar en el historial "Mesa 1: Hamburguesa (Listo)"
                       if (!mapaListos.has(pedido.id)) {
                           mapaListos.set(pedido.id, { 
                               ...pedido, 
-                              items: [] // Reiniciamos items para meter solo los de cocina listos
+                              items: [] 
                           });
                       }
                       mapaListos.get(pedido.id).items.push(item);
                       break;
-                  
-                  // Ignoramos 'ENTREGADA', 'CANCELADA' para no saturar
               }
           });
       });
 
-      // Convertimos el mapa de listos a array para el HTML
       this.listosPedidos = Array.from(mapaListos.values());
-
-      // Actualizamos contadores para las pestañas
       this.conteoPendientes = this.itemsPendientes.length;
       this.conteoPreparando = this.itemsPreparando.length;
       this.conteoListos = this.listosPedidos.length;
   }
 
-  // --- ACCIONES (Optimizadas para respuesta instantánea) ---
-
   empezarPreparacion(itemVisual: ItemCocina) {
-      // 1. UI Optimista (Mover tarjeta instantáneamente sin esperar al server)
       const index = this.itemsPendientes.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           const item = this.itemsPendientes[index];
@@ -187,30 +183,24 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
       this.conteoPendientes = this.itemsPendientes.length;
       this.conteoPreparando = this.itemsPreparando.length;
 
-      // 2. Llamada al Backend (Solo actualiza ESTE item)
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'EN_PREPARACION' })
           .subscribe({ error: (e) => console.error(e) });
   }
 
   terminarPreparacion(itemVisual: ItemCocina) {
-      // 1. UI Optimista (Quitar de pantalla instantáneamente)
       const index = this.itemsPreparando.findIndex(i => i.itemId === itemVisual.itemId);
       if (index !== -1) {
           this.itemsPreparando.splice(index, 1);
       }
       this.conteoPreparando = this.itemsPreparando.length;
       
-      // 2. Llamada al Backend
       this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'LISTA' }).subscribe({
           next: () => {
-              // 3. Al terminar, recargamos todo para ver si la orden completa se cierra
-              // y para que aparezca en la columna "Listos"
               this.cargarPedidos(); 
           }
       });
   }
 
-  // Auxiliares
   getMinutosTranscurridos(fecha: Date): number {
       const diff = new Date().getTime() - new Date(fecha).getTime();
       return Math.floor(diff / 60000);
