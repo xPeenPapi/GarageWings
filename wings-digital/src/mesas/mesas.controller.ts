@@ -15,12 +15,14 @@ export class MesasController {
     return this.mesasService.findOne(id);
   }
 
-  @Patch(':id/estado')
+  // ✅ CORRECCIÓN: Quitamos '/estado' para que coincida con el Frontend
+  // Antes: @Patch(':id/estado') -> URL: /api/mesas/1/estado
+  // Ahora: @Patch(':id')        -> URL: /api/mesas/1
+  @Patch(':id')
   actualizarEstado(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateData: any
   ) {
-    // Delegamos la lógica al servicio para evitar el error "property prisma does not exist"
     return this.mesasService.actualizarEstadoMesa(id, updateData);
   }
 
