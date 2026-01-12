@@ -337,7 +337,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   // =========================================================
-  // ENVÍO A COCINA
+  // ENVÍO A COCINA (MODIFICADO PARA BARRA)
   // =========================================================
 
   abrirModalCocina(): void {
@@ -357,13 +357,36 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   procesarConfirmacionCocina(): void {
     if (!this.empleadoId) return;
 
-    const itemsDto = this.pedido.map(item => ({
-      producto_id: item.id, 
-      cantidad: item.cantidad,
-      precio_item: item.precio || item.precioBase,
-      notas: item.notas || null,
-      opcionesElegidas: item.opcionesElegidas || null 
-    }));
+    // ✅ LÓGICA DE SEPARACIÓN (COCINA vs BARRA)
+    const itemsDto = this.pedido.map(item => {
+        // 1. Buscamos la categoría del producto
+        const categoria = this.categorias.find(c => c.id === item.categoriaId);
+        const nombreCategoria = categoria ? categoria.nombre.toLowerCase() : '';
+
+        // 2. Definimos palabras clave que indican que es para BARRA
+        const esBebida = 
+            nombreCategoria.includes('bebida') ||
+            nombreCategoria.includes('cerveza') ||
+            nombreCategoria.includes('refresco') ||
+            nombreCategoria.includes('coctel') ||
+            nombreCategoria.includes('licor') ||
+            nombreCategoria.includes('barra') ||
+            nombreCategoria.includes('vino') ||
+            nombreCategoria.includes('café') ||
+            nombreCategoria.includes('cafe');
+
+        // 3. Asignamos el destino automáticamente
+        const destino = esBebida ? 'BARRA' : 'COCINA';
+
+        return {
+            producto_id: item.id,
+            cantidad: item.cantidad,
+            precio_item: item.precio || item.precioBase,
+            notas: item.notas || null,
+            opcionesElegidas: item.opcionesElegidas || null,
+            destino: destino // Enviamos el destino al backend
+        };
+    });
 
     const pedidoDto: any = {
       mesa_id: this.mesaId,
@@ -378,11 +401,11 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
         pedidoDto.notaGeneral = this.nombreClienteTemporal || 'Cliente Nuevo'; 
     }
 
-    console.log('📤 Enviando a cocina...', pedidoDto);
+    console.log('📤 Enviando pedido (Destinos calculados)...', pedidoDto);
 
     this.pedidosService.crearPedido(pedidoDto).subscribe({
       next: (ordenCreada: any) => {
-        alert(`✅ Pedido enviado a cocina`);
+        alert(`✅ Pedido enviado correctamente`);
         
         this.ordenId = ordenCreada.id;
         this.ordenActiva = ordenCreada;
