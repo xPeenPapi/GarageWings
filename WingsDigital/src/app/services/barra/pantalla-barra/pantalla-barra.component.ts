@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Subscription, interval } from 'rxjs';
 import { SocketService, ComandaCompleta } from '../../socket.service';
 import { AuthService } from '../../auth.service';
 import { PedidosService } from '../../pedidos.service';
+import { environment } from '../../../../environments/environment';
 
-// Interfaz local para la tarjeta visual (UI)
 interface ItemVisual {
   pedidoId: number;
   itemId: number;
@@ -29,39 +30,33 @@ interface ItemVisual {
 })
 export class PantallaBarraComponent implements OnInit, OnDestroy {
   
-  // Datos del backend
-  nuevosPedidos: ComandaCompleta[] = [];
-  listosPedidos: ComandaCompleta[] = [];
-  
-  // Datos transformados para la UI
+  todasLasOrdenes: ComandaCompleta[] = [];
   itemsPendientes: ItemVisual[] = [];
   
-  // Variables UI
   nombreBarista: string = '';
   horaActual: string = '';
   conteoPendientes: number = 0;
-  conteoPreparando: number = 0;
   conteoListas: number = 0;
 
   private subscriptions = new Subscription();
+  private apiUrl = `${environment.apiUrl}/pedidos`;
 
   constructor(
     private socketService: SocketService,
     private pedidosService: PedidosService,
     private authService: AuthService,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private http: HttpClient
   ) {
     this.nombreBarista = this.authService.getNombreUsuario() || 'Barista';
     this.actualizarReloj();
     setInterval(() => this.actualizarReloj(), 1000);
-    // Recalcular el tiempo "hace X min" cada minuto
     setInterval(() => this.recalcularTiempos(), 60000); 
   }
 
   ngOnInit(): void {
     this.cargarPedidos();
-    // Intervalo de seguridad para refrescar datos cada 15s
     this.subscriptions.add(interval(15000).subscribe(() => this.cargarPedidos()));
     this.conectarSocket();
   }
@@ -73,7 +68,10 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
 
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
-      next: (pedidos) => this.distribuirPedidos(pedidos),
+      next: (pedidos) => {
+        this.todasLasOrdenes = pedidos;
+        this.procesarListasVisuales();
+      },
       error: (err) => console.error(err)
     });
   }
@@ -81,117 +79,191 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   conectarSocket() {
     if (!this.socketService.isConnected()) this.socketService.reconnect();
     this.subscriptions.add(
-      this.socketService.escucharNuevosPedidos().subscribe((pedido) => {
-        this.zone.run(() => {
-             // Si llega el pedido completo lo procesamos, sino recargamos todo
-             if (pedido && pedido.items) this.procesarPedidoEntrante(pedido as any);
-             else this.cargarPedidos();
-        });
+      this.socketService.escucharNuevosPedidos().subscribe(() => {
+        this.zone.run(() => this.cargarPedidos());
       })
     );
   }
 
-  distribuirPedidos(pedidos: any[]) {
-    const nuevos: ComandaCompleta[] = [];
-    const listos: ComandaCompleta[] = [];
-
-    pedidos.forEach(p => {
-        const tieneBebida = p.items.some((item: any) => item.producto?.destino === 'BARRA');
-        if (tieneBebida) {
-            if (p.estado === 'PENDIENTE' || p.estado === 'EN_PREPARACION') nuevos.push(p);
-            else if (p.estado === 'LISTA') listos.push(p);
-        }
+  // 🔥 FILTRO BLINDADO PARA BARRA (igual que cocina)
+  esItemDeBarra(item: any): boolean {
+    console.log('🔍 [BARRA] Evaluando item:', {
+      nombre: item.producto?.nombre,
+      itemDestino: item.destino,
+      productoDestino: item.producto?.destino,
+      categoria: item.producto?.categoria?.nombre
     });
 
-    this.nuevosPedidos = nuevos;
-    this.listosPedidos = listos;
-    this.actualizarListasVisuales(); 
-  }
-
-  procesarPedidoEntrante(pedido: any) {
-    const tieneBebida = pedido.items.some((item: any) => item.producto?.destino === 'BARRA');
-    if (!tieneBebida) return;
-    
-    // Evitar duplicados y agregar
-    if (!this.nuevosPedidos.find(p => p.id === pedido.id) && !this.listosPedidos.find(p => p.id === pedido.id)) {
-        if (pedido.estado === 'PENDIENTE' || pedido.estado === 'EN_PREPARACION') this.nuevosPedidos.push(pedido);
-        else if (pedido.estado === 'LISTA') this.listosPedidos.push(pedido);
-        this.actualizarListasVisuales();
-    }
-  }
-
-  // 🔥 Convierte pedidos agrupados en tarjetas individuales
-  actualizarListasVisuales() {
-      this.itemsPendientes = [];
+    // CAPA 1: Destino del ITEM
+    if (item.destino) {
+      const destinoItem = String(item.destino).toUpperCase();
       
-      this.nuevosPedidos.forEach(pedido => {
-          // ✅ CORRECCIÓN AQUÍ: Usamos (pedido as any) para leer 'creadaEn' o 'createdAt' sin errores
-          const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || (pedido as any).fecha || new Date();
-          const horaInicio = new Date(fechaOrigen);
-          
-          pedido.items.forEach((item: any, index) => {
-              if (item.producto?.destino === 'BARRA') {
-                  // Lógica para determinar si es "Elaborada"
-                  const esElaborada = item.producto?.categoria?.nombre === 'Cocteleria' || (item.notas && item.notas.length > 0);
+      if (destinoItem === 'BARRA') {
+        console.log(`✅ ACEPTADO en barra: "${item.producto?.nombre}" → item.destino = BARRA`);
+        return true;
+      }
+      
+      if (destinoItem === 'COCINA') {
+        console.log(`❌ BLOQUEADO en barra: "${item.producto?.nombre}" → item.destino = COCINA`);
+        return false;
+      }
+    }
 
-                  this.itemsPendientes.push({
-                      pedidoId: pedido.id,
-                      itemId: index,
-                      productoNombre: item.producto.nombre,
-                      cantidad: item.cantidad,
-                      mesaNumero: pedido.mesa?.numero || 'S/N',
-                      tiempo: this.getMinutosTranscurridos(horaInicio),
-                      notas: item.notas,
-                      opciones: item.opcionesElegidas,
-                      esElaborada: !!esElaborada,
-                      horaInicio: horaInicio
-                  });
-              }
-          });
+    // CAPA 2: Destino del PRODUCTO
+    if (item.producto?.destino) {
+      const destinoProducto = String(item.producto.destino).toUpperCase();
+      
+      if (destinoProducto === 'BARRA') {
+        console.log(`✅ ACEPTADO en barra: "${item.producto?.nombre}" → producto.destino = BARRA`);
+        return true;
+      }
+      
+      if (destinoProducto === 'COCINA') {
+        console.log(`❌ BLOQUEADO en barra: "${item.producto?.nombre}" → producto.destino = COCINA`);
+        return false;
+      }
+    }
+
+    // CAPA 3: Filtro por NOMBRE (para items sin destino)
+    const nombre = (item.producto?.nombre || '').toLowerCase();
+    
+    const palabrasBebidas = [
+      'cerveza', 'corona', 'modelo', 'tecate', 'coca', 'pepsi',
+      'refresco', 'limonada', 'naranjada', 'agua', 'te ', 'té ',
+      'cafe', 'café', 'coctel', 'margarita', 'michelada', 'vino'
+    ];
+
+    if (palabrasBebidas.some(p => nombre.includes(p))) {
+      console.log(`✅ ACEPTADO en barra: "${item.producto?.nombre}" → nombre contiene palabra de bebida`);
+      return true;
+    }
+
+    // CAPA 4: Filtro por CATEGORÍA
+    const categoria = (item.producto?.categoria?.nombre || '').toLowerCase();
+    
+    const categoriasBebidas = [
+      'bebida', 'cerveza', 'bar', 'coctel', 'licor', 'cafe', 'café'
+    ];
+
+    if (categoriasBebidas.some(c => categoria.includes(c))) {
+      console.log(`✅ ACEPTADO en barra: "${item.producto?.nombre}" → categoría "${categoria}" es de bebidas`);
+      return true;
+    }
+
+    // Si no pasó ningún filtro -> NO es bebida
+    console.log(`❌ BLOQUEADO en barra: "${item.producto?.nombre}" → no es bebida`);
+    return false;
+  }
+
+  procesarListasVisuales() {
+    console.log('🔄 ===== PROCESANDO LISTAS BARRA =====');
+    console.log(`📦 Total órdenes recibidas: ${this.todasLasOrdenes.length}`);
+    
+    this.itemsPendientes = [];
+    let itemsAceptados = 0;
+    let itemsBloqueados = 0;
+
+    this.todasLasOrdenes.forEach(pedido => {
+      const fechaOrigen = (pedido as any).creadaEn || (pedido as any).createdAt || new Date();
+      const horaInicio = new Date(fechaOrigen);
+      
+      console.log(`📋 Orden #${pedido.id} - Mesa: ${pedido.mesa?.numero || 'S/N'} - Items: ${pedido.items.length}`);
+      
+      pedido.items.forEach((item: any) => {
+        // ✅ APLICAR FILTRO
+        if (!this.esItemDeBarra(item)) {
+          itemsBloqueados++;
+          return; // No es bebida
+        }
+
+        // Solo mostrar items pendientes o en preparación
+        if (item.estado !== 'PENDIENTE' && item.estado !== 'EN_PREPARACION') {
+          return;
+        }
+
+        itemsAceptados++;
+
+        const esElaborada = 
+          item.producto?.categoria?.nombre === 'Cocteleria' || 
+          (item.notas && item.notas.length > 0);
+
+        this.itemsPendientes.push({
+          pedidoId: pedido.id,
+          itemId: item.id,
+          productoNombre: item.producto.nombre,
+          cantidad: item.cantidad,
+          mesaNumero: pedido.mesa?.numero || 'S/N',
+          tiempo: this.getMinutosTranscurridos(horaInicio),
+          notas: item.notas,
+          opciones: item.opcionesElegidas,
+          esElaborada: !!esElaborada,
+          horaInicio: horaInicio
+        });
       });
+    });
 
-      this.conteoPendientes = this.itemsPendientes.length;
-      this.conteoListas = this.listosPedidos.length;
+    this.conteoPendientes = this.itemsPendientes.length;
+
+    // ✅ CALCULAR LISTOS (órdenes con TODAS las bebidas listas)
+    this.conteoListas = this.calcularOrdenesListas();
+
+    console.log('📊 ===== RESUMEN BARRA =====');
+    console.log(`✅ Items aceptados: ${itemsAceptados}`);
+    console.log(`❌ Items bloqueados: ${itemsBloqueados}`);
+    console.log(`📋 Pendientes: ${this.conteoPendientes}`);
+    console.log(`🍹 Listos: ${this.conteoListas}`);
+    console.log('=====================================\n');
+  }
+
+  calcularOrdenesListas(): number {
+    let ordenesListas = 0;
+
+    this.todasLasOrdenes.forEach(pedido => {
+      const bebidasDeLaOrden = pedido.items.filter((item: any) => this.esItemDeBarra(item));
+      
+      if (bebidasDeLaOrden.length === 0) return; // No tiene bebidas
+
+      const todasListas = bebidasDeLaOrden.every((item: any) => item.estado === 'LISTA');
+      
+      if (todasListas) {
+        ordenesListas++;
+      }
+    });
+
+    return ordenesListas;
   }
 
   marcarItemComoListo(itemVisual: ItemVisual) {
-      // 1. Quitar visualmente de inmediato (UI Optimista)
-      this.itemsPendientes = this.itemsPendientes.filter(i => 
-          !(i.pedidoId === itemVisual.pedidoId && i.itemId === itemVisual.itemId)
-      );
-      this.conteoPendientes = this.itemsPendientes.length;
-
-      // 2. Verificar si quedan items de ese mismo pedido
-      const quedanItemsDelPedido = this.itemsPendientes.some(i => i.pedidoId === itemVisual.pedidoId);
-      
-      if (!quedanItemsDelPedido) {
-          // Si ya no quedan bebidas pendientes de esa orden, la cerramos en Backend
-          this.pedidosService.actualizarEstado(itemVisual.pedidoId, 'LISTA').subscribe({
-            next: () => console.log(`✅ Pedido ${itemVisual.pedidoId} completado`),
-            error: () => this.cargarPedidos() // Revertir si falla
-          });
-          
-          // Mover pedido a listos localmente
-          const pedidoIndex = this.nuevosPedidos.findIndex(p => p.id === itemVisual.pedidoId);
-          if(pedidoIndex !== -1) {
-              const pedido = this.nuevosPedidos[pedidoIndex];
-              this.nuevosPedidos.splice(pedidoIndex, 1);
-              this.listosPedidos.push(pedido);
-              this.conteoListas++;
-          }
+    console.log(`🍹 Marcando item como listo: ${itemVisual.productoNombre}`);
+    
+    // 1. Actualizar estado del item en backend
+    this.http.patch(`${this.apiUrl}/items/${itemVisual.itemId}`, { estado: 'LISTA' }).subscribe({
+      next: () => {
+        console.log(`✅ Item ${itemVisual.itemId} marcado como LISTA`);
+        
+        // 2. Quitar de la lista visual
+        this.itemsPendientes = this.itemsPendientes.filter(i => i.itemId !== itemVisual.itemId);
+        this.conteoPendientes = this.itemsPendientes.length;
+        
+        // 3. Recargar para actualizar el contador de listos
+        this.cargarPedidos();
+      },
+      error: (err) => {
+        console.error('❌ Error al marcar item como listo:', err);
+        this.cargarPedidos(); // Recargar en caso de error
       }
+    });
   }
 
-  // Auxiliares de tiempo
   getMinutosTranscurridos(fecha: Date): number {
-      const diff = new Date().getTime() - new Date(fecha).getTime();
-      return Math.floor(diff / 60000); // Diferencia en minutos
+    const diff = new Date().getTime() - new Date(fecha).getTime();
+    return Math.floor(diff / 60000);
   }
 
   recalcularTiempos() {
-      this.itemsPendientes.forEach(item => {
-          item.tiempo = this.getMinutosTranscurridos(item.horaInicio);
-      });
+    this.itemsPendientes.forEach(item => {
+      item.tiempo = this.getMinutosTranscurridos(item.horaInicio);
+    });
   }
 
   salir() {
