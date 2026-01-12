@@ -72,9 +72,9 @@ const productosData = [
 ];
 
 async function main() {
-  console.log('🌱 Iniciando Seed "Garage Wings" (con Adicionales)...');
+  console.log('🌱 Iniciando Seed "Garage Wings" (Actualizado)...');
 
-  const passwordSimple = '123';
+  const passwordSimple = '123'; // En producción usa bcrypt
 
   // 1. EMPRESA Y SUCURSAL
   const empresa = await prisma.empresa.upsert({
@@ -131,6 +131,7 @@ async function main() {
   if (mesasExistentes === 0) {
     const mesas: any[] = [];
     
+    // Mesas Cuadradas (1-6)
     for (let i = 1; i <= 6; i++) {
       mesas.push({
         numero: `M${i}`,
@@ -143,6 +144,7 @@ async function main() {
       });
     }
 
+    // Mesas Rectangulares (7-12)
     for (let i = 7; i <= 12; i++) {
       mesas.push({
         numero: `M${i}`,
@@ -198,7 +200,7 @@ async function main() {
     categoriaMap[nombreCat] = cat.id;
   }
 
-  // Insertar Productos (con verificación)
+  // Insertar Productos
   let productosCreados = 0;
   let productosOmitidos = 0;
 
@@ -211,18 +213,20 @@ async function main() {
     });
 
     if (!existe) {
+      // ✅ Lógica de Destino
       const esBebida = prod.categoria === 'Bar' || prod.categoria === 'Bebidas';
       const esHamburguesa = prod.categoria === 'Hamburguesas';
 
       let config: any = undefined;
 
+      // Configuración especial para hamburguesas
       if (esHamburguesa) {
         config = [
           {
             titulo: "Término",
             tipo: "radio",
             obligatorio: true,
-            opciones: [{ nombre: "Medio", precio: 0 }, { nombre: "3/4", precio: 0 }]
+            opciones: [{ nombre: "Medio", precio: 0 }, { nombre: "3/4", precio: 0 }, { nombre: "Bien Cocido", precio: 0 }]
           },
           {
             titulo: "Extras",
@@ -240,6 +244,7 @@ async function main() {
           precioBase: prod.precio,
           empresaId: empresa.id,
           categoriaId: categoriaMap[prod.categoria],
+          // ✅ Asignación del destino correcto
           destino: esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA,
           configuracion: config ? config : undefined
         }
@@ -252,14 +257,9 @@ async function main() {
 
   console.log(`\n📊 Resumen de Productos:`);
   console.log(`   ✅ Creados: ${productosCreados}`);
-  console.log(`   ⏭️  Omitidos (ya existían): ${productosOmitidos}`);
-  console.log(`   📦 Total en BD: ${productosCreados + productosOmitidos}`);
+  console.log(`   ⏭️  Omitidos: ${productosOmitidos}`);
   
-  const adicionales = productosData.filter(p => p.categoria === 'Adicionales').length;
-  console.log(`   🎁 Adicionales incluidos: ${adicionales}`);
-  
-  console.log('\n🚀 Seed finalizado');
-  console.log('📧 Login: mesero@garage.com / 123');
+  console.log('\n🚀 Seed finalizado con éxito.');
 }
 
 main()

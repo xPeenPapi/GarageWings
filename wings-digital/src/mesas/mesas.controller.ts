@@ -1,6 +1,5 @@
 import { Controller, Get, Patch, Param, Body, ParseIntPipe, Post } from '@nestjs/common';
 import { MesaService } from './mesa.service';
-import { EstadoMesa } from '@prisma/client';
 
 @Controller('mesas')
 export class MesasController {
@@ -19,12 +18,12 @@ export class MesasController {
   @Patch(':id/estado')
   actualizarEstado(
     @Param('id', ParseIntPipe) id: number,
-    @Body('estado') estado: EstadoMesa,
+    @Body() updateData: any
   ) {
-    return this.mesasService.actualizarEstado(id, estado);
+    // Delegamos la lógica al servicio para evitar el error "property prisma does not exist"
+    return this.mesasService.actualizarEstadoMesa(id, updateData);
   }
 
-  // ✅ ESTO ES LO QUE FALTABA:
   @Post('transferir')
   transferirMesa(@Body() body: { origenId: number; destinoId: number }) {
     return this.mesasService.transferirMesa(body.origenId, body.destinoId);

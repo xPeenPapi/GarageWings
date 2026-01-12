@@ -163,55 +163,59 @@ export class MesasComponent implements OnInit, OnDestroy {
   // ==========================================
   // CARGA DE DATOS
   // ==========================================
-  cargarMesas() {
-    this.mesaService.getMesas().subscribe({
-      next: (data) => {
-        const listaMesas = data as any[];
-        
-        // 1. Limpieza de lógica
-        this.limpiarUnionesObsoletas(listaMesas);
+cargarMesas() {
+  this.mesaService.getMesas().subscribe({
+    next: (data) => {
+      const listaMesas = data as any[];
+      
+      this.limpiarUnionesObsoletas(listaMesas);
 
-        this.mesas = listaMesas.map(m => {
-            // 2. Recuperar unión local
-            let padreId = m.mesaPadreId || this.obtenerUnionLocal(m.id);
-            let estadoVisual = m.estado ? m.estado.toLowerCase() : 'disponible';
+      this.mesas = listaMesas.map(m => {
+          let padreId = m.mesaPadreId || this.obtenerUnionLocal(m.id);
+          let estadoVisual = m.estado ? m.estado.toLowerCase() : 'disponible';
 
-            // 3. Verificación de seguridad visual
-            if (padreId) {
-                const parentTable = listaMesas.find(p => p.id === padreId);
-                // Si el padre está libre o sucio, soltamos al hijo visualmente
-                if (!parentTable || parentTable.estado.toLowerCase() === 'disponible' || parentTable.estado.toLowerCase() === 'sucia') {
-                    padreId = null;
-                    estadoVisual = m.estado ? m.estado.toLowerCase() : 'disponible'; 
-                } else {
-                    estadoVisual = 'ocupada'; 
-                }
-            }
+          if (padreId) {
+              const parentTable = listaMesas.find(p => p.id === padreId);
+              if (!parentTable || parentTable.estado.toLowerCase() === 'disponible' || parentTable.estado.toLowerCase() === 'sucia') {
+                  padreId = null;
+                  estadoVisual = m.estado ? m.estado.toLowerCase() : 'disponible'; 
+              } else {
+                  estadoVisual = 'ocupada'; 
+              }
+          }
 
-            return {
-              ...m,
-              id: m.id,
-              numero: m.numero,
-              capacidad: m.capacidad || 4,
-              estado: estadoVisual,
-              tipo: m.tipo || (m.capacidad > 2 ? 'cuadrada' : 'rectangular'),
-              mesero: m.meseroNombre, 
-              meseroId: m.meseroId,
-              comensales: m.comensales || 0,
-              horaInicio: m.horaInicio,
-              tiempoTranscurrido: this.calcularTiempo(m.horaInicio),
-              tienePedidoListo: false,
-              mesaPadreId: padreId
-            };
-        });
-        this.actualizarContadores();
-        this.verificarNotificacionesComida();
-      },
-      error: (err: any) => {
-        if (err.status === 401) this.authService.logout();
-      }
-    });
-  }
+          // ✅ CALCULAR TIEMPO DESDE horaApertura
+          let tiempoCalculado = '';
+          if (estadoVisual === 'ocupada' && m.horaApertura) {
+            tiempoCalculado = this.calcularTiempo(m.horaApertura);
+          }
+
+          return {
+            ...m,
+            id: m.id,
+            numero: m.numero,
+            capacidad: m.capacidad || 4,
+            estado: estadoVisual,
+            tipo: m.tipo || (m.capacidad > 2 ? 'cuadrada' : 'rectangular'),
+            mesero: m.mesero, // ✅ Ya no usará mesero obsoleto si está liberada
+            meseroId: m.meseroId,
+            comensales: m.comensales || 0,
+            horaInicio: m.horaApertura, // ✅ Usar horaApertura del backend
+            horaApertura: m.horaApertura, // ✅ Mantener para referencia
+            tiempoTranscurrido: tiempoCalculado, // ✅ Calculado correctamente
+            tienePedidoListo: false,
+            mesaPadreId: padreId
+          };
+      });
+      
+      this.actualizarContadores();
+      this.verificarNotificacionesComida();
+    },
+    error: (err: any) => {
+      if (err.status === 401) this.authService.logout();
+    }
+  });
+}
 
   obtenerNumeroMesa(id: number): string {
       const padre = this.mesas.find(m => m.id === id);
@@ -283,8 +287,28 @@ export class MesasComponent implements OnInit, OnDestroy {
       }); 
   }
   
-  calcularTiempo(fecha?: string): string { if (!fecha) return ''; const inicio = new Date(fecha).getTime(); const ahora = new Date().getTime(); const diffMinutos = Math.floor((ahora - inicio) / 60000); const horas = Math.floor(diffMinutos / 60); const minutos = diffMinutos % 60; if (horas > 0) return `${horas}h ${minutos}min`; return `${minutos} min`; }
-  
+    calcularTiempo(fecha?: string): string {
+    if (!fecha) return '';
+    
+    const inicio = new Date(fecha).getTime();
+    const ahora = new Date().getTime();
+    const diffMs = ahora - inicio;
+    
+    // Si el tiempo es negativo o mayor a 24 horas, algo está mal
+    if (diffMs < 0 || diffMs > 86400000) {
+        console.warn('⚠️ Tiempo inválido detectado:', { fecha, diffMs });
+        return '';
+    }
+    
+    const diffMinutos = Math.floor(diffMs / 60000);
+    const horas = Math.floor(diffMinutos / 60);
+    const minutos = diffMinutos % 60;
+    
+    if (horas > 0) {
+        return `${horas}h ${minutos}min`;
+    }
+    return `${minutos}min`;
+    }  
   esTiempoExcedido(fecha?: string): boolean { if (!fecha) return false; const inicio = new Date(fecha).getTime(); const ahora = new Date().getTime(); return (ahora - inicio) > (2 * 60 * 60 * 1000); }
   
   actualizarContadores() { 
@@ -578,34 +602,53 @@ export class MesasComponent implements OnInit, OnDestroy {
     }).catch(err => console.error('Error navegando:', err));
   }
 
-  crearOrdenBackend(mesaId: number | null, comensales: number, nota: string = '') {
-    if (!mesaId && (!nota || nota.trim() === '')) {
-        nota = 'Cliente (Sin Nombre)';
-    }
-    const nuevaOrden: any = {
-      mesa_id: mesaId, 
-      empleado_id: this.usuarioActualId,
-      mesero_id: this.usuarioActualId,
-      items: [],
-      comensales: comensales,
-      notaGeneral: nota,
-      nota_general: nota 
-    };
-    this.pedidosService.crearOrden(nuevaOrden).subscribe({
-      next: (orden: any) => {
-        this.cerrarModales();
-        if (mesaId) this.router.navigate(['/pedido', mesaId]);
-        else this.router.navigate(['/pedido/orden', orden.id]); 
-      },
-      error: (err: any) => {
-        if (err.status === 401) {
-          this.authService.logout();
-        } else {
-          this.mostrarAlerta('Error al crear la orden.', 'error');
-        }
-      }
-    });
+crearOrdenBackend(mesaId: number | null, comensales: number, nota: string = '') {
+  if (!mesaId && (!nota || nota.trim() === '')) {
+      nota = 'Cliente (Sin Nombre)';
   }
+  
+  const nuevaOrden: any = {
+    mesa_id: mesaId, 
+    empleado_id: this.usuarioActualId,
+    mesero_id: this.usuarioActualId,
+    items: [],
+    comensales: comensales,
+    notaGeneral: nota,
+    nota_general: nota 
+  };
+  
+  this.pedidosService.crearOrden(nuevaOrden).subscribe({
+    next: (orden: any) => {
+      this.cerrarModales();
+      
+      // ✅ Si es una mesa, actualizar su estado con horaApertura
+      if (mesaId) {
+        this.mesaService.actualizarEstadoMesa(
+          mesaId, 
+          'ocupada', 
+          this.nombreMesero
+        ).subscribe({
+          next: () => {
+            this.router.navigate(['/pedido', mesaId]);
+          },
+          error: () => {
+            // Navegar aunque falle la actualización
+            this.router.navigate(['/pedido', mesaId]);
+          }
+        });
+      } else {
+        this.router.navigate(['/pedido/orden', orden.id]); 
+      }
+    },
+    error: (err: any) => {
+      if (err.status === 401) {
+        this.authService.logout();
+      } else {
+        this.mostrarAlerta('Error al crear la orden.', 'error');
+      }
+    }
+  });
+}
 
   cerrarModales() {
     this.mostrarModalCliente = false;

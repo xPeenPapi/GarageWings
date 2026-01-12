@@ -113,23 +113,26 @@ model Empleado {
 // ==========================================
 
 model Mesa {
-  id         Int        @id @default(autoincrement())
-  sucursalId Int        @map("sucursal_id")
-  numero     String     @db.VarChar(20)
-  capacidad  Int        @default(4)
-  estado     EstadoMesa @default(DISPONIBLE)
-    
-  tipo       String     @default("cuadrada") 
-    
-  posX       Int        @default(0) @map("pos_x")
-  posY       Int        @default(0) @map("pos_y")
-
-  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
-  ordenes  Orden[]
-
-  @@unique([sucursalId, numero])
-  @@map("mesas")
+  id            Int         @id @default(autoincrement())
+  numero        String
+  capacidad     Int
+  tipo          String?
+  estado        EstadoMesa  @default(DISPONIBLE)
+  posX          Int?
+  posY          Int?
+  mesero        String?     // Nombre del mesero
+  meseroId      Int?        // ID del mesero
+  horaApertura  DateTime?   // ✅ NUEVO: Timestamp de cuándo se ocupó
+  
+  sucursalId    Int
+  sucursal      Sucursal    @relation(fields: [sucursalId], references: [id])
+  
+  ordenes       Orden[]
+  
+  @@map("Mesa")
 }
+
+
 
 model Categoria {
   id        Int    @id @default(autoincrement())

@@ -44,14 +44,23 @@ export class MesaService {
   }
 
   // Actualizar estado (Ocupar, Liberar, Unir)
-  actualizarEstadoMesa(id: number, estado: string, mesero?: string): Observable<Mesa> {
-    return this.http.patch<Mesa>(
-      `${this.apiUrl}/${id}/estado`, 
-      { estado, mesero },
-      { headers: this.getHeaders() }
-    );
+  actualizarEstadoMesa(
+    mesaId: number, 
+    estado: 'disponible' | 'ocupada' | 'sucia', 
+    mesero: string
+  ): Observable<any> {
+    const body: any = { estado };
+    
+    if (estado === 'ocupada') {
+      body.mesero = mesero;
+      body.horaApertura = new Date(); // ✅ Agregar timestamp de apertura
+    } else if (estado === 'disponible') {
+      body.mesero = ''; // ✅ Limpiar mesero al liberar
+      body.horaApertura = null; // ✅ Limpiar timestamp
+    }
+    
+    return this.http.patch(`${this.apiUrl}/${mesaId}`, body);
   }
-
   // ✅ NUEVO MÉTODO: Transferir cuenta de una mesa a otra
   transferirMesa(origenId: number, destinoId: number): Observable<any> {
     return this.http.post<any>(

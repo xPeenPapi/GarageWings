@@ -516,14 +516,29 @@ procesarConfirmacionCocina(): void {
   }
 
   finalizarLiberacion() {
-      if(this.mesaId) {
-        this.mesaService.actualizarEstadoMesa(this.mesaId, 'disponible', '').subscribe(() => {
-            this.regresar();
-        });
-      } else {
-          this.regresar();
+  if (this.mesaId) {
+    console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
+    
+    // ✅ Pasar string vacío para limpiar el mesero
+    // El backend automáticamente limpiará mesero, meseroId y horaApertura
+    this.mesaService.actualizarEstadoMesa(
+      this.mesaId, 
+      'disponible', 
+      '' // ← Mesero vacío = limpiar
+    ).subscribe({
+      next: () => {
+        console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
+        this.regresar();
+      },
+      error: (err) => {
+        console.error('❌ Error al liberar mesa:', err);
+        this.regresar(); // Regresar aunque falle
       }
+    });
+  } else {
+    this.regresar();
   }
+}
 
   // =========================================================
   // NOTIFICACIONES

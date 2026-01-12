@@ -11,7 +11,7 @@ export class PedidosService {
   ) {}
   
   // ===================================================
-  // 1. CREAR O ACTUALIZAR ORDEN (VERSIÓN CORREGIDA)
+  // 1. CREAR O ACTUALIZAR ORDEN
   // ===================================================
   async create(dto: any) {
     console.log('📦 [INICIO] Crear Pedido. DTO:', JSON.stringify(dto));
@@ -63,7 +63,7 @@ export class PedidosService {
         
         // Si no viene destino desde el frontend, lo buscamos en BD
         if (!destinoFinal) {
-          console.log(`⚠️ Item sin destino. Buscando en BD...`);
+          // console.log(`⚠️ Item sin destino. Buscando en BD...`);
           
           const producto = await this.prisma.producto.findUnique({
             where: { id: productoIdFinal },
@@ -75,9 +75,7 @@ export class PedidosService {
           });
           
           if (producto?.destino) {
-            // ✅ El producto tiene destino en BD
             destinoFinal = producto.destino;
-            console.log(`✅ Destino obtenido de BD: "${producto.nombre}" → ${destinoFinal}`);
           } else {
             // ❌ FALLBACK: Calcular por categoría
             const nombreCategoria = (producto?.categoria?.nombre || '').toLowerCase();
@@ -93,8 +91,6 @@ export class PedidosService {
             destinoFinal = esBebida ? DestinoProducto.BARRA : DestinoProducto.COCINA;
             console.warn(`⚠️ Producto sin destino en BD: "${producto?.nombre}". Calculado por categoría: ${destinoFinal}`);
           }
-        } else {
-          console.log(`✅ Destino recibido desde frontend: ${destinoFinal}`);
         }
 
         return {
@@ -107,14 +103,6 @@ export class PedidosService {
             destino: destinoFinal // ✅ SIEMPRE tiene valor
         };
     })) : [];
-
-    // Log de verificación
-    console.log('📋 Items procesados con destino:', 
-      itemsProcesados.map(i => ({ 
-        productoId: i.productoId, 
-        destino: i.destino 
-      }))
-    );
 
     try {
         // B. CASO 1: Agregar items a orden existente
@@ -165,10 +153,16 @@ export class PedidosService {
                 }
             });
 
+            // ✅ ACTUALIZAR MESA: Si se creó una orden nueva en una mesa, la ocupamos y seteamos tiempo/mesero
             if (dto.mesa_id) {
                 await this.prisma.mesa.update({
                     where: { id: Number(dto.mesa_id) },
-                    data: { estado: EstadoMesa.OCUPADA }
+                    data: { 
+                        estado: EstadoMesa.OCUPADA,
+                        meseroId: ordenNueva.meseroId,       // Enlazamos ID
+                        mesero: ordenNueva.mesero?.nombre,   // Enlazamos Nombre (para visualización rápida)
+                        horaApertura: new Date()             // Iniciamos el contador de tiempo
+                    }
                 });
             }
 
@@ -210,7 +204,7 @@ export class PedidosService {
   }
 
   // ===================================================
-  // RESTO DE MÉTODOS (sin cambios)
+  // 3. OBTENER ORDENES DEL DÍA (CAJA)
   // ===================================================
   async obtenerOrdenesDelDia() {
     const hoyInicio = new Date();
@@ -247,11 +241,17 @@ export class PedidosService {
     });
   }
 
+  // ===================================================
+  // 4. ACTUALIZAR ESTADO ORDEN
+  // ===================================================
   async actualizarEstado(id: number, estado: EstadoOrden) {
     await this.prisma.orden.update({ where: { id }, data: { estado } });
     return this.obtenerOrdenCompleta(id);
   }
 
+  // ===================================================
+  // 5. SOLICITAR CUENTA
+  // ===================================================
   async solicitarCuenta(id: number) {
     const ordenActual = await this.prisma.orden.findUnique({ where: { id } });
 
@@ -271,7 +271,12 @@ export class PedidosService {
     }
   }
 
+  // ===================================================
+  // 6. FINALIZAR / COBRAR
+  // ===================================================
   async finalizarOrden(id: number, datosPago: any) {
+    console.log(`💰 Finalizando orden ${id} con pago:`, datosPago);
+    
     const ordenPagada = await this.prisma.orden.update({
       where: { id },
       data: { 
@@ -283,19 +288,34 @@ export class PedidosService {
       include: { mesa: true }
     });
 
+    // Si la orden tenía una mesa asignada, la limpiamos
     if (ordenPagada.mesaId) {
-        await this.prisma.mesa.update({
-            where: { id: ordenPagada.mesaId },
-            data: { estado: EstadoMesa.SUCIA } 
-        });
+      console.log(`🧹 Marcando mesa ${ordenPagada.mesaId} como SUCIA y limpiando datos...`);
+      
+      await this.prisma.mesa.update({
+        where: { id: ordenPagada.mesaId },
+        data: { 
+          estado: EstadoMesa.SUCIA,
+          mesero: null,       // ✅ Limpiar nombre mesero
+          meseroId: null,     // ✅ Limpiar ID mesero
+          horaApertura: null  // ✅ Resetear tiempo
+        }
+      });
+      
+      console.log(`✅ Mesa ${ordenPagada.mesaId} marcada como SUCIA y limpiada`);
     }
 
     return ordenPagada;
   }
 
+  // ===================================================
+  // 7. CANCELAR ORDEN
+  // ===================================================
   async cancelarOrden(id: number) {
     const orden = await this.prisma.orden.findUnique({ where: { id } });
     if (!orden) throw new NotFoundException('Orden no encontrada');
+
+    console.log(`❌ Cancelando orden ${id}...`);
 
     await this.prisma.orden.update({
       where: { id },
@@ -303,24 +323,41 @@ export class PedidosService {
     });
 
     if (orden.mesaId) {
-       const otrasOrdenesVivas = await this.prisma.orden.count({
-           where: {
-               mesaId: orden.mesaId,
-               estado: { notIn: [EstadoOrden.CANCELADA, EstadoOrden.PAGADA, EstadoOrden.CERRADA] },
-               id: { not: id } 
-           }
-       });
+      // Verificar si quedan otras órdenes activas en la mesa
+      const otrasOrdenesVivas = await this.prisma.orden.count({
+        where: {
+          mesaId: orden.mesaId,
+          estado: { notIn: [EstadoOrden.CANCELADA, EstadoOrden.PAGADA, EstadoOrden.CERRADA] },
+          id: { not: id } 
+        }
+      });
 
-       if (otrasOrdenesVivas === 0) {
-           await this.prisma.mesa.update({
-            where: { id: orden.mesaId },
-            data: { estado: EstadoMesa.DISPONIBLE }
-          });
-       }
+      // Si no quedan órdenes activas, liberar y limpiar la mesa
+      if (otrasOrdenesVivas === 0) {
+        console.log(`🧹 No quedan órdenes activas. Liberando mesa ${orden.mesaId}...`);
+        
+        await this.prisma.mesa.update({
+          where: { id: orden.mesaId },
+          data: { 
+            estado: EstadoMesa.DISPONIBLE,
+            mesero: null,      // ✅ Limpiar nombre
+            meseroId: null,    // ✅ Limpiar ID
+            horaApertura: null // ✅ Limpiar tiempo
+          }
+        });
+        
+        console.log(`✅ Mesa ${orden.mesaId} liberada y limpiada correctamente`);
+      } else {
+        console.log(`ℹ️ Quedan ${otrasOrdenesVivas} orden(es) activa(s) en la mesa ${orden.mesaId}`);
+      }
     }
+    
     return { mensaje: 'Orden cancelada' };
   }
 
+  // ===================================================
+  // 8. ACTUALIZAR ITEM (Lógica Cocina/Barra)
+  // ===================================================
   async actualizarEstadoItem(itemId: number, estado: EstadoOrden) {
     const itemActualizado = await this.prisma.itemOrden.update({
       where: { id: itemId },
@@ -336,8 +373,8 @@ export class PedidosService {
       }
     });
 
+    // Lógica para cerrar orden completa automáticamente
     const ordenPadre = itemActualizado.orden;
-    
     const itemsPendientes = ordenPadre.items.filter(i => 
         i.estado !== EstadoOrden.LISTA && 
         i.estado !== EstadoOrden.ENTREGADA && 
@@ -374,6 +411,7 @@ export class PedidosService {
     return itemActualizado;
   }
 
+  // Helpers
   public async obtenerOrdenCompleta(id: number) {
     return this.prisma.orden.findUnique({
       where: { id },
