@@ -299,7 +299,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     const itemExistente = this.pedido.find(p => 
       p.id === itemConDetalles.id && 
       JSON.stringify(p.opcionesElegidas) === JSON.stringify(itemConDetalles.opcionesElegidas) &&
-      p.notas === itemConDetalles.notas
+      p.notes === itemConDetalles.notes
     );
 
     if (itemExistente) {
@@ -359,16 +359,13 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
     const itemsDto = this.pedido.map(item => {
       const productoCompleto = this.productos.find(p => p.id === item.id);
-      
       let destinoFinal: string;
 
       if (productoCompleto?.destino) {
         destinoFinal = productoCompleto.destino;
-      } 
-      else {
+      } else {
         const categoria = this.categorias.find(c => c.id === item.categoriaId);
         const nombreCategoria = (categoria?.nombre || '').toLowerCase();
-        
         const esBebida = 
           nombreCategoria.includes('bebida') ||
           nombreCategoria.includes('bar') ||
@@ -409,20 +406,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
     this.pedidosService.crearPedido(pedidoDto).subscribe({
       next: (ordenCreada: any) => {
-        const itemsBarra = itemsDto.filter(i => i.destino === 'BARRA').length;
-        const itemsCocina = itemsDto.filter(i => i.destino === 'COCINA').length;
-        
-        let mensaje = '✅ Pedido enviado correctamente';
-        if (itemsBarra > 0 && itemsCocina > 0) {
-          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra\n🍔 ${itemsCocina} item(s) → Cocina`;
-        } else if (itemsBarra > 0) {
-          mensaje += `\n🍹 ${itemsBarra} item(s) → Barra`;
-        } else {
-          mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
-        }
-        
-        alert(mensaje);
-        
+        alert('✅ Pedido enviado correctamente');
         this.ordenId = ordenCreada.id;
         this.ordenActiva = ordenCreada;
         this.nombreClienteTemporal = '';
@@ -437,14 +421,11 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
         this.pedido = []; 
         this.calcularTotales();
         this.mostrarModalCocina = false;
-        
-        if (!this.esEscritorio) {
-          this.vistaMovilActual = 'resumen';
-        }
+        if (!this.esEscritorio) this.vistaMovilActual = 'resumen';
       },
       error: (error: any) => {
         console.error('❌ Error al guardar:', error);
-        alert('Error al enviar el pedido. Intenta de nuevo.');
+        alert('Error al enviar el pedido.');
       }
     });
   }
@@ -461,11 +442,13 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     this.mostrarModalCuenta = true;
   }
 
+  // ✅ CORREGIDO: Solicitud de cuenta sincronizada con el backend NestJS
   confirmarPedirCuenta() {
     const idParaCuenta = this.ordenId; 
     if (!idParaCuenta) return;
 
-    // ✅ Actualizado para usar la ruta correcta configurada en el service
+    // Llamamos al servicio de pedidos.
+    // El frontend ahora usará la ruta correcta: /api/pedidos/8/solicitar-cuenta
     this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
         next: () => {
             this.mostrarModalCuenta = false;
@@ -477,8 +460,9 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
             this.regresar();
         },
         error: (err: any) => {
-            console.error('Error al solicitar la cuenta:', err);
-            alert('Error al solicitar la cuenta. Intenta de nuevo.');
+            console.error('❌ Error al solicitar cuenta:', err);
+            // Si sale 404 aquí, revisa que PedidosService.solicitarCuenta esté enviando '/solicitar-cuenta'
+            alert('Error al solicitar la cuenta. Revisa la consola para más detalles.');
         }
     });
   }
@@ -493,7 +477,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
   confirmarLiberacion() {
     this.mostrarModalLiberar = false;
-    
     if (this.ordenId) {
         this.pedidosService.cancelarOrden(this.ordenId).subscribe({
             next: () => this.finalizarLiberacion(),
@@ -506,17 +489,8 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
   finalizarLiberacion() {
     if (this.mesaId) {
-      console.log(`🧹 Liberando mesa ${this.mesaId} y limpiando datos...`);
-      
-      this.mesaService.actualizarEstadoMesa(
-        this.mesaId, 
-        'disponible', 
-        '' 
-      ).subscribe({
-        next: () => {
-          console.log(`✅ Mesa ${this.mesaId} liberada correctamente`);
-          this.regresar();
-        },
+      this.mesaService.actualizarEstadoMesa(this.mesaId, 'disponible', '').subscribe({
+        next: () => this.regresar(),
         error: (err) => {
           console.error('❌ Error al liberar mesa:', err);
           this.regresar(); 
@@ -545,9 +519,7 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
         const misOrdenesListas = ordenes.filter(o => {
             const esLista = o.estado === 'LISTA';
             if (!esLista) return false;
-
-            const soyYo = String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
-            return soyYo;
+            return String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
         });
 
         this.pedidosListos = misOrdenesListas.map(o => {
@@ -566,7 +538,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 
         const cuentaAnterior = this.contadorNotificaciones;
         this.contadorNotificaciones = this.pedidosListos.length;
-
         if (this.contadorNotificaciones > cuentaAnterior) {
             this.audio?.play().catch(()=>{});
         }
@@ -574,33 +545,27 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ FUNCIÓN CORREGIDA: Marca Orden Y sus Items como ENTREGADA
+  // ✅ CORREGIDO: Confirmar entrega (Limpia tanto la orden como los items individuales)
   confirmarEntrega(pedido: any) {
-    // 1. Llamamos a actualizar la orden (Se sincroniza con el backend corregido sin /estado para evitar 404)
     this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
-      next: () => {
-        // 2. 🔥 LIMPIEZA DE COCINA 🔥: Marcamos cada ítem de la orden como entregado individualmente
-        // Esto es necesario para que el backend emita los eventos de socket que borran los items de las pantallas de cocina
-        if (pedido.items && pedido.items.length > 0) {
-          pedido.items.forEach((item: any) => {
-            if (item.estado === 'LISTA') {
-              this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+        next: () => {
+            // Sincronización de items individuales para pantalla de cocina
+            if (pedido.items && pedido.items.length > 0) {
+                pedido.items.forEach((item: any) => {
+                    if (item.estado === 'LISTA') {
+                        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+                    }
+                });
             }
-          });
-        }
-        
-        // 3. Limpiamos la interfaz local
-        this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
-        this.contadorNotificaciones = this.pedidosListos.length;
-        
-        if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
-          this.recargarDatosMesa();
-        }
-      },
-      error: (err) => {
-        console.error('Error al confirmar entrega:', err);
-        alert('Error al conectar con el servidor. Revisa las rutas del backend.');
-      }
+
+            this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
+            this.contadorNotificaciones = this.pedidosListos.length;
+            
+            if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
+                this.recargarDatosMesa();
+            }
+        },
+        error: (err) => console.error('Error al confirmar entrega:', err)
     });
   }
 
@@ -618,8 +583,6 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   
   irAMesa(pedido: any) {
       this.mostrarListaNotificaciones = false;
-      
-      // ✅ Confirmamos entrega antes de navegar para que se limpie en cocina y BD
       this.confirmarEntrega(pedido); 
 
       if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
