@@ -525,6 +525,11 @@ guardarEmpleado(): void {
   }
 
   // ==========================================
+  // CÁLCULOS Y GRÁFICAS
+  // ==========================================
+
+  recalcularEstadisticasGenerales(): void {
+    this.estadisticas.ventasTotales = 0;
     this.estadisticas.ordenesDelDia = 0;
     this.estadisticas.sucursalesActivas = 0;
 
