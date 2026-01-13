@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms'; // 👈 Importante para los formularios
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { AdminService } from '../../services/admin.service'; // 👈 Importar servicio
+import { AdminService } from '../../services/admin.service';
 import { ProductosService } from '../../services/productos.service';
 
 // Interfaces para tipado
@@ -20,7 +21,7 @@ interface Sucursal {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule], // 👈 Asegúrate de incluir FormsModule
   templateUrl: './admin-dashboard.component.html',
   styleUrls: ['./admin-dashboard.component.css']
 })
@@ -44,7 +45,24 @@ export class AdminDashboardComponent implements OnInit {
   
   // Gráficas Dinámicas (CSS Gradients)
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
-  public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
+  
+  // ==========================================
+  // VARIABLES PARA MODALES (NUEVO)
+  // ==========================================
+  
+  // Modal Sucursal
+  public mostrarModalSucursal: boolean = false;
+  public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
+
+  // Modal Personal
+  public mostrarModalEmpleado: boolean = false;
+  public empleadoForm: any = { 
+    nombre: '', 
+    email: '', 
+    password: '', 
+    rol: 'GERENTE', 
+    sucursalId: null 
+  };
 
   // ==========================================
   // ESTADÍSTICAS CALCULADAS
@@ -69,7 +87,7 @@ export class AdminDashboardComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private adminService: AdminService, // 👈 Inyección
+    private adminService: AdminService,
     private productosService: ProductosService,
     private router: Router
   ) {}
@@ -77,7 +95,7 @@ export class AdminDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.cargarDatosUsuario();
     this.actualizarHora();
-    this.cargarDatosDelSistema(); // 👈 Carga inicial
+    this.cargarDatosDelSistema();
 
     setInterval(() => {
       this.actualizarHora();
@@ -103,16 +121,15 @@ export class AdminDashboardComponent implements OnInit {
   cargarDatosDelSistema(): void {
     this.cargando = true;
 
-    // 1. Cargar Sucursales y calcular ventas globales
+    // 1. Cargar Sucursales
     this.adminService.getSucursales().subscribe({
       next: (data) => {
-        // Mapeamos la data que viene del backend a la interfaz local
         this.sucursales = data.map((s: any) => ({
           id: s.id,
           nombre: s.nombre,
           activa: s.activa,
-          empleadosActivos: s.empleados?.length || 0, // Ajustar según tu backend
-          horaPico: '20:00', // Dato simulado o calculado por backend
+          empleadosActivos: s.empleados?.length || 0,
+          horaPico: '20:00', // Dato simulado si el backend no lo envía
           ventas: s.totalVentasDia || 0, 
           ordenes: s.totalOrdenesDia || 0,
           ticketPromedio: s.ticketPromedio || 0
@@ -132,7 +149,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
 
-    // 3. Cargar Menú (Para contar platillos)
+    // 3. Cargar Menú
     this.productosService.getProductos().subscribe({
       next: (data) => {
         this.productos = data;
@@ -142,11 +159,81 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
+  // LÓGICA DE SUCURSALES (CREAR)
+  // ==========================================
+
+  abrirModalSucursal(): void {
+    this.sucursalForm = { nombre: '', direccion: '', telefono: '' };
+    this.mostrarModalSucursal = true;
+  }
+
+  cerrarModalSucursal(): void {
+    this.mostrarModalSucursal = false;
+  }
+
+  guardarSucursal(): void {
+    if (!this.sucursalForm.nombre) {
+      alert('El nombre de la sucursal es obligatorio');
+      return;
+    }
+
+    this.adminService.crearSucursal(this.sucursalForm).subscribe({
+      next: (res) => {
+        alert('Sucursal creada con éxito ✅');
+        this.cerrarModalSucursal();
+        this.cargarDatosDelSistema(); // Recargar datos para ver la nueva sucursal
+      },
+      error: (err) => alert('Error al crear sucursal: ' + err.message)
+    });
+  }
+
+  // ==========================================
+  // LÓGICA DE PERSONAL (CREAR GERENTE/EMPLEADO)
+  // ==========================================
+
+  abrirModalEmpleado(): void {
+    // Reseteamos el formulario
+    this.empleadoForm = { 
+      nombre: '', 
+      email: '', 
+      password: '', 
+      rol: 'GERENTE', // Por defecto sugerimos crear Gerente
+      sucursalId: null 
+    };
+    this.mostrarModalEmpleado = true;
+  }
+
+  cerrarModalEmpleado(): void {
+    this.mostrarModalEmpleado = false;
+  }
+
+  guardarEmpleado(): void {
+    // Validaciones básicas
+    if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
+      alert('Por favor completa los campos obligatorios (Nombre, Email, Contraseña).');
+      return;
+    }
+
+    if (!this.empleadoForm.sucursalId) {
+      alert('Debes asignar el empleado a una sucursal.');
+      return;
+    }
+
+    this.adminService.crearEmpleado(this.empleadoForm).subscribe({
+      next: (res) => {
+        alert('Personal registrado correctamente ✅');
+        this.cerrarModalEmpleado();
+        this.cargarDatosDelSistema(); // Recargar para ver al nuevo empleado en las gráficas
+      },
+      error: (err) => alert('Error al registrar personal: ' + err.message)
+    });
+  }
+
+  // ==========================================
   // CÁLCULOS Y GRÁFICAS
   // ==========================================
 
   recalcularEstadisticasGenerales(): void {
-    // Reiniciar contadores
     this.estadisticas.ventasTotales = 0;
     this.estadisticas.ordenesDelDia = 0;
     this.estadisticas.sucursalesActivas = 0;
@@ -159,8 +246,6 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
 
-    // Simulación de desglose de pagos (si el backend no lo envía detallado aún)
-    // Esto lo podrías traer de un endpoint específico de reportes
     this.resumenGeneral.total = this.estadisticas.ventasTotales;
     this.resumenGeneral.efectivo = this.estadisticas.ventasTotales * 0.30;
     this.resumenGeneral.tarjeta = this.estadisticas.ventasTotales * 0.50;
@@ -168,13 +253,11 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   calcularEstadisticasPersonal(): void {
-    // Reset
     this.personalPorRol = { meseros: 0, gerentes: 0, cocineros: 0, baristas: 0, cajeros: 0 };
     this.estadoPersonal = { activo: 0, vacaciones: 0, inactivo: 0 };
     this.estadisticas.personalActivo = 0;
 
     this.personal.forEach(p => {
-      // Por Rol
       const rol = p.rol?.toUpperCase();
       if (rol === 'MESERO') this.personalPorRol.meseros++;
       else if (rol === 'GERENTE') this.personalPorRol.gerentes++;
@@ -182,7 +265,6 @@ export class AdminDashboardComponent implements OnInit {
       else if (rol === 'BARRA') this.personalPorRol.baristas++;
       else if (rol === 'CAJA') this.personalPorRol.cajeros++;
 
-      // Por Estado
       if (p.activo) {
         this.estadoPersonal.activo++;
         this.estadisticas.personalActivo++;
@@ -194,18 +276,16 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   generarGraficasPersonal(): void {
-    // Gráfica de Roles (Pie Chart)
     const total = this.personal.length || 1;
     const p = this.personalPorRol;
     
-    // Grados acumulados para CSS conic-gradient
     let deg = 0;
     const roles = [
-      { val: p.meseros, col: '#4285f4' }, // Azul
-      { val: p.cocineros, col: '#fbbc04' }, // Amarillo
-      { val: p.cajeros, col: '#34a853' }, // Verde
-      { val: p.baristas, col: '#ea4c89' }, // Rosa
-      { val: p.gerentes, col: '#8e44ad' }  // Morado
+      { val: p.meseros, col: '#4285f4' }, 
+      { val: p.cocineros, col: '#fbbc04' },
+      { val: p.cajeros, col: '#34a853' }, 
+      { val: p.baristas, col: '#ea4c89' }, 
+      { val: p.gerentes, col: '#8e44ad' }
     ];
 
     let gradiente = 'conic-gradient(';
@@ -225,7 +305,6 @@ export class AdminDashboardComponent implements OnInit {
 
   seleccionarSucursal(sucursal: string): void {
     this.sucursalSeleccionada = sucursal;
-    // Aquí podrías filtrar las listas locales si quisieras ver datos de una sola
   }
 
   cambiarTab(tab: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos'): void {
@@ -236,7 +315,6 @@ export class AdminDashboardComponent implements OnInit {
     this.authService.logout();
   }
 
-  // Getters para la vista
   get ventasPorSucursalData(): { sucursal: string; ventas: number }[] {
     return this.sucursales
       .filter(s => s.activa)
@@ -248,7 +326,7 @@ export class AdminDashboardComponent implements OnInit {
 
   get maxVentas(): number {
     const max = Math.max(...this.sucursales.map(s => s.ventas));
-    return max > 0 ? max : 1; // Evitar división por cero
+    return max > 0 ? max : 1; 
   }
 
   calcularPorcentaje(valor: number, total: number): number {

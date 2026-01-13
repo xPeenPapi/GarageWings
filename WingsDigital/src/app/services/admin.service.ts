@@ -31,4 +31,17 @@ export class AdminService {
   getReporteGlobal(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/reportes/admin/global`, { headers: this.getHeaders() });
   }
+
+  crearSucursal(datos: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/sucursales`, datos, { 
+      headers: this.getHeaders() 
+    });
+  }
+
+  // 2. Crear Empleado (Gerente, Mesero, etc.) desde Admin
+  crearEmpleado(datos: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/personal`, datos, { 
+      headers: this.getHeaders() 
+    });
+  }
 }
