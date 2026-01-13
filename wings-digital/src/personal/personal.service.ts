@@ -5,10 +5,17 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PersonalService {
   constructor(private prisma: PrismaService) {}
 
-  // 1. Listar empleados (Filtrado por empresa)
-  async findAll(empresaId: number) {
+  // 1. Listar empleados (Filtrado por empresa y opcionalmente por sucursal)
+  async findAll(empresaId: number, sucursalId?: number | null) {
+    const whereClause: any = { empresaId };
+    
+    // Si se proporciona sucursalId, filtrar por esa sucursal
+    if (sucursalId) {
+      whereClause.sucursalId = sucursalId;
+    }
+
     return this.prisma.empleado.findMany({
-      where: { empresaId },
+      where: whereClause,
       include: {
         sucursal: true
       },

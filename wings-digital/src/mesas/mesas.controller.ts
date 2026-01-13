@@ -1,14 +1,26 @@
-import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoMesa } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwd.guard';
 
 @Controller('mesas')
 export class MesasController {
   constructor(private prisma: PrismaService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  async findAll() {
+  async findAll(@Req() req) {
+    const sucursalId = req.user?.sucursalId;
+    const rol = req.user?.rol;
+
+    // Si es ADMIN, trae todas las mesas. Si es GERENTE, filtra por su sucursal
+    const whereClause: any = {};
+    if (rol !== 'ADMIN_EMPRESA' && rol !== 'SUPER_ADMIN' && sucursalId) {
+      whereClause.sucursalId = sucursalId;
+    }
+
     return this.prisma.mesa.findMany({
+      where: whereClause,
       orderBy: { numero: 'asc' }
     });
   }

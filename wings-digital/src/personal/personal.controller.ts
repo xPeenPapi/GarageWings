@@ -38,10 +38,17 @@ export class PersonalController {
 
   // --- TUS MÉTODOS EXISTENTES (SIN CAMBIOS) ---
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    const empresaId = 1; 
-    return this.personalService.findAll(empresaId);
+  findAll(@Req() req) {
+    const sucursalId = req.user?.sucursalId;
+    const rol = req.user?.rol;
+    const empresaId = 1;
+
+    // Si es ADMIN, trae todos. Si es GERENTE, filtra por su sucursal
+    const filtroSucursal = (rol === 'ADMIN_EMPRESA' || rol === 'SUPER_ADMIN') ? null : sucursalId;
+    
+    return this.personalService.findAll(empresaId, filtroSucursal);
   }
 
   @Post()
