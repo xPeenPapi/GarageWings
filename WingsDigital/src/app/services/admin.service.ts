@@ -45,6 +45,13 @@ export class AdminService {
     });
   }
 
+  // Editar Empleado
+  editarEmpleado(id: number, datos: any): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/personal/${id}`, datos, { 
+      headers: this.getHeaders() 
+    });
+  }
+
 
   editarSucursal(id: number, datos: any): Observable<any> {
     return this.http.put(`${this.apiUrl}/sucursales/${id}`, datos, { 

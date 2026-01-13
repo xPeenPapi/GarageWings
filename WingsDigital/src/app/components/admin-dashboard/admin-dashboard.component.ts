@@ -50,6 +50,18 @@ export class AdminDashboardComponent implements OnInit {
   // Gráficas Dinámicas (CSS Gradients)
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
   public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
+
+  // ✅ Propiedades computadas para filtros
+  get sucursalesActivas(): Sucursal[] {
+    return this.sucursales.filter(s => s.activa);
+  }
+
+  get sucursalesConEmpleados(): any[] {
+    return this.sucursalesActivas.map(sucursal => ({
+      ...sucursal,
+      empleados: this.personal.filter(emp => emp.sucursalId === sucursal.id)
+    }));
+  }
   
   // ==========================================
   // VARIABLES PARA MODALES
@@ -442,11 +454,77 @@ guardarEmpleado(): void {
 }
 
   // ==========================================
-  // CÁLCULOS Y GRÁFICAS
+  // GESTIÓN DE EMPLEADOS (ACCIONES)
   // ==========================================
 
-  recalcularEstadisticasGenerales(): void {
-    this.estadisticas.ventasTotales = 0;
+  editarEmpleado(empleado: any): void {
+    // Prellenar el formulario con los datos del empleado
+    this.empleadoForm = {
+      nombre: empleado.nombre,
+      email: empleado.email,
+      password: '', // No prellenar la contraseña por seguridad
+      rol: empleado.rol,
+      sucursalId: empleado.sucursalId
+    };
+    
+    // Abrir el modal en modo edición (podrías agregar una variable esEdicionEmpleado si quieres)
+    this.mostrarModalEmpleado = true;
+    
+    // Opcional: Guardar el ID del empleado para actualizar en lugar de crear
+    // this.empleadoEnEdicion = empleado.id;
+  }
+
+  ponerEnVacaciones(empleado: any): void {
+    Swal.fire({
+      title: '¿Poner en vacaciones?',
+      html: `<b>${empleado.nombre}</b> será marcado como "En Vacaciones".<br>Podrás reactivarlo cuando regrese.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, vacaciones',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#fbbf24'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Aquí podrías tener un endpoint específico o actualizar el estado
+        // Por ahora, vamos a desactivar temporalmente
+        this.adminService.editarEmpleado(empleado.id, { activo: false, enVacaciones: true }).subscribe({
+          next: () => {
+            Swal.fire('¡Vacaciones asignadas!', `${empleado.nombre} está ahora en vacaciones.`, 'success');
+            this.cargarDatosDelSistema();
+          },
+          error: (err) => Swal.fire('Error', 'No se pudo actualizar el estado', 'error')
+        });
+      }
+    });
+  }
+
+  despedirEmpleado(empleado: any): void {
+    Swal.fire({
+      title: '⚠️ ¿Despedir empleado?',
+      html: `Estás a punto de <b>despedir</b> a:<br><br>
+             <i class="fas fa-user-times" style="font-size: 2rem; color: #dc2626; margin: 10px;"></i><br>
+             <b>${empleado.nombre}</b><br>
+             <small>${empleado.rol} - ${empleado.email}</small><br><br>
+             Esta acción desactivará su cuenta permanentemente.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, despedir',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.adminService.editarEmpleado(empleado.id, { activo: false }).subscribe({
+          next: () => {
+            Swal.fire('Empleado despedido', `${empleado.nombre} ha sido desactivado del sistema.`, 'success');
+            this.cargarDatosDelSistema();
+          },
+          error: (err) => Swal.fire('Error', 'No se pudo despedir al empleado', 'error')
+        });
+      }
+    });
+  }
+
+  // ==========================================
     this.estadisticas.ordenesDelDia = 0;
     this.estadisticas.sucursalesActivas = 0;
 

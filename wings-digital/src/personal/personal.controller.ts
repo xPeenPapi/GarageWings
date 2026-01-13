@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { PersonalService } from './personal.service';
 import { JwtAuthGuard } from '../auth/jwd.guard'; // 👈 Asegúrate que la ruta sea correcta
 
@@ -82,6 +82,11 @@ export class PersonalController {
 
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    return this.personalService.update(id, data);
+  }
+
+  @Patch(':id')
+  patch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
     return this.personalService.update(id, data);
   }
 
