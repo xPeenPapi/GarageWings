@@ -9,7 +9,10 @@ export class AuthService {
     private jwtService: JwtService
   ) {}
 
-  async validateUser(email: string, password: string) {
+  // 🔴 ANTES: async validateUser(email: string, password: string) {
+  // 🟢 AHORA: Cambiamos el nombre a signIn para que coincida con el controlador
+  async signIn(email: string, password: string) {
+    
     // ✅ INCLUIR SUCURSAL en la consulta
     const user = await this.prisma.empleado.findUnique({
       where: { email },
