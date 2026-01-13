@@ -498,6 +498,29 @@ agregarAlPedido(item: Producto): void {
     });
   }
 
+  // ✅ NUEVO: Eliminar pedido para llevar vacío
+  eliminarPedidoVacio() {
+    if (!this.ordenId) {
+      // Si no hay orden creada, solo regresar
+      this.regresar();
+      return;
+    }
+
+    const confirmar = confirm('¿Eliminar este pedido vacío?');
+    if (!confirmar) return;
+
+    this.pedidosService.cancelarOrden(this.ordenId).subscribe({
+      next: () => {
+        console.log(`✅ Pedido para llevar ${this.ordenId} eliminado`);
+        this.regresar();
+      },
+      error: (err) => {
+        console.error('❌ Error al eliminar pedido:', err);
+        alert('Error al eliminar el pedido');
+      }
+    });
+  }
+
   liberarMesa() {
     this.mostrarModalLiberar = true;
   }

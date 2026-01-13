@@ -150,7 +150,7 @@
           
           <button class="btn-pedir-cuenta" 
                   (click)="abrirModalCuenta()" 
-                  [disabled]="!hayConsumo || ordenActiva?.estado === 'PAGADA' || ordenActiva?.estado === 'POR_COBRAR'">
+                  [disabled]="!hayConsumo || ordenActiva?.estado === 'PAGADA'">
             <i class="fas fa-file-invoice-dollar"></i> 
             {{ ordenActiva?.estado === 'POR_COBRAR' ? 'Cuenta Pedida' : 'Pedir Cuenta' }}
           </button>
@@ -161,7 +161,13 @@
             {{ ordenActiva?.estado === 'PAGADA' ? 'Limpiar y Liberar' : 'Cancelar y Liberar' }}
           </button>
 
-          <button *ngIf="!mesaId" class="btn-liberar" style="background-color: #7f8c8d;"
+          <!-- ✅ Botón para pedidos para llevar -->
+          <button *ngIf="!mesaId && !hayConsumo" class="btn-liberar" style="background-color: #e74c3c;"
+                  (click)="eliminarPedidoVacio()">
+            <i class="fas fa-trash"></i> Eliminar Pedido
+          </button>
+
+          <button *ngIf="!mesaId && hayConsumo" class="btn-liberar" style="background-color: #7f8c8d;"
                   (click)="regresar()">
             <i class="fas fa-arrow-left"></i> Salir / Volver
           </button>

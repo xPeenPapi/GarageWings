@@ -15,16 +15,13 @@ export class ProductosController {
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Req() req) {
-    const sucursalId = req.user?.sucursalId;
     const rol = req.user?.rol;
     
-    // Si es ADMIN, devolver todos los productos
-    if (rol === 'ADMIN_EMPRESA' || rol === 'SUPER_ADMIN') {
-      return this.productosService.findAll();
-    }
+    // ✅ ROLES OPERATIVOS (Mesero, Cocina, Barra, Caja): Ver TODOS los productos activos
+    // Los productos son globales para la empresa, no se filtran por sucursal
+    // Solo se filtran por sucursal en el dashboard del GERENTE para configuración
     
-    // Para GERENTE u otros roles, filtrar por su sucursal
-    return this.productosService.findBySucursal(Number(sucursalId));
+    return this.productosService.findAll();
   }
 
   @Get('categorias')
