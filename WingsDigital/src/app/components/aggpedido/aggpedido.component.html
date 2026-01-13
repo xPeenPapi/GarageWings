@@ -204,8 +204,13 @@
         
         <ng-container *ngIf="vistaActual === 'categorias'">
           <div class="grid-menu-categorias" *ngIf="categorias && categorias.length > 0; else noCategorias">
-            <div *ngFor="let categoria of categorias" class="categoria-card" (click)="filtrarPorCategoria(categoria.id)">
+            <div *ngFor="let categoria of categorias" 
+                 class="categoria-card" 
+                 [class.agotado]="!categoria.activo"
+                 (click)="categoria.activo ? filtrarPorCategoria(categoria.id) : null">
               
+              <div class="badge-agotado" *ngIf="!categoria.activo">AGOTADO</div>
+
               <div class="categoria-imagen-wrapper" 
                    style="height: 120px; display: flex; align-items: center; justify-content: center; padding: 10px;">
                    
@@ -234,14 +239,23 @@
 
         <ng-container *ngIf="vistaActual === 'items'">
           <div class="grid-menu-items">
-            <div *ngFor="let item of itemsFiltrados" class="menu-item-card">
+            <div *ngFor="let item of itemsFiltrados" 
+                 class="menu-item-card"
+                 [class.agotado]="!item.activo">
+              
+              <div class="badge-agotado" *ngIf="!item.activo">AGOTADO</div>
+
               <div class="item-info">
                 <h4>{{ item.nombre }}</h4>
                 <p>{{ item.descripcion }}</p>
               </div>
               <div class="item-precio-accion">
                 <span class="precio">${{ (item.precioBase || 0) | number:'1.2-2' }}</span>
-                <button class="btn-agregar" (click)="agregarAlPedido(item)">+ Agregar</button>
+                <button class="btn-agregar" 
+                        [disabled]="!item.activo"
+                        (click)="item.activo ? agregarAlPedido(item) : null">
+                    {{ item.activo ? '+ Agregar' : 'No disponible' }}
+                </button>
               </div>
             </div>
           </div>
@@ -301,8 +315,8 @@
                  <div style="display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-check-circle" style="color: #f39c12; font-size: 1.3rem;"></i>
                     <div>
-                       <h4 style="margin: 0;">Mesa {{ pedido.mesaId }}</h4>
-                       <p style="margin: 0; font-size: 0.9rem; color: #666;">Listo para entregar</p>
+                        <h4 style="margin: 0;">Mesa {{ pedido.mesaId }}</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">Listo para entregar</p>
                     </div>
                  </div>
 
@@ -406,11 +420,18 @@
         <h2>Categorías</h2>
       </header>
       <div class="lista-movil">
-        <div *ngFor="let categoria of categorias" class="item-lista-movil" (click)="filtrarPorCategoria(categoria.id)">
+        <div *ngFor="let categoria of categorias" 
+             class="item-lista-movil" 
+             [class.agotado-movil]="!categoria.activo"
+             (click)="categoria.activo ? filtrarPorCategoria(categoria.id) : null">
+          
           <img *ngIf="categoria.imagenUrl" [src]="categoria.imagenUrl" style="width: 40px; height: 40px; border-radius: 5px; object-fit: cover; margin-right: 10px;">
           
-          <span>{{ categoria.nombre }}</span>
-          <i class="fas fa-chevron-right" style="margin-left: auto;"></i>
+          <span [style.text-decoration]="!categoria.activo ? 'line-through' : 'none'">{{ categoria.nombre }}</span>
+          
+          <span *ngIf="!categoria.activo" style="margin-left: auto; color: red; font-size: 0.7rem; font-weight: bold; margin-right: 10px;">AGOTADO</span>
+          
+          <i *ngIf="categoria.activo" class="fas fa-chevron-right" style="margin-left: auto;"></i>
         </div>
       </div>
     </ng-container>
@@ -421,12 +442,20 @@
         <h2>{{ categoriaSeleccionada }}</h2>
       </header>
       <div class="lista-movil">
-        <div *ngFor="let item of itemsFiltrados" class="item-platillo-movil">
+        <div *ngFor="let item of itemsFiltrados" 
+             class="item-platillo-movil"
+             [class.agotado-movil]="!item.activo">
           <div class="info-platillo">
-            <h4>{{ item.nombre }}</h4>
+            <h4 [style.text-decoration]="!item.activo ? 'line-through' : 'none'">{{ item.nombre }}</h4>
             <p>{{ item.precioBase | currency }}</p>
+            <span *ngIf="!item.activo" style="color: red; font-size: 0.7rem; font-weight: bold;">AGOTADO</span>
           </div>
-          <button class="btn-agregar-movil" (click)="agregarAlPedido(item)">Agregar</button>
+          <button class="btn-agregar-movil" 
+                  [disabled]="!item.activo"
+                  [style.opacity]="!item.activo ? '0.5' : '1'"
+                  (click)="item.activo ? agregarAlPedido(item) : null">
+              Agregar
+          </button>
         </div>
       </div>
     </ng-container>

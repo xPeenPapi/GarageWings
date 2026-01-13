@@ -1482,3 +1482,32 @@ body {
   align-items: center;
   gap: 4px;
 }
+
+
+.mesa-card.mantenimiento {
+  background-color: #e2e8f0; /* Gris claro */
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  ); /* Efecto rayado de "construcción" */
+}
+
+.mesa-card.mantenimiento .mesa-icon {
+  color: #94a3b8;
+}
+
+.mesa-card.mantenimiento:hover {
+  transform: none; /* No se mueve al pasar el mouse */
+  box-shadow: none;
+}
+
+.estado-indicator.mantenimiento {
+  background-color: #64748b; /* Punto gris */
+}

@@ -296,10 +296,16 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   // GESTIÓN DEL CARRITO
   // =========================================================
 
-  agregarAlPedido(item: Producto): void {
-    this.itemSeleccionadoParaModal = { ...item, cantidad: 1, notas: '' };
-    this.mostrarModal = true;
+agregarAlPedido(item: Producto): void {
+  // 🛡️ VALIDACIÓN DE SEGURIDAD
+  if (!item.activo) {
+    alert('Este producto está agotado temporalmente.');
+    return;
   }
+
+  this.itemSeleccionadoParaModal = { ...item, cantidad: 1, notas: '' };
+  this.mostrarModal = true;
+}
 
   confirmarAgregarItem(itemConDetalles: any): void {
     const itemExistente = this.pedido.find(p => 

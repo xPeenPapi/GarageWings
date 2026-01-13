@@ -1054,3 +1054,40 @@
   background-color: #219150;
   transform: translateY(-1px);
 }
+
+/* ========================================= */
+/* ESTILOS PARA PRODUCTOS AGOTADOS           */
+/* ========================================= */
+
+.producto-card.agotado {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  cursor: not-allowed;
+  position: relative; /* Necesario para el badge */
+  opacity: 0.7;
+  filter: grayscale(100%); /* Lo pone en blanco y negro */
+}
+
+.producto-card.agotado:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e2e8f0;
+}
+
+.badge-agotado {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  background-color: rgba(220, 38, 38, 0.9); /* Rojo semitransparente */
+  color: white;
+  padding: 5px 15px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  border-radius: 8px;
+  z-index: 10;
+  border: 2px solid white;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  text-transform: uppercase;
+  pointer-events: none; /* Permite ver el click fallido si fuera necesario */
+}

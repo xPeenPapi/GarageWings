@@ -398,6 +398,11 @@ cargarOrdenesParaLlevar() {
   // ==========================================
   
   seleccionarMesa(mesa: MesaVisual): void {
+
+    if (mesa.estado === 'mantenimiento') {
+    this.mostrarAlerta('⛔ Esta mesa está inhabilitada por Gerencia.', 'error');
+    return;
+    }
     
     // --- 0. SI LA MESA ESTÁ SUCIA ---
     if (mesa.estado === 'sucia') {

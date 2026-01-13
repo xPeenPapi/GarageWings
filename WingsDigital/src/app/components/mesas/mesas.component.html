@@ -176,6 +176,7 @@
                'status-ocupada': mesa.estado === 'ocupada',
                'status-sucia': mesa.estado === 'sucia',
                'status-union-hija': mesa.mesaPadreId,
+               'status-mantenimiento': mesa.estado === 'mantenimiento',
                'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
                'dimmed-union': modoUnion && mesaPrincipalUnion && mesa.estado !== 'disponible' && mesa.id !== mesaPrincipalUnion.id,
                'mesa-origen-transferencia': mesaOrigenTransferencia && mesa.id === mesaOrigenTransferencia.id,
@@ -184,7 +185,12 @@
              (click)="seleccionarMesa(mesa)">
              
           <div class="mesa-grafica-container">
-            <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+            <div *ngIf="mesa.estado === 'mantenimiento'" class="icono-bloqueo">
+                <i class="fas fa-ban" style="font-size: 3rem; color: #94a3b8; opacity: 0.5;"></i>
+            </div>
+            <ng-container *ngIf="mesa.estado !== 'mantenimiento'">
+                <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+            </ng-container>
           </div>
           
           <div class="mesa-info">
@@ -195,6 +201,7 @@
                 <i *ngIf="!mesa.mesaPadreId && mesa.estado === 'ocupada'" class="fas fa-times-circle texto-ocupada"></i>
                 
                 <i *ngIf="mesa.estado === 'sucia'" class="fas fa-broom" style="color: white;"></i>
+                <i *ngIf="mesa.estado === 'mantenimiento'" class="fas fa-lock" style="color: #64748b;"></i>
                 
                 <i *ngIf="mesa.mesaPadreId" class="fas fa-link texto-unida"></i>
 
@@ -212,7 +219,11 @@
               </ng-container>
 
               <ng-container *ngIf="!mesa.mesaPadreId">
-                  <p><span class="estado-badge" [ngClass]="'badge-' + mesa.estado">{{mesa.estado | titlecase}}</span></p>
+                  <p>
+                    <span class="estado-badge" [ngClass]="mesa.estado === 'mantenimiento' ? 'badge-mantenimiento' : 'badge-' + mesa.estado">
+                        {{ mesa.estado === 'mantenimiento' ? 'Inhabilitada' : (mesa.estado | titlecase) }}
+                    </span>
+                  </p>
 
                   <ng-container *ngIf="mesa.estado === 'ocupada'">
                     <p style="display: flex; align-items: center; gap: 6px; color: #555;">
@@ -239,6 +250,12 @@
                           <i class="fas fa-hand-sparkles"></i> Requiere Limpieza
                       </p>
                       <p style="color: #e0e0e0; font-size: 0.8rem;">Toque para liberar</p>
+                  </ng-container>
+
+                  <ng-container *ngIf="mesa.estado === 'mantenimiento'">
+                      <p style="color: #64748b; font-size: 0.85rem; margin-top: 5px;">
+                          <i class="fas fa-tools"></i> Mesa desactivada por gerencia.
+                      </p>
                   </ng-container>
 
                   <p *ngIf="mesa.estado === 'disponible'" style="color: #888;">
@@ -319,6 +336,7 @@
                 'status-disponible': mesa.estado === 'disponible',
                 'status-ocupada': mesa.estado === 'ocupada',
                 'status-sucia': mesa.estado === 'sucia',
+                'status-mantenimiento': mesa.estado === 'mantenimiento',
                 'status-union-hija': mesa.mesaPadreId,
                 'mesa-seleccionada-union': mesaPrincipalUnion && mesa.id === mesaPrincipalUnion.id,
                 'mesa-origen-transferencia': mesaOrigenTransferencia && mesa.id === mesaOrigenTransferencia.id
@@ -331,12 +349,23 @@
             <i class="fas fa-utensils"></i> ¡Listo!
           </div>
 
-          <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+          <ng-container *ngIf="mesa.estado !== 'mantenimiento'">
+              <ng-container *ngTemplateOutlet="mesaGrafica; context: {$implicit: mesa}"></ng-container>
+          </ng-container>
+          
+          <div *ngIf="mesa.estado === 'mantenimiento'" class="icono-bloqueo-movil" style="text-align: center; margin-bottom: 5px;">
+              <i class="fas fa-ban" style="font-size: 2rem; color: #94a3b8; opacity: 0.7;"></i>
+          </div>
+
           <div class="mesa-info-movil">
             <p *ngIf="mesa.mesaPadreId" style="color: #e67e22; font-weight: bold; font-size: 0.8rem; margin-bottom: 2px;">
                 Unida a M{{ obtenerNumeroMesa(mesa.mesaPadreId!) }}
             </p>
-            <p *ngIf="!mesa.mesaPadreId"><span class="estado-badge" [ngClass]="'badge-' + mesa.estado">{{mesa.estado | titlecase}}</span></p>
+            <p *ngIf="!mesa.mesaPadreId">
+                <span class="estado-badge" [ngClass]="mesa.estado === 'mantenimiento' ? 'badge-mantenimiento' : 'badge-' + mesa.estado">
+                    {{ mesa.estado === 'mantenimiento' ? 'Inhabilitada' : (mesa.estado | titlecase) }}
+                </span>
+            </p>
             <p *ngIf="mesa.mesero && !mesa.mesaPadreId"><strong>{{mesa.mesero}}</strong></p>
           </div>
         </div>
@@ -425,10 +454,13 @@
 <div class="modal-backdrop alerta-superior" *ngIf="modalAlerta.visible">
   <div class="modal-custom">
     <div class="modal-icon" [style.color]="modalAlerta.tipo === 'error' ? '#dc3545' : '#e67e22'">
-        <i class="fas" [ngClass]="modalAlerta.tipo === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'"></i>
+        <i class="fas" *ngIf="!modalAlerta.mensaje.includes('inhabilitada')" [ngClass]="modalAlerta.tipo === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'"></i>
+        <i class="fas fa-ban" *ngIf="modalAlerta.mensaje.includes('inhabilitada')"></i>
     </div>
+    
     <h3>{{ modalAlerta.tipo === 'error' ? 'Atención' : 'Información' }}</h3>
     <p>{{ modalAlerta.mensaje }}</p>
+    
     <div class="modal-actions">
       <button class="btn-confirm" (click)="cerrarAlerta()">Entendido</button>
     </div>
