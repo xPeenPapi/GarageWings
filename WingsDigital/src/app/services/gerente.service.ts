@@ -13,12 +13,19 @@ export interface DashboardData {
   ordenesTotales: number;
   personalActivo: number;
   ticketPromedio: number;
-  resumenPago: {
+  roles: {
+    meseros: number;
+    cocina: number;
+    barra: number;
+    caja: number;
+    gerentes: number;
+  };
+  resumenPago?: {
     efectivo: number;
     tarjeta: number;
     transferencia: number;
   };
-  totalGeneral: number;
+  totalGeneral?: number;
 }
 
 // INTERFAZ SUCURSAL
@@ -79,6 +86,14 @@ export class GerenteService {
   // ==========================================
   // A) MÉTODOS DE DASHBOARD (Reportes)
   // ==========================================
+
+  // ✅ NUEVO: Llama al endpoint correcto /personal/dashboard
+  // Este endpoint automáticamente filtra por la sucursal del gerente logueado
+  getDashboardStats(): Observable<DashboardData> {
+    return this.http.get<DashboardData>(`${this.baseUrl}/personal/dashboard`, { 
+      headers: this.getHeaders() 
+    });
+  }
 
   // 👇 ACTUALIZADO: Ahora acepta fecha opcional (string 'YYYY-MM-DD')
   getDashboardData(fecha?: string): Observable<DashboardData> {

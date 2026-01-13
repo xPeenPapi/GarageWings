@@ -1,13 +1,36 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { PersonalService } from './personal.service';
+import { JwtAuthGuard } from '../auth/jwd.guard'; // 👈 Asegúrate que la ruta sea correcta
 
 @Controller('personal')
 export class PersonalController {
   constructor(private readonly personalService: PersonalService) {}
 
+  // ✅ NUEVO ENDPOINT PARA EL DASHBOARD FILTRADO
+  @UseGuards(JwtAuthGuard) // 🔒 Protegemos para leer el token
+  @Get('dashboard')
+  async getDashboard(@Req() req) {
+    
+    // 1. Extraemos datos del usuario logueado
+    const sucursalId = req.user.sucursalId;
+    const rol = req.user.rol;
+
+    // 2. Definimos el filtro:
+    // - Si es ADMIN, enviamos null (ver todo).
+    // - Si es GERENTE (o cualquier otro), enviamos su sucursalId.
+    const idParaFiltrar = rol === 'ADMIN' ? null : sucursalId;
+
+    console.log(`📊 Dashboard solicitado por: ${req.user.email} (${rol}) - Filtro Sucursal ID: ${idParaFiltrar}`);
+
+    // 3. Llamamos al servicio con el filtro
+    return this.personalService.getDashboardStats(idParaFiltrar);
+  }
+
+  // --- TUS MÉTODOS EXISTENTES (SIN CAMBIOS) ---
+
   @Get()
   findAll() {
-    const empresaId = 1; // Hardcodeado por ahora
+    const empresaId = 1; 
     return this.personalService.findAll(empresaId);
   }
 
@@ -26,7 +49,7 @@ export class PersonalController {
       return this.personalService.create({ 
         ...data, 
         empresaId: 1, 
-        sucursalId: sucursalId // ✅ Usar el que viene del frontend
+        sucursalId: sucursalId 
       });
       
     } catch (error) {

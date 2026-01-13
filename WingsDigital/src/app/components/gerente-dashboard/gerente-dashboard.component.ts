@@ -155,20 +155,44 @@ export class GerenteDashboardComponent implements OnInit {
     }
 
     this.cargando = true;
-    this.gerenteService.getDashboardData(this.fechaSeleccionada).subscribe({
+    
+    // ✅ ACTUALIZADO: Usar getDashboardStats() que llama a /personal/dashboard
+    // Este endpoint automáticamente filtra por la sucursal del gerente logueado
+    this.gerenteService.getDashboardStats().subscribe({
       next: (data: DashboardData) => {
-        this.resumenDia = { ...data.resumenPago };
-        this.totalGeneral = data.totalGeneral;
+        console.log('📊 Dashboard recibido:', data);
+        
+        // Actualizar estadísticas
         this.estadisticas = {
           ventasTotales: data.ventasTotales,
           ordenesTotales: data.ordenesTotales,
           personalActivo: data.personalActivo,
           ticketPromedio: data.ticketPromedio
         };
+
+        // Actualizar gráfica de roles
+        if (data.roles) {
+          this.rolesStats = [
+            { rol: 'Mesero', cantidad: data.roles.meseros, color: '#3b82f6' },
+            { rol: 'Cocina', cantidad: data.roles.cocina, color: '#ec4899' },
+            { rol: 'Barra', cantidad: data.roles.barra, color: '#10b981' },
+            { rol: 'Caja', cantidad: data.roles.caja, color: '#f59e0b' },
+            { rol: 'Gerente', cantidad: data.roles.gerentes, color: '#8b5cf6' }
+          ];
+          this.calcularGraficaRoles();
+        }
+
+        // Si vienen datos de resumen de pago (opcional)
+        if (data.resumenPago) {
+          this.resumenDia = { ...data.resumenPago };
+          this.totalGeneral = data.totalGeneral || 0;
+        }
+
         this.cargando = false;
       },
       error: (error) => {
-        console.error('❌ Error dashboard:', error);
+        console.error('❌ Error al cargar dashboard:', error);
+        this.mostrarAlerta('Error al cargar los datos del dashboard');
         this.cargando = false;
       }
     });
