@@ -213,7 +213,7 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
           itemId: item.id,
           productoNombre: item.producto.nombre,
           cantidad: item.cantidad,
-          mesaNumero: pedido.mesa?.numero || 'S/N',
+          mesaNumero: pedido.mesa?.numero ? `Mesa ${pedido.mesa.numero}` : 'Pedido para llevar',
           tiempo: this.getMinutosTranscurridos(horaInicio),
           notas: item.notas,
           opciones: item.opcionesElegidas,

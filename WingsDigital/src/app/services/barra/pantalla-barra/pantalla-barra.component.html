@@ -63,7 +63,7 @@
         <div class="product-info">
           <h3>{{ item.productoNombre }}</h3>
           <div class="tags">
-            <span class="tag-mesa">Mesa {{ item.mesaNumero }}</span>
+            <span class="tag-mesa">{{ item.mesaNumero }}</span>
             <span class="tag-type" [class.elaborated]="item.esElaborada">
                 {{ item.esElaborada ? 'Elaborada' : 'Simple' }}
             </span>

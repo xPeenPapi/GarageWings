@@ -55,7 +55,7 @@
             <div class="product-details">
               <h3>{{ item.productoNombre }}</h3>
               <div class="meta-tags">
-                <span class="tag-mesa"><i class="fas fa-table"></i> Mesa {{ item.mesaNumero }}</span>
+                <span class="tag-mesa"><i class="fas fa-table"></i> {{ item.mesaNumero }}</span>
                 <span class="timer" [ngClass]="{'urgent': item.tiempo > 15}">
                   <i class="far fa-clock"></i> {{ item.tiempo }} min
                 </span>
