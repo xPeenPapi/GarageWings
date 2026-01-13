@@ -10,6 +10,7 @@ import { PersonalModule } from './personal/personal.module';
 // 👇 1. IMPORTAR LOS MÓDULOS NUEVOS
 import { TurnosModule } from './turnos/turnos.module';
 import { SucursalesModule } from './sucursales/sucursales.module';
+import { CategoriasModule } from './categorias/categorias.module'; // 👈 Importar archivo
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SucursalesModule } from './sucursales/sucursales.module';
     // 👇 2. AGREGARLOS A LA LISTA DE IMPORTS
     TurnosModule,     // Para gestionar horarios
     SucursalesModule, // Para abrir nuevas ubicaciones
+    CategoriasModule
   ],
 })
 export class AppModule {}

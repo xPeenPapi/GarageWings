@@ -36,4 +36,14 @@ export class ProductosController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productosService.findOne(id);
   }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number, 
+    @Body() updateData: any // Recibe { activo: boolean }
+  ) {
+    return this.productosService.update(id, updateData);
+  }
+
 }
+
