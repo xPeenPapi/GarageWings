@@ -675,8 +675,22 @@ agregarAlPedido(item: Producto): void {
   verificarNotificaciones() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (ordenes: any[]) => {
+        console.log('🔍 Verificando notificaciones...');
+        console.log('📊 Total órdenes recibidas:', ordenes.length);
+        console.log('👤 Mi empleadoId:', this.empleadoId);
+        
         // Obtener notificaciones ya vistas
         const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
+        console.log('👁️ Notificaciones ya vistas:', vistas);
+        
+        const ordenesLista = ordenes.filter(o => o.estado === 'LISTA');
+        console.log('📋 Órdenes en estado LISTA:', ordenesLista.length);
+        
+        if (ordenesLista.length > 0) {
+          ordenesLista.forEach(o => {
+            console.log(`  - Orden ${o.id}: meseroId=${o.meseroId}, estado=${o.estado}, vista=${vistas.includes(o.id)}`);
+          });
+        }
         
         const misOrdenesListas = ordenes.filter(o => {
             const esLista = o.estado === 'LISTA';
@@ -688,6 +702,8 @@ agregarAlPedido(item: Producto): void {
             const soyYo = String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
             return soyYo;
         });
+        
+        console.log('✅ Mis órdenes listas (nuevas):', misOrdenesListas.length);
 
         this.pedidosListos = misOrdenesListas.map(o => {
             const totalCalculado = (o.items || []).reduce((acc: number, item: any) => {
