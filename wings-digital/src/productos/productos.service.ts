@@ -98,10 +98,10 @@ async findAllCategorias() {
     });
   }
 
-  async update(id: number, data: any) {
-    return this.prisma.producto.update({
-      where: { id },
-      data: data // Prisma actualizará solo los campos que envíes (ej: 'activo')
-    });
-  }
+async update(id: number, data: any) {
+  return this.prisma.producto.update({
+    where: { id },
+    data: data, // Actualiza lo que venga (ej: activo: false)
+  });
+}
 }

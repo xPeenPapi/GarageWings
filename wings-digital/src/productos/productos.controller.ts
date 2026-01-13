@@ -37,13 +37,13 @@ export class ProductosController {
     return this.productosService.findOne(id);
   }
 
-  @Patch(':id')
-  update(
+@Patch(':id')
+  async update(
     @Param('id', ParseIntPipe) id: number, 
-    @Body() updateData: any // Recibe { activo: boolean }
+    @Body() updateData: any // Recibe { activo: false }
   ) {
     return this.productosService.update(id, updateData);
   }
-
 }
+
 

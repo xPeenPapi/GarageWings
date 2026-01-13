@@ -25,6 +25,7 @@ enum EstadoMesa {
   DISPONIBLE
   OCUPADA
   SUCIA
+  MANTENIMIENTO // 👈 ✅ NUEVO: Para que el gerente pueda desactivar mesas
 }
 
 enum EstadoOrden {
@@ -71,12 +72,11 @@ model Sucursal {
   activa    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  empresa    Empresa            @relation(fields: [empresaId], references: [id])
+  empresa    Empresa             @relation(fields: [empresaId], references: [id])
   empleados  Empleado[]
   mesas      Mesa[]
   inventario SucursalProducto[]
   
-  // ⬅️ NUEVO: Relación con Turnos
   turnos     Turno[]
 
   @@map("sucursales")
@@ -100,7 +100,6 @@ model Empleado {
   sucursal Sucursal? @relation(fields: [sucursalId], references: [id])
   ordenes  Orden[]
   
-  // ⬅️ NUEVO: Relación con Turnos
   turnos   Turno[]
     
   @@index([empresaId])
@@ -117,12 +116,12 @@ model Mesa {
   numero        String
   capacidad     Int
   tipo          String?
-  estado        EstadoMesa  @default(DISPONIBLE)
+  estado        EstadoMesa  @default(DISPONIBLE) // Ahora soporta MANTENIMIENTO
   posX          Int?
   posY          Int?
-  mesero        String?     // Nombre del mesero
-  meseroId      Int?        // ID del mesero
-  horaApertura  DateTime?   // ✅ NUEVO: Timestamp de cuándo se ocupó
+  mesero        String?     
+  meseroId      Int?        
+  horaApertura  DateTime?   
   
   sucursalId    Int
   sucursal      Sucursal    @relation(fields: [sucursalId], references: [id])
@@ -132,8 +131,6 @@ model Mesa {
   @@map("Mesa")
 }
 
-
-
 model Categoria {
   id        Int    @id @default(autoincrement())
   empresaId Int    @map("empresa_id")
@@ -142,8 +139,11 @@ model Categoria {
   descripcion String? @db.VarChar(255)
   iconoColor  String? @db.VarChar(50) 
   imagenUrl   String? @map("imagen_url") @db.Text 
+  
+  // 👈 ✅ NUEVO: Para activar/desactivar categorías enteras
+  activo      Boolean @default(true) 
     
-  empresa    Empresa    @relation(fields: [empresaId], references: [id])
+  empresa     Empresa    @relation(fields: [empresaId], references: [id])
   productos Producto[]
 
   @@unique([empresaId, nombre])
@@ -151,31 +151,34 @@ model Categoria {
 }
 
 model Producto {
-  id          Int             @id @default(autoincrement())
-  empresaId   Int             @map("empresa_id")
-  categoriaId Int?            @map("categoria_id")
+  id            Int              @id @default(autoincrement())
+  empresaId     Int              @map("empresa_id")
+  categoriaId   Int?             @map("categoria_id")
     
-  nombre           String          @db.VarChar(255)
-  descripcion      String?         @db.Text
-  precioBase       Decimal         @db.Decimal(10, 2) @map("precio_base")
-  imagenUrl        String?         @db.VarChar(255) @map("imagen_url")
-  destino          DestinoProducto @default(COCINA)
-    
-  configuracion Json?           @map("configuracion_json") 
+  nombre            String           @db.VarChar(255)
+  descripcion       String?          @db.Text
+  precioBase        Decimal          @db.Decimal(10, 2) @map("precio_base")
+  imagenUrl         String?          @db.VarChar(255) @map("imagen_url")
+  destino           DestinoProducto  @default(COCINA)
+  
+  // 👈 ✅ NUEVO: Para que el gerente pueda ponerlo como "Agotado"
+  activo            Boolean          @default(true)
 
-  empresa        Empresa             @relation(fields: [empresaId], references: [id])
-  categoria      Categoria?          @relation(fields: [categoriaId], references: [id])
-  itemsOrden     ItemOrden[]
-  disponibilidad SucursalProducto[]
+  configuracion Json?            @map("configuracion_json") 
+
+  empresa         Empresa              @relation(fields: [empresaId], references: [id])
+  categoria       Categoria?           @relation(fields: [categoriaId], references: [id])
+  itemsOrden      ItemOrden[]
+  disponibilidad  SucursalProducto[]
 
   @@index([empresaId])
   @@map("productos")
 }
 
 model SucursalProducto {
-  sucursalId Int     @map("sucursal_id")
-  productoId Int     @map("producto_id")
-  disponible Boolean @default(true)
+  sucursalId Int      @map("sucursal_id")
+  productoId Int      @map("producto_id")
+  disponible Boolean  @default(true)
   stock      Int?
 
   sucursal Sucursal @relation(fields: [sucursalId], references: [id])
@@ -200,8 +203,8 @@ model Orden {
   propina     Float?    @default(0)
   metodoPago  String?
 
-  mesa   Mesa?      @relation(fields: [mesaId], references: [id])
-  mesero Empleado?  @relation(fields: [meseroId], references: [id])
+  mesa   Mesa?     @relation(fields: [mesaId], references: [id])
+  mesero Empleado? @relation(fields: [meseroId], references: [id])
   items  ItemOrden[]
   pagos  Pago[]
 
@@ -210,17 +213,16 @@ model Orden {
 }
 
 model ItemOrden {
-  id             Int         @id @default(autoincrement())
-  ordenId        Int         @map("orden_id")
-  productoId     Int         @map("producto_id")
+  id             Int           @id @default(autoincrement())
+  ordenId        Int           @map("orden_id")
+  productoId     Int           @map("producto_id")
   cantidad       Int
-  precioUnitario Decimal     @db.Decimal(10, 2) @map("precio_unitario")
+  precioUnitario Decimal       @db.Decimal(10, 2) @map("precio_unitario")
     
   opcionesElegidas Json?       @map("opciones_elegidas")
   estado           EstadoOrden @default(PENDIENTE) 
   
-  // ✅ CAMBIO REALIZADO: Nuevo campo destino
-  destino          String?     @db.VarChar(20) // "COCINA" o "BARRA"
+  destino          String?     @db.VarChar(20) 
 
   notas            String?     @db.Text
 
@@ -242,17 +244,14 @@ model Pago {
   @@map("pagos")
 }
 
-// ==========================================
-// ⬅️ NUEVO MODELO PARA GESTIÓN DE TURNOS
-// ==========================================
 model Turno {
   id         Int      @id @default(autoincrement())
   empleadoId Int      @map("empleado_id")
   sucursalId Int      @map("sucursal_id")
   
-  fecha      DateTime // El día del turno (YYYY-MM-DD)
-  horaInicio String   @map("hora_inicio") @db.VarChar(10) // "09:00"
-  horaFin    String   @map("hora_fin")    @db.VarChar(10) // "17:00"
+  fecha      DateTime 
+  horaInicio String   @map("hora_inicio") @db.VarChar(10)
+  horaFin    String   @map("hora_fin")    @db.VarChar(10)
   notas      String?  @db.Text
 
   empleado   Empleado @relation(fields: [empleadoId], references: [id])

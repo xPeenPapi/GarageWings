@@ -1,5 +1,3 @@
-// mesa.controller.ts - VERSIÓN CORREGIDA COMPLETA
-
 import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoMesa } from '@prisma/client';
@@ -15,7 +13,7 @@ export class MesasController {
     });
   }
 
-  // ✅ MÉTODO CORREGIDO: Normaliza estados y maneja SUCIA correctamente
+  // ✅ MÉTODO CORREGIDO: Normaliza estados y maneja MANTENIMIENTO correctamente
   @Patch(':id/estado')
   async actualizarEstado(
     @Param('id', ParseIntPipe) id: number,
@@ -26,7 +24,9 @@ export class MesasController {
       
       // ✅ NORMALIZAR ESTADO A ENUM DE PRISMA
       let estadoNormalizado: EstadoMesa;
-      const estadoRecibido = String(updateData.estado).toUpperCase();
+      
+      // Convertir a mayúsculas y manejar undefined
+      const estadoRecibido = String(updateData.estado || '').toUpperCase();
       
       switch(estadoRecibido) {
         case 'DISPONIBLE':
@@ -39,7 +39,11 @@ export class MesasController {
         case 'SUCIA':
           estadoNormalizado = EstadoMesa.SUCIA;
           break;
+        case 'MANTENIMIENTO': // 👈 Soporte para el nuevo estado
+          estadoNormalizado = EstadoMesa.MANTENIMIENTO;
+          break;
         default:
+          console.warn(`⚠️ Estado desconocido "${estadoRecibido}", forzando a DISPONIBLE`);
           estadoNormalizado = EstadoMesa.DISPONIBLE;
       }
       
@@ -47,16 +51,20 @@ export class MesasController {
         estado: estadoNormalizado
       };
       
-      // ✅ SI SE ESTÁ OCUPANDO LA MESA
+      // ✅ CASO 1: OCUPAR MESA
       if (estadoNormalizado === EstadoMesa.OCUPADA) {
         data.mesero = updateData.mesero || null;
+        // Solo asignamos ID si viene y es un número válido
+        if (updateData.meseroId) {
+            data.meseroId = Number(updateData.meseroId);
+        }
         
         if (updateData.horaApertura) {
           // El frontend envió un timestamp específico (apertura nueva)
           data.horaApertura = new Date(updateData.horaApertura);
           console.log(`✅ Mesa ${id} abierta con timestamp: ${data.horaApertura}`);
         } else {
-          // Verificar si la mesa ya tiene horaApertura
+          // Verificar si la mesa ya tiene horaApertura (Reentrada)
           const mesaActual = await this.prisma.mesa.findUnique({
             where: { id },
             select: { horaApertura: true }
@@ -73,13 +81,17 @@ export class MesasController {
         }
       }
       
-      // ✅ SI SE ESTÁ LIBERANDO LA MESA (DISPONIBLE O SUCIA)
-      if (estadoNormalizado === EstadoMesa.DISPONIBLE || estadoNormalizado === EstadoMesa.SUCIA) {
+      // ✅ CASO 2: LIBERAR, LIMPIAR O DESACTIVAR (MANTENIMIENTO)
+      if (
+          estadoNormalizado === EstadoMesa.DISPONIBLE || 
+          estadoNormalizado === EstadoMesa.SUCIA || 
+          estadoNormalizado === EstadoMesa.MANTENIMIENTO
+      ) {
         data.mesero = null;
         data.meseroId = null;
         data.horaApertura = null;
         
-        console.log(`🧹 Mesa ${id} liberada/limpiada - Estado: ${estadoNormalizado}`);
+        console.log(`🧹 Mesa ${id} liberada/limpiada/desactivada - Estado: ${estadoNormalizado}`);
       }
       
       const mesaActualizada = await this.prisma.mesa.update({
