@@ -172,14 +172,6 @@ Sé conciso, profesional y enfocado en acciones prácticas. Usa formato markdown
   }
 
   private async llamarOpenRouter(prompt: string) {
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    
-    console.log('🔑 API KEY presente:', !!OPENROUTER_API_KEY);
-    console.log('🔑 Primeros 15 chars:', OPENROUTER_API_KEY?.substring(0, 15));
-    
-    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.includes('REEMPLAZA')) {
-      throw new Error('API Key de OpenRouter no configurada. Configura OPENROUTER_API_KEY en el archivo .env');
-    }
     
     console.log('📤 Enviando petición a OpenRouter...');
     
