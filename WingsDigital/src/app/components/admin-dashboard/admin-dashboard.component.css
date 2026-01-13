@@ -1752,6 +1752,16 @@
   color: white;
 }
 
+.btn-reactivar {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.btn-reactivar:hover {
+  background: #10b981;
+  color: white;
+}
+
 .btn-despedir {
   background: #fee2e2;
   color: #991b1b;

@@ -278,7 +278,7 @@
                   </span>
                 </div>
                 <p class="sucursal-detalles">
-                  {{ sucursal.empleadosActivos }} empleados activos • Hora pico: {{ sucursal.horaPico }}
+                  {{ sucursal.empleadosActivos }} empleados activos • {{ contarMesasPorSucursal(sucursal.id) }} mesas • Hora pico: {{ sucursal.horaPico }}
                 </p>
                 <p class="sucursal-detalles" style="margin-top: 4px; color: #94a3b8; font-size: 0.85rem;">
                   <i class="fas fa-map-marker-alt"></i> {{ sucursal.direccion || 'Sin dirección registrada' }}
@@ -439,10 +439,13 @@
                   <button class="btn-accion btn-modificar" (click)="editarEmpleado(empleado)">
                     <i class="fas fa-edit"></i> Modificar
                   </button>
-                  <button class="btn-accion btn-vacaciones" (click)="ponerEnVacaciones(empleado)">
-                    <i class="fas fa-umbrella-beach"></i> Vacaciones
+                  <button class="btn-accion" 
+                          [ngClass]="empleado.activo ? 'btn-vacaciones' : 'btn-reactivar'"
+                          (click)="ponerEnVacaciones(empleado)">
+                    <i class="fas" [class.fa-umbrella-beach]="empleado.activo" [class.fa-user-check]="!empleado.activo"></i>
+                    {{ empleado.activo ? 'Vacaciones' : 'Reactivar' }}
                   </button>
-                  <button class="btn-accion btn-despedir" (click)="despedirEmpleado(empleado)">
+                  <button class="btn-accion btn-despedir" (click)="despedirEmpleado(empleado)" *ngIf="empleado.activo">
                     <i class="fas fa-user-slash"></i> Despedir
                   </button>
                 </div>

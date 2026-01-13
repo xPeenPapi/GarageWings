@@ -99,7 +99,13 @@ export class PersonalController {
 
   @Patch(':id')
   patch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    console.log(`📝 Actualizando empleado ${id}:`, data);
     return this.personalService.update(id, data);
+  }
+
+  @Patch(':id/reactivar')
+  async reactivar(@Param('id', ParseIntPipe) id: number) {
+    return this.personalService.update(id, { activo: true, enVacaciones: false });
   }
 
   @Delete(':id')

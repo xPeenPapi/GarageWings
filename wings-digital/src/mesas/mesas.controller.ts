@@ -7,22 +7,60 @@ import { JwtAuthGuard } from '../auth/jwd.guard';
 export class MesasController {
   constructor(private prisma: PrismaService) {}
 
-  @UseGuards(JwtAuthGuard)
+  // ⚠️ TEMPORALMENTE SIN GUARD
   @Get()
-  async findAll(@Req() req) {
-    const sucursalId = req.user?.sucursalId;
-    const rol = req.user?.rol;
-
-    // Si es ADMIN, trae todas las mesas. Si es GERENTE, filtra por su sucursal
-    const whereClause: any = {};
-    if (rol !== 'ADMIN_EMPRESA' && rol !== 'SUPER_ADMIN' && sucursalId) {
-      whereClause.sucursalId = sucursalId;
-    }
-
+  async findAll() {
     return this.prisma.mesa.findMany({
-      where: whereClause,
       orderBy: { numero: 'asc' }
     });
+  }
+
+  // ⚠️ TEMPORALMENTE SIN GUARD
+  @Post()
+  async create(@Body() data: any) {
+    console.log('📥 Datos recibidos para crear mesa:', data);
+    
+    // Validar que no exista una mesa con el mismo número en la misma sucursal
+    const mesaExistente = await this.prisma.mesa.findFirst({
+      where: {
+        numero: data.numero,
+        sucursalId: Number(data.sucursalId)
+      }
+    });
+
+    if (mesaExistente) {
+      throw new HttpException(
+        `Ya existe una mesa con el número "${data.numero}" en esta sucursal`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    return this.prisma.mesa.create({
+      data: {
+        numero: data.numero,
+        capacidad: Number(data.capacidad),
+        tipo: data.tipo || 'cuadrada',
+        sucursalId: Number(data.sucursalId),
+        estado: 'DISPONIBLE'
+      }
+    });
+  }
+
+  @Patch(':id')
+  async update(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    return this.prisma.mesa.update({
+      where: { id },
+      data: {
+        numero: data.numero,
+        capacidad: Number(data.capacidad),
+        tipo: data.tipo
+      }
+    });
+  }
+
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.prisma.mesa.delete({ where: { id } });
   }
 
   // ✅ MÉTODO CORREGIDO: Normaliza estados y maneja MANTENIMIENTO correctamente

@@ -501,27 +501,55 @@ guardarEmpleado(): void {
   }
 
   ponerEnVacaciones(empleado: any): void {
-    Swal.fire({
-      title: '¿Poner en vacaciones?',
-      html: `<b>${empleado.nombre}</b> será marcado como "En Vacaciones".<br>Podrás reactivarlo cuando regrese.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, vacaciones',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#fbbf24'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // Aquí podrías tener un endpoint específico o actualizar el estado
-        // Por ahora, vamos a desactivar temporalmente
-        this.adminService.editarEmpleado(empleado.id, { activo: false, enVacaciones: true }).subscribe({
-          next: () => {
-            Swal.fire('¡Vacaciones asignadas!', `${empleado.nombre} está ahora en vacaciones.`, 'success');
-            this.cargarDatosDelSistema();
-          },
-          error: (err) => Swal.fire('Error', 'No se pudo actualizar el estado', 'error')
-        });
-      }
-    });
+    const estaInactivo = !empleado.activo;
+    
+    if (estaInactivo) {
+      // Reactivar empleado
+      Swal.fire({
+        title: '¿Reactivar empleado?',
+        html: `<b>${empleado.nombre}</b> será reactivado y volverá a estar disponible.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, reactivar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#10b981'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.adminService.editarEmpleado(empleado.id, { activo: true, enVacaciones: false }).subscribe({
+            next: () => {
+              Swal.fire('¡Reactivado!', `${empleado.nombre} está nuevamente activo.`, 'success');
+              this.cargarDatosDelSistema();
+            },
+            error: (err) => Swal.fire('Error', 'No se pudo reactivar', 'error')
+          });
+        }
+      });
+    } else {
+      // Poner en vacaciones
+      Swal.fire({
+        title: '¿Poner en vacaciones?',
+        html: `<b>${empleado.nombre}</b> será marcado como "En Vacaciones".<br>Podrás reactivarlo cuando regrese.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, vacaciones',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#fbbf24'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.adminService.editarEmpleado(empleado.id, { activo: false, enVacaciones: true }).subscribe({
+            next: () => {
+              Swal.fire('¡Vacaciones asignadas!', `${empleado.nombre} está ahora en vacaciones.`, 'success');
+              this.cargarDatosDelSistema();
+            },
+            error: (err) => Swal.fire('Error', 'No se pudo actualizar el estado', 'error')
+          });
+        }
+      });
+    }
+  }
+
+  contarMesasPorSucursal(sucursalId: number): number {
+    return this.mesas.filter(m => m.sucursalId === sucursalId).length;
   }
 
   despedirEmpleado(empleado: any): void {
