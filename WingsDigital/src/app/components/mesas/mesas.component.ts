@@ -234,14 +234,27 @@ export class MesasComponent implements OnInit, OnDestroy {
   // ✅ CORREGIDO: Ahora excluye también 'ENTREGADA'
 cargarOrdenesParaLlevar() { 
   this.pedidosService.obtenerPendientes().subscribe({ 
-    next: (ordenes: any[]) => { 
+    next: (ordenes: any[]) => {
+      console.log('📦 Total órdenes del backend:', ordenes.length);
+      console.log('📦 Órdenes para llevar (sin mesa):', ordenes.filter(o => !o.mesaId).length);
+      
+      const paraLlevar = ordenes.filter(o => !o.mesaId);
+      console.log('📦 Estados de órdenes para llevar:', paraLlevar.map(o => ({
+        id: o.id,
+        estado: o.estado,
+        mesero: o.mesero,
+        items: o.items?.length || 0
+      })));
+      
       this.ordenesParaLlevarActivas = ordenes.filter(o => 
         !o.mesaId && 
         o.estado !== 'CANCELADA' && 
         o.estado !== 'PAGADA' && 
         o.estado !== 'CERRADA'
         // ✅ NO excluimos ENTREGADA porque aún no están pagados
-      ); 
+      );
+      
+      console.log('✅ Órdenes para llevar activas después del filtro:', this.ordenesParaLlevarActivas.length);
     } 
   }); 
 }
