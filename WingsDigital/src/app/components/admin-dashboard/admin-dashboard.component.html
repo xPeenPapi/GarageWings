@@ -1,6 +1,5 @@
 <div class="dashboard-admin">
 
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="perfil-admin">
@@ -17,7 +16,6 @@
 
     <div class="sidebar-body">
       
-      <!-- Filtro de Sucursal -->
       <div class="filtro-sucursal">
         <h3>FILTRO DE SUCURSAL</h3>
         
@@ -39,7 +37,6 @@
         </button>
       </div>
 
-      <!-- Resumen General -->
       <div class="resumen-general">
         <h3>RESUMEN GENERAL</h3>
         
@@ -64,24 +61,24 @@
         <div class="metodo-pago">
           <i class="fas fa-dollar-sign"></i>
           <span class="label">Efectivo</span>
-          <span class="monto">${{ resumenGeneral.efectivo | number:'1.2-2' }}</span>
+          <span class="monto">{{ resumenGeneral.efectivo | currency }}</span>
         </div>
 
         <div class="metodo-pago">
           <i class="fas fa-credit-card"></i>
           <span class="label">Tarjeta</span>
-          <span class="monto">${{ resumenGeneral.tarjeta | number:'1.2-2' }}</span>
+          <span class="monto">{{ resumenGeneral.tarjeta | currency }}</span>
         </div>
 
         <div class="metodo-pago">
           <i class="fas fa-exchange-alt"></i>
           <span class="label">Transferencia</span>
-          <span class="monto">${{ resumenGeneral.transferencia | number:'1.2-2' }}</span>
+          <span class="monto">{{ resumenGeneral.transferencia | currency }}</span>
         </div>
 
         <div class="total-general">
           <span>Ventas Totales</span>
-          <span class="monto-total">${{ resumenGeneral.total | number:'1.2-2' }}</span>
+          <span class="monto-total">{{ resumenGeneral.total | currency }}</span>
         </div>
       </div>
     </div>
@@ -94,10 +91,8 @@
     </div>
   </aside>
 
-  <!-- Contenido Principal -->
   <main class="contenido-principal">
     
-    <!-- Header -->
     <header class="header-dashboard">
       <div class="breadcrumb">
         <span>Garage Wings</span>
@@ -110,13 +105,11 @@
       </div>
     </header>
 
-    <!-- Título -->
     <div class="titulo-seccion">
       <h1>Control Total del Sistema</h1>
       <p>Gestión completa de sucursales, personal, menú y operaciones</p>
     </div>
 
-    <!-- Tarjetas de Estadísticas -->
     <div class="tarjetas-estadisticas">
       
       <div class="tarjeta tarjeta-ventas">
@@ -125,7 +118,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Ventas Totales</p>
-          <h2 class="tarjeta-valor">${{ estadisticas.ventasTotales | number:'1.2-2' }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticas.ventasTotales | currency }}</h2>
         </div>
       </div>
 
@@ -161,7 +154,6 @@
 
     </div>
 
-    <!-- Tabs de Contenido -->
     <div class="tabs-container">
       <div class="tabs-header">
         <button 
@@ -202,69 +194,52 @@
         </button>
       </div>
 
-      <!-- Tab Resumen -->
       <div class="tab-content" *ngIf="tabActiva === 'resumen'">
         <div class="contenido-grid">
           
-          <!-- Ventas por Sucursal -->
           <div class="card card-full">
             <h3 class="card-titulo">Ventas por Sucursal</h3>
             <div class="chart-barras">
+              
               <div class="eje-y">
-                <span>2600</span>
-                <span>1950</span>
-                <span>1300</span>
-                <span>650</span>
+                <span>{{ maxVentas | currency:'USD':'symbol':'1.0-0' }}</span>
+                <span>{{ maxVentas * 0.75 | currency:'USD':'symbol':'1.0-0' }}</span>
+                <span>{{ maxVentas * 0.5 | currency:'USD':'symbol':'1.0-0' }}</span>
+                <span>{{ maxVentas * 0.25 | currency:'USD':'symbol':'1.0-0' }}</span>
                 <span>0</span>
               </div>
+
               <div class="barras-container">
                 <div class="barra-wrapper" *ngFor="let dato of ventasPorSucursalData">
                   <div class="barra" 
                        [style.height.%]="(dato.ventas / maxVentas) * 100"
-                       style="background-color: #20c997;">
+                       style="background-color: #20c997;"
+                       title="{{ dato.ventas | currency }}">
                   </div>
                   <span class="barra-label">{{ dato.sucursal.replace('Garage Sushis ', '') }}</span>
                 </div>
               </div>
+
               <div class="leyenda-chart">
                 <div class="leyenda-item">
                   <span class="leyenda-cuadro" style="background-color: #20c997;"></span>
                   <span>Ventas ($)</span>
                 </div>
-                <div class="leyenda-item">
-                  <span class="leyenda-cuadro" style="background-color: #4285f4;"></span>
-                  <span>Órdenes</span>
-                </div>
               </div>
             </div>
           </div>
 
-          <!-- Personal por Rol -->
           <div class="card">
             <h3 class="card-titulo">Personal por Rol</h3>
-            <div class="chart-container">
-              <div class="pie-chart">
-                <svg viewBox="0 0 200 200" width="250" height="250">
-                  <circle cx="100" cy="100" r="80" fill="transparent"/>
-                  
-                  <!-- Meseros (Azul) - 28.6% -->
-                  <path d="M 100 100 L 100 20 A 80 80 0 0 1 177.13 64.27 Z" fill="#4285f4"/>
-                  
-                  <!-- Gerentes (Morado) - 14.3% -->
-                  <path d="M 100 100 L 177.13 64.27 A 80 80 0 0 1 177.13 135.73 Z" fill="#8e44ad"/>
-                  
-                  <!-- Baristas (Rosa) - 14.3% -->
-                  <path d="M 100 100 L 177.13 135.73 A 80 80 0 0 1 100 180 Z" fill="#ea4c89"/>
-                  
-                  <!-- Cajeros (Verde agua) - 14.3% -->
-                  <path d="M 100 100 L 100 180 A 80 80 0 0 1 22.87 135.73 Z" fill="#20c997"/>
-                  
-                  <!-- Cocineros (Naranja) - 28.6% -->
-                  <path d="M 100 100 L 22.87 135.73 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
-                </svg>
+            
+            <div class="chart-container" style="display: flex; gap: 20px; align-items: center;">
+              
+              <div class="pie-chart-css" 
+                   [style.background]="pieChartRol"
+                   style="width: 150px; height: 150px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               </div>
               
-              <div class="chart-leyenda">
+              <div class="chart-leyenda" style="display: flex; flex-direction: column; gap: 5px;">
                 <div class="leyenda-item">
                   <span class="leyenda-color" style="background-color: #4285f4;"></span>
                   <span class="leyenda-texto">Meseros: {{ personalPorRol.meseros }}</span>
@@ -292,29 +267,31 @@
         </div>
       </div>
 
-      <!-- Tab Sucursales -->
       <div class="tab-content" *ngIf="tabActiva === 'sucursales'">
         <div class="seccion-rendimiento">
           <h3 class="seccion-titulo">Rendimiento de Sucursales</h3>
           
           <div class="lista-sucursales">
-            <div class="sucursal-card" *ngFor="let sucursal of sucursales.slice(0, 2)">
+            <div class="sucursal-card" *ngFor="let sucursal of sucursales">
               <div class="sucursal-icono">
                 <i class="fas fa-building"></i>
               </div>
               <div class="sucursal-info">
                 <div class="sucursal-header">
                   <h4>{{ sucursal.nombre }}</h4>
-                  <span class="badge-activa">Activa</span>
+                  <span class="badge-activa" [style.background]="sucursal.activa ? '#d4edda' : '#f8d7da'" 
+                        [style.color]="sucursal.activa ? '#155724' : '#721c24'">
+                    {{ sucursal.activa ? 'Activa' : 'Inactiva' }}
+                  </span>
                 </div>
                 <p class="sucursal-detalles">
                   {{ sucursal.empleadosActivos }} empleados activos • Hora pico: {{ sucursal.horaPico }}
                 </p>
               </div>
               <div class="sucursal-stats">
-                <h3 class="sucursal-ventas">${{ sucursal.ventas | number:'1.2-2' }}</h3>
+                <h3 class="sucursal-ventas">{{ sucursal.ventas | currency }}</h3>
                 <p class="sucursal-extras">
-                  {{ sucursal.ordenes }} órdenes • ${{ sucursal.ticketPromedio | number:'1.2-2' }} promedio
+                  {{ sucursal.ordenes }} órdenes • {{ sucursal.ticketPromedio | currency }} promedio
                 </p>
               </div>
             </div>
@@ -322,27 +299,17 @@
         </div>
       </div>
 
-      <!-- Tab Personal -->
       <div class="tab-content" *ngIf="tabActiva === 'personal'">
         <div class="contenido-grid">
           
-          <!-- Estado del Personal -->
           <div class="card">
             <h3 class="card-titulo">Estado del Personal</h3>
-            <div class="chart-container">
-              <div class="pie-chart">
-                <svg viewBox="0 0 200 200" width="250" height="250">
-                  <circle cx="100" cy="100" r="80" fill="transparent"/>
-                  
-                  <!-- Activo (Verde) - 85.7% -->
-                  <path d="M 100 100 L 100 20 A 80 80 0 1 1 151.42 38.58 Z" fill="#20c997"/>
-                  
-                  <!-- Vacaciones (Naranja) - 14.3% -->
-                  <path d="M 100 100 L 151.42 38.58 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
-                  
-                  <!-- Inactivo (Rojo) - 0% -->
-                  <!-- No se muestra porque es 0 -->
-                </svg>
+            
+            <div class="chart-container" style="display: flex; gap: 20px; align-items: center;">
+              
+              <div class="pie-chart-css" 
+                   style="width: 150px; height: 150px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"
+                   [style.background]="'conic-gradient(#20c997 0% ' + (estadoPersonal.activo / (estadisticas.personalActivo || 1) * 100) + '%, #fbbc04 ' + (estadoPersonal.activo / (estadisticas.personalActivo || 1) * 100) + '% 100%)'">
               </div>
               
               <div class="chart-leyenda">
@@ -356,13 +323,12 @@
                 </div>
                 <div class="leyenda-item">
                   <span class="leyenda-color" style="background-color: #e74c3c;"></span>
-                  <span class="leyenda-texto">Despedido: {{ estadoPersonal.inactivo }}</span>
+                  <span class="leyenda-texto">Inactivo: {{ estadoPersonal.inactivo }}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Métodos de Pago -->
           <div class="card">
             <h3 class="card-titulo">Métodos de Pago</h3>
             <div class="metodos-pago-lista">
@@ -376,7 +342,7 @@
                   <p class="metodo-porcentaje">
                     {{ calcularPorcentaje(resumenGeneral.efectivo, resumenGeneral.total) | number:'1.1-1' }}% del total
                   </p>
-                  <h3 class="metodo-monto">${{ resumenGeneral.efectivo | number:'1.2-2' }}</h3>
+                  <h3 class="metodo-monto">{{ resumenGeneral.efectivo | currency }}</h3>
                 </div>
               </div>
 
@@ -389,7 +355,7 @@
                   <p class="metodo-porcentaje">
                     {{ calcularPorcentaje(resumenGeneral.tarjeta, resumenGeneral.total) | number:'1.1-1' }}% del total
                   </p>
-                  <h3 class="metodo-monto">${{ resumenGeneral.tarjeta | number:'1.2-2' }}</h3>
+                  <h3 class="metodo-monto">{{ resumenGeneral.tarjeta | currency }}</h3>
                 </div>
               </div>
 
@@ -402,7 +368,7 @@
                   <p class="metodo-porcentaje">
                     {{ calcularPorcentaje(resumenGeneral.transferencia, resumenGeneral.total) | number:'1.1-1' }}% del total
                   </p>
-                  <h3 class="metodo-monto">${{ resumenGeneral.transferencia | number:'1.2-2' }}</h3>
+                  <h3 class="metodo-monto">{{ resumenGeneral.transferencia | currency }}</h3>
                 </div>
               </div>
 
@@ -412,7 +378,6 @@
         </div>
       </div>
 
-      <!-- Tabs vacíos -->
       <div class="tab-content" *ngIf="tabActiva === 'menu' || tabActiva === 'categorias' || tabActiva === 'turnos'">
         <div class="contenido-vacio">
           <i class="fas" 

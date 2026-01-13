@@ -30,6 +30,7 @@
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  z-index: 10;
 }
 
 .sidebar-header {
@@ -208,7 +209,7 @@
 }
 
 .total-general .monto-total {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #fca5a5;
 }
@@ -248,6 +249,7 @@
   flex: 1;
   overflow-y: auto;
   background-color: #f5f7fa;
+  padding-bottom: 40px;
 }
 
 .header-dashboard {
@@ -340,6 +342,7 @@
   align-items: center;
   justify-content: center;
   font-size: 24px;
+  flex-shrink: 0;
 }
 
 .tarjeta-info {
@@ -375,6 +378,7 @@
   border-bottom: 2px solid #e2e8f0;
   padding: 0 20px;
   gap: 8px;
+  overflow-x: auto; /* Para móviles */
 }
 
 .tab-button {
@@ -388,6 +392,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: -2px;
+  white-space: nowrap;
 }
 
 .tab-button:hover {
@@ -419,6 +424,9 @@
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  height: 100%; /* Para que se estiren igual */
+  display: flex;
+  flex-direction: column;
 }
 
 .card-full {
@@ -433,7 +441,7 @@
 }
 
 /* ===========================
-   GRÁFICO DE BARRAS
+   GRÁFICO DE BARRAS (Ventas)
    =========================== */
 
 .chart-barras {
@@ -441,17 +449,19 @@
   gap: 16px;
   align-items: flex-end;
   padding: 20px 0;
+  height: 320px; /* Altura fija para el gráfico */
 }
 
 .eje-y {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 280px;
+  height: 100%;
   font-size: 12px;
   color: #94a3b8;
   padding-right: 12px;
   text-align: right;
+  min-width: 60px;
 }
 
 .barras-container {
@@ -459,7 +469,7 @@
   display: flex;
   gap: 40px;
   align-items: flex-end;
-  height: 280px;
+  height: 100%;
   border-left: 2px solid #e2e8f0;
   border-bottom: 2px solid #e2e8f0;
   padding-left: 20px;
@@ -473,14 +483,16 @@
   align-items: center;
   gap: 12px;
   height: 100%;
+  justify-content: flex-end; /* Alinea barras al fondo */
 }
 
 .barra {
   width: 100%;
   max-width: 80px;
+  min-height: 4px; /* Para que siempre se vea algo */
   border-radius: 6px 6px 0 0;
-  transition: all 0.3s ease;
-  align-self: flex-end;
+  transition: height 0.6s ease-out; /* Animación suave */
+  cursor: pointer;
 }
 
 .barra:hover {
@@ -500,6 +512,35 @@
   gap: 24px;
   margin-top: 20px;
   justify-content: center;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ===========================
+   GRÁFICO DE PIE (CSS NATIVO)
+   =========================== */
+
+.chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 20px 0;
+  flex: 1; /* Ocupa espacio disponible */
+}
+
+.pie-chart-css {
+  flex-shrink: 0;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  transition: background 0.5s ease; /* Transición suave al cambiar datos */
+}
+
+.chart-leyenda {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .leyenda-item {
@@ -510,38 +551,11 @@
   color: #64748b;
 }
 
-.leyenda-cuadro {
+.leyenda-color, .leyenda-cuadro {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
-}
-
-/* ===========================
-   GRÁFICO DE PIE (PASTEL)
-   =========================== */
-
-.chart-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 32px;
-  padding: 20px 0;
-}
-
-.pie-chart {
-  flex-shrink: 0;
-}
-
-.chart-leyenda {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.leyenda-color {
-  width: 20px;
-  height: 20px;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .leyenda-texto {
@@ -584,6 +598,7 @@
 .sucursal-card:hover {
   border-color: #ef4444;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+  transform: translateX(4px);
 }
 
 .sucursal-icono {
@@ -596,6 +611,7 @@
   justify-content: center;
   font-size: 24px;
   color: #ef4444;
+  flex-shrink: 0;
 }
 
 .sucursal-info {
@@ -634,7 +650,7 @@
 }
 
 .sucursal-ventas {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #10b981;
   margin-bottom: 4px;
@@ -661,6 +677,11 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  transition: transform 0.2s ease;
+}
+
+.metodo-card:hover {
+  transform: scale(1.01);
 }
 
 .metodo-icono {
@@ -672,6 +693,7 @@
   align-items: center;
   justify-content: center;
   font-size: 20px;
+  flex-shrink: 0;
 }
 
 .metodo-detalle {
@@ -692,7 +714,7 @@
 }
 
 .metodo-monto {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #1e293b;
 }
@@ -708,6 +730,9 @@
   justify-content: center;
   padding: 80px 20px;
   text-align: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
 }
 
 .contenido-vacio i {
@@ -744,7 +769,11 @@
   }
   
   .contenido-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Una sola columna en pantallas medianas */
+  }
+  
+  .chart-barras {
+    overflow-x: auto;
   }
 }
 
@@ -757,13 +786,25 @@
     width: 100%;
     height: auto;
     position: relative;
+    max-height: none;
+    overflow: visible;
   }
   
   .tarjetas-estadisticas {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Una por fila en móvil */
+    padding: 0 20px 20px;
   }
   
-  .tabs-header {
-    overflow-x: auto;
+  .titulo-seccion {
+    padding: 20px;
+  }
+  
+  .tabs-container {
+    margin: 0 20px 20px;
+  }
+  
+  .chart-container {
+    flex-direction: column;
+    text-align: center;
   }
 }
