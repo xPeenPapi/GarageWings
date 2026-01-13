@@ -5,6 +5,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
+import Swal from 'sweetalert2';
 
 // Servicios
 import { MesaService } from '../../services/mesa.service';
@@ -297,7 +298,12 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
       this.vistaMovilActual = 'items';
       this.categoriaSeleccionada = `Resultados (${resultados.length})`;
     } else {
-      alert('No se encontraron productos');
+      Swal.fire({
+        icon: 'info',
+        title: 'Sin resultados',
+        text: 'No se encontraron productos',
+        confirmButtonColor: '#3085d6'
+      });
     }
   }
 
@@ -308,7 +314,12 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
 agregarAlPedido(item: Producto): void {
     // 🛡️ VALIDACIÓN DE SEGURIDAD: Si está desactivado, no hacer nada
     if (item.activo === false) {
-      alert('🚫 Este producto está marcado como AGOTADO.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Producto no disponible',
+        text: 'Este producto está marcado como AGOTADO',
+        confirmButtonColor: '#3085d6'
+      });
       return;
     }
 
@@ -442,7 +453,13 @@ agregarAlPedido(item: Producto): void {
           mensaje += `\n🍔 ${itemsCocina} item(s) → Cocina`;
         }
         
-        alert(mensaje);
+        Swal.fire({
+          icon: 'success',
+          title: '✅ Pedido enviado correctamente',
+          html: mensaje.replace(/\n/g, '<br>'),
+          confirmButtonColor: '#3085d6',
+          timer: 3000
+        });
         
         this.ordenId = ordenCreada.id;
         this.ordenActiva = ordenCreada;
@@ -465,7 +482,12 @@ agregarAlPedido(item: Producto): void {
       },
       error: (error: any) => {
         console.error('❌ Error al guardar:', error);
-        alert('Error al enviar el pedido. Intenta de nuevo.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error al enviar el pedido. Intenta de nuevo.',
+          confirmButtonColor: '#d33'
+        });
       }
     });
   }
@@ -478,7 +500,12 @@ agregarAlPedido(item: Producto): void {
   abrirModalCuenta() {
     // Verificar que haya items en cocina (enviados, no solo en carrito local)
     if (this.itemsEnCocina.length === 0 && this.ordenActiva?.estado !== 'POR_COBRAR') {
-        alert("⚠️ Debes enviar platillos a cocina antes de pedir la cuenta.");
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin platillos',
+          text: 'Debes enviar platillos a cocina antes de pedir la cuenta',
+          confirmButtonColor: '#3085d6'
+        });
         return;
     }
     
@@ -495,7 +522,13 @@ agregarAlPedido(item: Producto): void {
     this.pedidosService.solicitarCuenta(idParaCuenta).subscribe({
       next: () => {
         this.mostrarModalCuenta = false;
-        alert('✅ Cuenta solicitada a caja.');
+        Swal.fire({
+          icon: 'success',
+          title: 'Cuenta solicitada',
+          text: 'La cuenta ha sido enviada a caja',
+          confirmButtonColor: '#3085d6',
+          timer: 2000
+        });
         
         // ✅ NO limpiar itemsEnCocina - deben permanecer visibles en cocina/barra
         // Solo los items terminados (LISTA) se ocultarán cuando el mesero confirme entrega
@@ -508,30 +541,56 @@ agregarAlPedido(item: Producto): void {
       error: (err: any) => {
         console.error('❌ Error al solicitar la cuenta:', err);
         const mensaje = err.error?.message || err.message || 'Error de conexión con el servidor';
-        alert(`Error: ${mensaje}`);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: mensaje,
+          confirmButtonColor: '#d33'
+        });
       }
     });
   }
 
   // ✅ NUEVO: Eliminar pedido para llevar vacío
-  eliminarPedidoVacio() {
+  async eliminarPedidoVacio() {
     if (!this.ordenId) {
       // Si no hay orden creada, solo regresar
       this.regresar();
       return;
     }
 
-    const confirmar = confirm('¿Eliminar este pedido vacío?');
-    if (!confirmar) return;
+    const result = await Swal.fire({
+      icon: 'question',
+      title: '¿Eliminar pedido?',
+      text: '¿Estás seguro de eliminar este pedido vacío?',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!result.isConfirmed) return;
 
     this.pedidosService.cancelarOrden(this.ordenId).subscribe({
       next: () => {
         console.log(`✅ Pedido para llevar ${this.ordenId} eliminado`);
+        Swal.fire({
+          icon: 'success',
+          title: 'Pedido eliminado',
+          timer: 1500,
+          showConfirmButton: false
+        });
         this.regresar();
       },
       error: (err) => {
         console.error('❌ Error al eliminar pedido:', err);
-        alert('Error al eliminar el pedido');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error al eliminar el pedido',
+          confirmButtonColor: '#d33'
+        });
       }
     });
   }
@@ -596,9 +655,15 @@ agregarAlPedido(item: Producto): void {
   verificarNotificaciones() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (ordenes: any[]) => {
+        // Obtener notificaciones ya vistas
+        const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
+        
         const misOrdenesListas = ordenes.filter(o => {
             const esLista = o.estado === 'LISTA';
             if (!esLista) return false;
+            
+            // Excluir las ya vistas
+            if (vistas.includes(o.id)) return false;
 
             const soyYo = String(o.meseroId || o.mesero?.id) === String(this.empleadoId);
             return soyYo;
@@ -628,7 +693,7 @@ agregarAlPedido(item: Producto): void {
     });
   }
 
-  // ✅ CORREGIDO: Solo quita notificación visual, NO actualiza backend
+  // ✅ CORREGIDO: Solo quita notificación visual y la marca como vista
   confirmarEntrega(pedido: any) {
     console.log(`🔔 Quitando notificación de orden ${pedido.id}...`);
     
@@ -639,11 +704,18 @@ agregarAlPedido(item: Producto): void {
     // 2. El mesero pueda pedir la cuenta
     // 3. La orden aparezca en caja para cobrar
     
+    // Marcar la notificación como vista en localStorage
+    const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
+    if (!vistas.includes(pedido.id)) {
+      vistas.push(pedido.id);
+      localStorage.setItem('notificaciones_vistas', JSON.stringify(vistas));
+    }
+    
     // Solo limpiar interfaz local (quitar notificación visual)
     this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
     this.contadorNotificaciones = this.pedidosListos.length;
     
-    console.log('✅ Notificación removida. Orden permanece en LISTA con items en LISTA.');
+    console.log('✅ Notificación removida y marcada como vista.');
   }
 
   // ✅ MODIFICADO: Procesa todas las entregas con logs

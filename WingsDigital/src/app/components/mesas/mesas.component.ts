@@ -249,7 +249,9 @@ cargarOrdenesParaLlevar() {
   // VERIFICACIÓN DE NOTIFICACIONES
   verificarNotificacionesComida() { 
     this.pedidosService.obtenerPendientes().subscribe({ 
-      next: (ordenes: any[]) => { 
+      next: (ordenes: any[]) => {
+        // Obtener notificaciones ya vistas
+        const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
         
         // 1. Marcar mesas visualmente (Ícono rojo)
         this.mesas.forEach(mesa => { 
@@ -261,10 +263,14 @@ cargarOrdenesParaLlevar() {
           } 
         }); 
 
-        // 2. Llenar la lista de notificaciones (Campanita)
+        // 2. Llenar la lista de notificaciones (Campanita) - excluir vistas
         const misOrdenesListas = ordenes.filter(o => {
           const esLista = o.estado === 'LISTA';
           if (!esLista) return false;
+          
+          // Excluir las ya vistas
+          if (vistas.includes(o.id)) return false;
+          
           const ownerId = o.meseroId || (o.mesero ? o.mesero.id : 0);
           return String(ownerId) === String(this.usuarioActualId);
         });
@@ -690,6 +696,9 @@ cargarOrdenesParaLlevar() {
     this.subscriptions.add(this.socketService.escucharPedidosParaCobrar().subscribe({
       next: (pedido: ComandaCompleta) => {
         if(pedido.estado === 'PAGADA' || pedido.estado === 'CANCELADA') {
+          // Limpiar notificación vista si la orden se pagó o canceló
+          this.limpiarNotificacionVista(pedido.id);
+          
           this.cargarMesas();
           this.cargarOrdenesParaLlevar(); // ✅ AGREGADO
         }
@@ -698,6 +707,13 @@ cargarOrdenesParaLlevar() {
         }
       }
     }));
+  }
+  
+  // Limpiar notificación vista de localStorage cuando se paga/cancela
+  limpiarNotificacionVista(ordenId: number) {
+    const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
+    const filtradas = vistas.filter((id: number) => id !== ordenId);
+    localStorage.setItem('notificaciones_vistas', JSON.stringify(filtradas));
   }
 
   agregarNotificacion(pedido: ComandaCompleta) {
@@ -738,9 +754,16 @@ irAMesa(pedido: any) {
 irAPedidoParaLlevar(id: number) {
 this.router.navigate(['/pedido/orden', id]);
 }
-// ✅ CORREGIDO: Solo quita notificación visual, NO actualiza backend
+// ✅ CORREGIDO: Solo quita notificación visual y la marca como vista
 confirmarEntrega(p: any) { 
   console.log('🔔 Quitando notificación de orden:', p.id);
+  
+  // Marcar la notificación como vista en localStorage
+  const vistas = JSON.parse(localStorage.getItem('notificaciones_vistas') || '[]');
+  if (!vistas.includes(p.id)) {
+    vistas.push(p.id);
+    localStorage.setItem('notificaciones_vistas', JSON.stringify(vistas));
+  }
   
   // Solo remover de la lista de notificaciones localmente
   const idx = this.pedidosListos.indexOf(p); 
@@ -753,7 +776,7 @@ confirmarEntrega(p: any) {
   // No actualizar a ENTREGADA hasta que se pague en caja
   // Esto permite que el mesero aún pueda enviar la cuenta
   
-  console.log('✅ Notificación removida. Orden sigue en estado LISTA.');
+  console.log('✅ Notificación removida y marcada como vista.');
 }
 marcarComoVista(p: any) {
 this.confirmarEntrega(p);
