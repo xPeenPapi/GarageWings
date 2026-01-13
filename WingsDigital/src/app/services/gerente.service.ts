@@ -41,7 +41,7 @@ export interface Empleado {
   nombre: string;
   email: string;
   password?: string;
-  rol: 'MESERO' | 'COCINA' | 'CAJA' | 'GERENTE' | 'BARRA';
+  rol: 'MESERO' | 'COCINA' | 'CAJA' | 'GERENTE' | 'BARRA' | 'ADMIN_EMPRESA';
   fechaContratacion?: string;
   activo?: boolean;
   // Campo para asignar ubicación

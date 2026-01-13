@@ -211,7 +211,7 @@ export class GerenteDashboardComponent implements OnInit {
   cargarEmpleados(): void {
     this.gerenteService.getEmpleados().subscribe({
       next: (data) => {
-        this.empleados = data.filter(emp => emp.rol !== 'GERENTE');
+        this.empleados = data.filter(emp => emp.rol !== 'GERENTE' && emp.rol !== 'ADMIN_EMPRESA');
         this.calcularGraficaRoles();
       },
       error: (err) => console.error('Error cargando empleados:', err)
@@ -235,8 +235,8 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
-    if (this.empleadoForm.rol === 'GERENTE') {
-      this.mostrarAlerta('Acceso Denegado: Solo el Administrador puede gestionar Gerentes.');
+    if (this.empleadoForm.rol === 'GERENTE' || this.empleadoForm.rol === 'ADMIN_EMPRESA') {
+      this.mostrarAlerta('Acceso Denegado: Solo el Administrador puede gestionar Gerentes y Administradores.');
       return;
     }
 
@@ -265,6 +265,13 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   despedirEmpleado(id: number): void {
+    const empleado = this.empleados.find(e => e.id === id);
+    
+    if (empleado && (empleado.rol === 'GERENTE' || empleado.rol === 'ADMIN_EMPRESA')) {
+      this.mostrarAlerta('Acceso Denegado: Solo el Administrador puede despedir Gerentes y Administradores.');
+      return;
+    }
+    
     if(confirm('¿Estás seguro de desactivar a este empleado?')) {
       this.gerenteService.eliminarEmpleado(id).subscribe({
         next: () => this.cargarEmpleados(),
