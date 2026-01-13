@@ -39,6 +39,14 @@ export class PersonalController {
   // --- TUS MÉTODOS EXISTENTES (SIN CAMBIOS) ---
 
   @UseGuards(JwtAuthGuard)
+  @Get('global')
+  findAllGlobal() {
+    // Para el admin dashboard, traer TODOS los empleados de la empresa sin filtro de sucursal
+    const empresaId = 1;
+    return this.personalService.findAll(empresaId, null);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Req() req) {
     const sucursalId = req.user?.sucursalId;

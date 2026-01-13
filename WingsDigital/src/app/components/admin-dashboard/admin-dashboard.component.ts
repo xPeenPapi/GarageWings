@@ -57,10 +57,29 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   get sucursalesConEmpleados(): any[] {
-    return this.sucursalesActivas.map(sucursal => ({
-      ...sucursal,
-      empleados: this.personal.filter(emp => emp.sucursalId === sucursal.id)
-    }));
+    console.log('🔍 Personal completo:', this.personal);
+    console.log('🏢 Sucursales activas:', this.sucursalesActivas);
+    
+    return this.sucursalesActivas.map(sucursal => {
+      const empleadosDeSucursal = this.personal.filter(emp => {
+        const empSucursalId = Number(emp.sucursalId);
+        const sucId = Number(sucursal.id);
+        const coincide = empSucursalId === sucId;
+        
+        if (coincide) {
+          console.log(`✅ Empleado ${emp.nombre} pertenece a ${sucursal.nombre}`);
+        }
+        
+        return coincide;
+      });
+      
+      console.log(`📊 Sucursal ${sucursal.nombre}: ${empleadosDeSucursal.length} empleados`, empleadosDeSucursal);
+      
+      return {
+        ...sucursal,
+        empleados: empleadosDeSucursal
+      };
+    });
   }
   
   // ==========================================
@@ -214,9 +233,16 @@ export class AdminDashboardComponent implements OnInit {
     // 2. Cargar Personal Global
     this.adminService.getAllPersonal().subscribe({
       next: (data) => {
+        console.log('📥 Personal recibido del backend:', data);
+        console.log('📊 Cantidad de empleados:', data.length);
         this.personal = data;
         this.calcularEstadisticasPersonal();
         this.generarGraficasPersonal();
+        console.log('📈 Estadísticas calculadas:', this.personalPorRol);
+        console.log('📊 Estados del personal:', this.estadoPersonal);
+      },
+      error: (err) => {
+        console.error('❌ Error cargando personal:', err);
       }
     });
 
