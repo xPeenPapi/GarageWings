@@ -371,16 +371,21 @@ export class GerenteDashboardComponent implements OnInit {
       return;
     }
 
+    console.log('🚀 Solicitando predicción para sucursal:', this.sucursalId);
     this.cargandoPrediccion = true;
+    
     this.gerenteService.obtenerPrediccionVentas().subscribe({
       next: (response) => {
-        console.log('🤖 Predicción recibida:', response);
+        console.log('📦 Respuesta completa:', response);
         
         if (response.success) {
+          console.log('✅ Predicción exitosa');
           this.prediccionIA = response.prediccion;
           this.datosPrediccion = response.datos;
           this.mostrarPrediccion = true;
         } else {
+          console.warn('⚠️ Error en la predicción:', response.error);
+          console.log('📊 Datos disponibles:', response.datos);
           this.mostrarAlerta('⚠️ ' + (response.error || 'No se pudo generar la predicción'));
           // Mostrar datos aunque no haya predicción
           if (response.datos) {
@@ -391,8 +396,18 @@ export class GerenteDashboardComponent implements OnInit {
         this.cargandoPrediccion = false;
       },
       error: (error) => {
-        console.error('❌ Error al obtener predicción:', error);
-        this.mostrarAlerta('Error al conectar con el servicio de predicciones');
+        console.error('❌ Error completo:', error);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Error message:', error.error);
+        
+        let mensaje = 'Error al conectar con el servicio de predicciones';
+        if (error.error?.message) {
+          mensaje = error.error.message;
+        } else if (error.message) {
+          mensaje = error.message;
+        }
+        
+        this.mostrarAlerta(mensaje);
         this.cargandoPrediccion = false;
       }
     });

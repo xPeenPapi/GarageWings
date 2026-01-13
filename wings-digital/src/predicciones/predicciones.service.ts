@@ -58,9 +58,20 @@ export class PrediccionesService {
       };
     } catch (error) {
       console.error('❌ Error al obtener predicción:', error);
+      
+      // Extraer mensaje de error específico
+      let mensajeError = 'No se pudo generar la predicción';
+      if (error.response) {
+        // Error de la API de OpenRouter
+        mensajeError = `Error ${error.response.status}: ${error.response.data?.error?.message || 'Error en la API'}`;
+        console.error('📡 Respuesta de error:', error.response.data);
+      } else if (error.message) {
+        mensajeError = error.message;
+      }
+      
       return {
         success: false,
-        error: 'No se pudo generar la predicción',
+        error: mensajeError,
         datos: {
           totalVentas,
           totalOrdenes: ventasSemana.length,
@@ -158,12 +169,21 @@ Sé conciso, profesional y enfocado en acciones prácticas. Usa formato markdown
   }
 
   private async llamarOpenRouter(prompt: string) {
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'sk-or-v1-tu-api-key-aqui';
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    
+    console.log('🔑 API KEY presente:', !!OPENROUTER_API_KEY);
+    console.log('🔑 Primeros 15 chars:', OPENROUTER_API_KEY?.substring(0, 15));
+    
+    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.includes('REEMPLAZA')) {
+      throw new Error('API Key de OpenRouter no configurada. Configura OPENROUTER_API_KEY en el archivo .env');
+    }
+    
+    console.log('📤 Enviando petición a OpenRouter...');
     
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'anthropic/claude-3.5-sonnet', // Modelo recomendado
+        model: 'anthropic/claude-3.5-sonnet',
         messages: [
           {
             role: 'user',
@@ -183,6 +203,7 @@ Sé conciso, profesional y enfocado en acciones prácticas. Usa formato markdown
       }
     );
 
+    console.log('✅ Respuesta recibida de OpenRouter');
     return response.data.choices[0].message.content;
   }
 }
