@@ -20,7 +20,8 @@ export class AuthService {
         sucursal: {
           select: {
             id: true,
-            nombre: true
+            nombre: true,
+            activa: true
           }
         }
       }
@@ -32,6 +33,11 @@ export class AuthService {
 
     if (!user.activo) {
       throw new HttpException('Usuario inactivo', HttpStatus.FORBIDDEN);
+    }
+
+    // ✅ NUEVA VALIDACIÓN: Verificar que la sucursal esté activa
+    if (user.sucursal && !user.sucursal.activa) {
+      throw new HttpException('La sucursal está inactiva. Contacte al administrador.', HttpStatus.FORBIDDEN);
     }
 
     if (user.password !== password) {

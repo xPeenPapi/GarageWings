@@ -86,6 +86,40 @@ export class AdminDashboardComponent implements OnInit {
     sucursalId: null 
   };
 
+  // Modal Productos
+  public mostrarModalProducto: boolean = false;
+  public esEdicionProducto: boolean = false;
+  public productoForm: any = {
+    nombre: '',
+    descripcion: '',
+    precioBase: 0,
+    categoriaId: null,
+    destino: 'COCINA',
+    activo: true
+  };
+
+  // Modal Categorías
+  public categorias: any[] = [];
+  public mostrarModalCategoria: boolean = false;
+  public esEdicionCategoria: boolean = false;
+  public categoriaForm: any = {
+    nombre: '',
+    descripcion: '',
+    iconoColor: '#3b82f6',
+    activo: true
+  };
+
+  // Modal Turnos
+  public turnos: any[] = [];
+  public mostrarModalTurno: boolean = false;
+  public turnoForm: any = {
+    empleadoId: null,
+    fecha: '',
+    horaInicio: '09:00',
+    horaFin: '17:00',
+    notas: ''
+  };
+
   // ==========================================
   // ESTADÍSTICAS CALCULADAS
   // ==========================================
@@ -495,6 +529,13 @@ guardarEmpleado(): void {
     this.tabActiva = tab;
     if (tab === 'mesas') {
       this.cargarMesas();
+    } else if (tab === 'menu') {
+      this.cargarProductos();
+      this.cargarCategorias();
+    } else if (tab === 'categorias') {
+      this.cargarCategorias();
+    } else if (tab === 'turnos') {
+      this.cargarTurnos();
     }
   }
 
@@ -644,5 +685,229 @@ guardarEmpleado(): void {
       nombre,
       mesas: agrupadas[nombre]
     }));
+  }
+
+  // ==========================================
+  // ✅ GESTIÓN DE PRODUCTOS
+  // ==========================================
+
+  cargarProductos(): void {
+    this.adminService.getProductos().subscribe({
+      next: (data) => {
+        this.productos = data;
+        console.log('✅ Productos cargados:', this.productos.length);
+      },
+      error: (err) => console.error('❌ Error cargando productos:', err)
+    });
+  }
+
+  abrirModalProducto(): void {
+    this.esEdicionProducto = false;
+    this.productoForm = {
+      nombre: '',
+      descripcion: '',
+      precioBase: 0,
+      categoriaId: null,
+      destino: 'COCINA',
+      activo: true
+    };
+    this.mostrarModalProducto = true;
+  }
+
+  editarProducto(producto: any): void {
+    this.esEdicionProducto = true;
+    this.productoForm = { ...producto };
+    this.mostrarModalProducto = true;
+  }
+
+  cerrarModalProducto(): void {
+    this.mostrarModalProducto = false;
+  }
+
+  guardarProducto(): void {
+    if (!this.productoForm.nombre || !this.productoForm.precioBase) {
+      Swal.fire('Error', 'Completa nombre y precio', 'error');
+      return;
+    }
+
+    const datosProducto = {
+      ...this.productoForm,
+      empresaId: 1,
+      precioBase: Number(this.productoForm.precioBase)
+    };
+
+    if (this.esEdicionProducto && this.productoForm.id) {
+      this.adminService.editarProducto(this.productoForm.id, datosProducto).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Producto actualizado', 'success');
+          this.cargarProductos();
+          this.cerrarModalProducto();
+        },
+        error: (err) => Swal.fire('Error', err.error?.message || 'Error al actualizar', 'error')
+      });
+    } else {
+      this.adminService.crearProducto(datosProducto).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Producto creado', 'success');
+          this.cargarProductos();
+          this.cerrarModalProducto();
+        },
+        error: (err) => Swal.fire('Error', err.error?.message || 'Error al crear', 'error')
+      });
+    }
+  }
+
+  toggleProducto(producto: any): void {
+    this.adminService.editarProducto(producto.id, { activo: !producto.activo }).subscribe({
+      next: () => {
+        Swal.fire('¡Listo!', `Producto ${producto.activo ? 'desactivado' : 'activado'}`, 'success');
+        this.cargarProductos();
+      },
+      error: (err) => Swal.fire('Error', 'No se pudo cambiar el estado', 'error')
+    });
+  }
+
+  // ==========================================
+  // ✅ GESTIÓN DE CATEGORÍAS
+  // ==========================================
+
+  cargarCategorias(): void {
+    this.adminService.getCategorias().subscribe({
+      next: (data) => {
+        this.categorias = data;
+        console.log('✅ Categorías cargadas:', this.categorias.length);
+      },
+      error: (err) => console.error('❌ Error cargando categorías:', err)
+    });
+  }
+
+  abrirModalCategoria(): void {
+    this.esEdicionCategoria = false;
+    this.categoriaForm = {
+      nombre: '',
+      descripcion: '',
+      iconoColor: '#3b82f6',
+      activo: true
+    };
+    this.mostrarModalCategoria = true;
+  }
+
+  editarCategoria(categoria: any): void {
+    this.esEdicionCategoria = true;
+    this.categoriaForm = { ...categoria };
+    this.mostrarModalCategoria = true;
+  }
+
+  cerrarModalCategoria(): void {
+    this.mostrarModalCategoria = false;
+  }
+
+  guardarCategoria(): void {
+    if (!this.categoriaForm.nombre) {
+      Swal.fire('Error', 'El nombre es requerido', 'error');
+      return;
+    }
+
+    const datosCategoria = {
+      ...this.categoriaForm,
+      empresaId: 1
+    };
+
+    if (this.esEdicionCategoria && this.categoriaForm.id) {
+      this.adminService.editarCategoria(this.categoriaForm.id, datosCategoria).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Categoría actualizada', 'success');
+          this.cargarCategorias();
+          this.cerrarModalCategoria();
+        },
+        error: (err) => Swal.fire('Error', err.error?.message || 'Error al actualizar', 'error')
+      });
+    } else {
+      this.adminService.crearCategoria(datosCategoria).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Categoría creada', 'success');
+          this.cargarCategorias();
+          this.cerrarModalCategoria();
+        },
+        error: (err) => Swal.fire('Error', err.error?.message || 'Error al crear', 'error')
+      });
+    }
+  }
+
+  toggleCategoria(categoria: any): void {
+    this.adminService.editarCategoria(categoria.id, { activo: !categoria.activo }).subscribe({
+      next: () => {
+        Swal.fire('¡Listo!', `Categoría ${categoria.activo ? 'desactivada' : 'activada'}`, 'success');
+        this.cargarCategorias();
+      },
+      error: (err) => Swal.fire('Error', 'No se pudo cambiar el estado', 'error')
+    });
+  }
+
+  // ==========================================
+  // ✅ GESTIÓN DE TURNOS
+  // ==========================================
+
+  cargarTurnos(): void {
+    this.adminService.getTurnos().subscribe({
+      next: (data) => {
+        this.turnos = data;
+        console.log('✅ Turnos cargados:', this.turnos.length);
+      },
+      error: (err) => console.error('❌ Error cargando turnos:', err)
+    });
+  }
+
+  abrirModalTurno(): void {
+    const hoy = new Date().toISOString().split('T')[0];
+    this.turnoForm = {
+      empleadoId: null,
+      fecha: hoy,
+      horaInicio: '09:00',
+      horaFin: '17:00',
+      notas: ''
+    };
+    this.mostrarModalTurno = true;
+  }
+
+  cerrarModalTurno(): void {
+    this.mostrarModalTurno = false;
+  }
+
+  guardarTurno(): void {
+    if (!this.turnoForm.empleadoId || !this.turnoForm.fecha) {
+      Swal.fire('Error', 'Selecciona empleado y fecha', 'error');
+      return;
+    }
+
+    this.adminService.crearTurno(this.turnoForm).subscribe({
+      next: () => {
+        Swal.fire('¡Éxito!', 'Turno asignado', 'success');
+        this.cargarTurnos();
+        this.cerrarModalTurno();
+      },
+      error: (err) => Swal.fire('Error', err.error?.message || 'Error al crear turno', 'error')
+    });
+  }
+
+  eliminarTurnoAdmin(turno: any): void {
+    Swal.fire({
+      title: '¿Eliminar turno?',
+      text: `Turno del ${turno.fecha}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.adminService.eliminarTurno(turno.id).subscribe({
+          next: () => {
+            Swal.fire('Eliminado', 'Turno eliminado', 'success');
+            this.cargarTurnos();
+          },
+          error: (err) => Swal.fire('Error', 'No se pudo eliminar', 'error')
+        });
+      }
+    });
   }
 }

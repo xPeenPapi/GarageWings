@@ -58,4 +58,55 @@ export class AdminService {
       headers: this.getHeaders() 
     });
   }
+
+  // ==========================================
+  // ✅ NUEVOS MÉTODOS PARA GESTIÓN COMPLETA
+  // ==========================================
+
+  // Productos
+  getProductos(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/productos`, { headers: this.getHeaders() });
+  }
+
+  crearProducto(datos: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/productos`, datos, { headers: this.getHeaders() });
+  }
+
+  editarProducto(id: number, datos: any): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/productos/${id}`, datos, { headers: this.getHeaders() });
+  }
+
+  eliminarProducto(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/productos/${id}`, { headers: this.getHeaders() });
+  }
+
+  // Categorías
+  getCategorias(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/categorias`, { headers: this.getHeaders() });
+  }
+
+  crearCategoria(datos: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/categorias`, datos, { headers: this.getHeaders() });
+  }
+
+  editarCategoria(id: number, datos: any): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/categorias/${id}`, datos, { headers: this.getHeaders() });
+  }
+
+  eliminarCategoria(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/categorias/${id}`, { headers: this.getHeaders() });
+  }
+
+  // Turnos
+  getTurnos(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/turnos`, { headers: this.getHeaders() });
+  }
+
+  crearTurno(datos: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/turnos`, datos, { headers: this.getHeaders() });
+  }
+
+  eliminarTurno(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/turnos/${id}`, { headers: this.getHeaders() });
+  }
 }

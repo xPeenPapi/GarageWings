@@ -403,27 +403,167 @@
         </div>
       </div>
 
-      <div class="tab-content" *ngIf="tabActiva === 'menu' || tabActiva === 'categorias' || tabActiva === 'turnos'">
-        <div class="contenido-vacio">
-          <i class="fas" 
-             [class.fa-utensils]="tabActiva === 'menu'"
-             [class.fa-th-large]="tabActiva === 'categorias'"
-             [class.fa-calendar-alt]="tabActiva === 'turnos'"></i>
-          <h3>
-            <span *ngIf="tabActiva === 'menu'">Gestión de Menú</span>
-            <span *ngIf="tabActiva === 'categorias'">Gestión de Categorías</span>
-            <span *ngIf="tabActiva === 'turnos'">Gestión de Turnos</span>
-          </h3>
-          <p>Próximamente: Gestión completa de 
-            <span *ngIf="tabActiva === 'menu'">productos y precios</span>
-            <span *ngIf="tabActiva === 'categorias'">categorías del menú</span>
-            <span *ngIf="tabActiva === 'turnos'">horarios y turnos</span>
-          </p>
+      <!-- =====================================================
+           ✅ PESTAÑA: GESTIÓN DE PRODUCTOS (MENÚ)
+           ===================================================== -->
+      <div class="tab-content" *ngIf="tabActiva === 'menu'">
+        <div class="header-accion">
+          <h2>Gestión de Menú</h2>
+          <button class="btn-nuevo" (click)="abrirModalProducto()">
+            <i class="fas fa-plus"></i> Nuevo Producto
+          </button>
+        </div>
+
+        <div class="tabla-container">
+          <table class="tabla-datos">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Destino</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let producto of productos">
+                <td>
+                  <strong>{{ producto.nombre }}</strong>
+                  <small *ngIf="producto.descripcion">{{ producto.descripcion }}</small>
+                </td>
+                <td>{{ producto.categoria?.nombre || 'Sin categoría' }}</td>
+                <td>{{ producto.precioBase | currency }}</td>
+                <td>
+                  <span class="badge" [ngClass]="producto.destino === 'COCINA' ? 'badge-cocina' : 'badge-barra'">
+                    {{ producto.destino }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="producto.activo ? 'badge-activo' : 'badge-inactivo'">
+                    {{ producto.activo ? 'Disponible' : 'Agotado' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="acciones-grupo">
+                    <button class="btn-icon" (click)="editarProducto(producto)" title="Editar">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon" 
+                            [ngClass]="producto.activo ? 'btn-toggle-off' : 'btn-toggle-on'"
+                            (click)="toggleProducto(producto)" 
+                            [title]="producto.activo ? 'Marcar agotado' : 'Activar'">
+                      <i class="fas" [class.fa-toggle-on]="producto.activo" [class.fa-toggle-off]="!producto.activo"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="contenido-vacio" *ngIf="productos.length === 0">
+            <i class="fas fa-utensils"></i>
+            <h3>No hay productos registrados</h3>
+            <p>Comienza agregando productos a tu menú</p>
+          </div>
         </div>
       </div>
 
       <!-- =====================================================
-           ✅ NUEVA PESTAÑA: GESTIÓN DE MESAS
+           ✅ PESTAÑA: GESTIÓN DE CATEGORÍAS
+           ===================================================== -->
+      <div class="tab-content" *ngIf="tabActiva === 'categorias'">
+        <div class="header-accion">
+          <h2>Gestión de Categorías</h2>
+          <button class="btn-nuevo" (click)="abrirModalCategoria()">
+            <i class="fas fa-plus"></i> Nueva Categoría
+          </button>
+        </div>
+
+        <div class="grid-categorias">
+          <div class="categoria-card" *ngFor="let categoria of categorias">
+            <div class="categoria-header" [style.background-color]="categoria.iconoColor">
+              <i class="fas fa-th-large"></i>
+            </div>
+            <div class="categoria-body">
+              <h4>{{ categoria.nombre }}</h4>
+              <p *ngIf="categoria.descripcion">{{ categoria.descripcion }}</p>
+              <span class="badge" [ngClass]="categoria.activo ? 'badge-activo' : 'badge-inactivo'">
+                {{ categoria.activo ? 'Activa' : 'Inactiva' }}
+              </span>
+            </div>
+            <div class="categoria-actions">
+              <button class="btn-icon" (click)="editarCategoria(categoria)" title="Editar">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-icon" 
+                      [ngClass]="categoria.activo ? 'btn-toggle-off' : 'btn-toggle-on'"
+                      (click)="toggleCategoria(categoria)" 
+                      [title]="categoria.activo ? 'Desactivar' : 'Activar'">
+                <i class="fas" [class.fa-toggle-on]="categoria.activo" [class.fa-toggle-off]="!categoria.activo"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="contenido-vacio" *ngIf="categorias.length === 0">
+          <i class="fas fa-th-large"></i>
+          <h3>No hay categorías registradas</h3>
+          <p>Comienza creando categorías para organizar tu menú</p>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ✅ PESTAÑA: GESTIÓN DE TURNOS
+           ===================================================== -->
+      <div class="tab-content" *ngIf="tabActiva === 'turnos'">
+        <div class="header-accion">
+          <h2>Gestión de Turnos</h2>
+          <button class="btn-nuevo" (click)="abrirModalTurno()">
+            <i class="fas fa-plus"></i> Asignar Turno
+          </button>
+        </div>
+
+        <div class="tabla-container">
+          <table class="tabla-datos">
+            <thead>
+              <tr>
+                <th>Empleado</th>
+                <th>Rol</th>
+                <th>Fecha</th>
+                <th>Horario</th>
+                <th>Notas</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let turno of turnos">
+                <td>{{ turno.empleado?.nombre || 'N/A' }}</td>
+                <td>
+                  <span class="badge badge-rol">{{ turno.empleado?.rol || 'N/A' }}</span>
+                </td>
+                <td>{{ turno.fecha | date:'dd/MM/yyyy' }}</td>
+                <td>{{ turno.horaInicio }} - {{ turno.horaFin }}</td>
+                <td>{{ turno.notas || '-' }}</td>
+                <td>
+                  <button class="btn-icon btn-eliminar" (click)="eliminarTurnoAdmin(turno)" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="contenido-vacio" *ngIf="turnos.length === 0">
+            <i class="fas fa-calendar-alt"></i>
+            <h3>No hay turnos asignados</h3>
+            <p>Comienza asignando turnos a tu personal</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ✅ PESTAÑA: GESTIÓN DE MESAS
            ===================================================== -->
       <div class="tab-content" *ngIf="tabActiva === 'mesas'">
         <div class="header-accion">
@@ -614,6 +754,161 @@
         <button class="btn-primary" (click)="guardarMesa()">
           {{ esEdicionMesa ? 'Actualizar' : 'Crear' }}
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       ✅ MODAL PARA GESTIÓN DE PRODUCTOS
+       ===================================================== -->
+  <div class="modal-overlay" *ngIf="mostrarModalProducto" (click)="cerrarModalProducto()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ esEdicionProducto ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
+        <button class="btn-close" (click)="cerrarModalProducto()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre del Producto</label>
+          <input type="text" [(ngModel)]="productoForm.nombre" placeholder="Ej: Hamburguesa Clásica">
+        </div>
+
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="productoForm.descripcion" rows="3" placeholder="Descripción del producto"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Precio Base</label>
+            <input type="number" [(ngModel)]="productoForm.precioBase" min="0" step="0.01" placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Categoría</label>
+            <select [(ngModel)]="productoForm.categoriaId">
+              <option [ngValue]="null">Sin categoría</option>
+              <option *ngFor="let cat of categorias" [value]="cat.id">{{ cat.nombre }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Destino de Preparación</label>
+          <select [(ngModel)]="productoForm.destino">
+            <option value="COCINA">Cocina</option>
+            <option value="BARRA">Barra</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="productoForm.activo">
+            <span>Producto disponible</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalProducto()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarProducto()">
+          {{ esEdicionProducto ? 'Actualizar' : 'Crear' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       ✅ MODAL PARA GESTIÓN DE CATEGORÍAS
+       ===================================================== -->
+  <div class="modal-overlay" *ngIf="mostrarModalCategoria" (click)="cerrarModalCategoria()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ esEdicionCategoria ? 'Editar Categoría' : 'Nueva Categoría' }}</h2>
+        <button class="btn-close" (click)="cerrarModalCategoria()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre de la Categoría</label>
+          <input type="text" [(ngModel)]="categoriaForm.nombre" placeholder="Ej: Bebidas">
+        </div>
+
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="categoriaForm.descripcion" rows="2" placeholder="Descripción opcional"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Color del Icono</label>
+          <input type="color" [(ngModel)]="categoriaForm.iconoColor">
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="categoriaForm.activo">
+            <span>Categoría activa</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalCategoria()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarCategoria()">
+          {{ esEdicionCategoria ? 'Actualizar' : 'Crear' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       ✅ MODAL PARA GESTIÓN DE TURNOS
+       ===================================================== -->
+  <div class="modal-overlay" *ngIf="mostrarModalTurno" (click)="cerrarModalTurno()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Asignar Turno</h2>
+        <button class="btn-close" (click)="cerrarModalTurno()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Empleado</label>
+          <select [(ngModel)]="turnoForm.empleadoId" required>
+            <option [ngValue]="null">Selecciona un empleado</option>
+            <option *ngFor="let emp of personal" [value]="emp.id">
+              {{ emp.nombre }} - {{ emp.rol }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" [(ngModel)]="turnoForm.fecha" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Hora Inicio</label>
+            <input type="time" [(ngModel)]="turnoForm.horaInicio">
+          </div>
+
+          <div class="form-group">
+            <label>Hora Fin</label>
+            <input type="time" [(ngModel)]="turnoForm.horaFin">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notas (opcional)</label>
+          <textarea [(ngModel)]="turnoForm.notas" rows="2" placeholder="Notas adicionales"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalTurno()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarTurno()">Asignar Turno</button>
       </div>
     </div>
   </div>
