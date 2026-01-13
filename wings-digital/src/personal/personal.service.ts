@@ -1,6 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class PersonalService {
@@ -51,15 +50,12 @@ export class PersonalService {
       throw new HttpException('El email ya está registrado', HttpStatus.CONFLICT);
     }
 
-    // ✅ Hash de contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // ✅ Crear empleado
+    // ✅ Crear empleado (contraseña sin encriptar)
     const nuevoEmpleado = await this.prisma.empleado.create({
       data: {
         nombre,
         email,
-        password: hashedPassword,
+        password, // ✅ Directamente sin hash
         rol,
         sucursalId: Number(sucursalId),
         empresaId: Number(empresaId),
@@ -78,11 +74,6 @@ export class PersonalService {
   }
 
   async update(id: number, data: any) {
-    // Si se está actualizando la contraseña, hashearla
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-
     return this.prisma.empleado.update({
       where: { id },
       data,
