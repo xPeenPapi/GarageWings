@@ -706,6 +706,10 @@ guardarEmpleado(): void {
   }
 
   guardarMesa(): void {
+    console.log('🪑 Datos del formulario de mesa:', this.mesaForm);
+    console.log('🏢 Sucursales disponibles:', this.sucursales);
+    console.log('✅ Sucursales activas:', this.sucursalesActivas);
+
     if (!this.mesaForm.numero || !this.mesaForm.capacidad || !this.mesaForm.sucursalId) {
       Swal.fire('Error', 'Por favor completa todos los campos requeridos', 'error');
       return;
@@ -842,8 +846,11 @@ guardarEmpleado(): void {
     const datosProducto = {
       ...this.productoForm,
       empresaId: 1,
-      precioBase: Number(this.productoForm.precioBase)
+      precioBase: Number(this.productoForm.precioBase),
+      categoriaId: this.productoForm.categoriaId ? Number(this.productoForm.categoriaId) : null
     };
+
+    console.log('📤 Enviando producto al backend:', datosProducto);
 
     if (this.esEdicionProducto && this.productoForm.id) {
       this.adminService.editarProducto(this.productoForm.id, datosProducto).subscribe({

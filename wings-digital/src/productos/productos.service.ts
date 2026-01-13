@@ -7,9 +7,11 @@ export class ProductosService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.producto.findMany({
+    const productos = await this.prisma.producto.findMany({
       include: { categoria: true }
     });
+    console.log('📊 Productos encontrados:', productos.length);
+    return productos;
   }
 
   // ✅ MODIFICADO: Agregamos _count para arreglar el "0 elementos"
@@ -58,16 +60,19 @@ async findAllCategorias() {
   }
 
   async create(data: any) {
+    console.log('📦 Datos recibidos para crear producto:', data);
+    
     return this.prisma.producto.create({
       data: {
         nombre: data.nombre,
-        precioBase: data.precio,
-        descripcion: data.descripcion,
-        imagenUrl: data.imagenUrl,
+        precioBase: Number(data.precioBase || data.precio || 0),
+        descripcion: data.descripcion || '',
+        imagenUrl: data.imagenUrl || null,
         destino: data.destino || DestinoProducto.COCINA,
-        empresaId: data.empresaId, 
-        categoriaId: data.categoriaId,
-        configuracion: data.configuracion || undefined
+        empresaId: Number(data.empresaId || 1), 
+        categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
+        configuracion: data.configuracion || undefined,
+        activo: data.activo !== undefined ? data.activo : true
       }
     });
   }
