@@ -285,14 +285,34 @@
               <div class="sucursal-info">
                 <div class="sucursal-header">
                   <h4>{{ sucursal.nombre }}</h4>
-                  <span class="badge-activa" [style.background]="sucursal.activa ? '#d4edda' : '#f8d7da'" 
-                        [style.color]="sucursal.activa ? '#155724' : '#721c24'">
+                  <span class="badge-activa" [style.background]="sucursal.activa ? '#dcfce7' : '#fee2e2'" 
+                        [style.color]="sucursal.activa ? '#166534' : '#991b1b'">
                     {{ sucursal.activa ? 'Activa' : 'Inactiva' }}
                   </span>
                 </div>
                 <p class="sucursal-detalles">
                   {{ sucursal.empleadosActivos }} empleados activos • Hora pico: {{ sucursal.horaPico }}
                 </p>
+                <p class="sucursal-detalles" style="margin-top: 4px; color: #94a3b8; font-size: 0.85rem;">
+                  <i class="fas fa-map-marker-alt"></i> {{ sucursal.direccion || 'Sin dirección registrada' }}
+                </p>
+
+                <div class="sucursal-acciones" style="margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+                  
+                  <button class="btn-mini add-user" (click)="agregarPersonalASucursal(sucursal)" title="Agregar Personal a esta Sucursal">
+                    <i class="fas fa-user-plus"></i> Agregar Personal
+                  </button>
+
+                  <button class="btn-mini edit" (click)="editarSucursal(sucursal)" title="Editar Información">
+                    <i class="fas fa-pen"></i> Editar
+                  </button>
+
+                  <button class="btn-mini delete" (click)="eliminarSucursal(sucursal.id)" title="Eliminar Sucursal permanentemente">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+
+                </div>
+
               </div>
               <div class="sucursal-stats">
                 <h3 class="sucursal-ventas">{{ sucursal.ventas | currency }}</h3>
@@ -417,7 +437,7 @@
   <div class="modal-backdrop" *ngIf="mostrarModalSucursal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Registrar Nueva Sucursal</h3>
+        <h3>{{ esEdicionSucursal ? 'Editar Sucursal' : 'Registrar Nueva Sucursal' }}</h3>
         <button class="btn-close" (click)="cerrarModalSucursal()">&times;</button>
       </div>
       
@@ -438,7 +458,9 @@
 
       <div class="modal-footer">
         <button class="btn-secondary" (click)="cerrarModalSucursal()">Cancelar</button>
-        <button class="btn-primary" (click)="guardarSucursal()">Crear Sucursal</button>
+        <button class="btn-primary" (click)="guardarSucursal()">
+          {{ esEdicionSucursal ? 'Guardar Cambios' : 'Crear Sucursal' }}
+        </button>
       </div>
     </div>
   </div>

@@ -964,3 +964,44 @@
     text-align: center;
   }
 }
+
+
+.btn-mini {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  flex: 1; /* Para que se distribuyan */
+}
+
+/* Botón Agregar (Azul) */
+.btn-mini.add-user {
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+.btn-mini.add-user:hover { background-color: #bae6fd; }
+
+/* Botón Editar (Gris) */
+.btn-mini.edit {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+.btn-mini.edit:hover { background-color: #e2e8f0; color: #334155; }
+
+/* Botón Eliminar (Rojo) */
+.btn-mini.delete {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  max-width: 40px; /* Que sea cuadradito pequeño */
+}
+.btn-mini.delete:hover { background-color: #fee2e2; border-color: #fca5a5; }

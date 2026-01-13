@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // 👈 Importante para los formularios
+import { FormsModule } from '@angular/forms'; 
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { AdminService } from '../../services/admin.service';
@@ -10,6 +10,8 @@ import { ProductosService } from '../../services/productos.service';
 interface Sucursal {
   id: number;
   nombre: string;
+  direccion?: string;
+  telefono?: string;
   empleadosActivos: number;
   horaPico: string;
   ventas: number;
@@ -21,7 +23,7 @@ interface Sucursal {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule], // 👈 Asegúrate de incluir FormsModule
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin-dashboard.component.html',
   styleUrls: ['./admin-dashboard.component.css']
 })
@@ -45,13 +47,16 @@ export class AdminDashboardComponent implements OnInit {
   
   // Gráficas Dinámicas (CSS Gradients)
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
+  public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
   
   // ==========================================
-  // VARIABLES PARA MODALES (NUEVO)
+  // VARIABLES PARA MODALES
   // ==========================================
   
   // Modal Sucursal
   public mostrarModalSucursal: boolean = false;
+  public esEdicionSucursal: boolean = false; // 👈 Nuevo: Para saber si editamos
+  public idSucursalEdicion: number | null = null; // 👈 Nuevo: ID de la sucursal a editar
   public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
 
   // Modal Personal
@@ -127,9 +132,11 @@ export class AdminDashboardComponent implements OnInit {
         this.sucursales = data.map((s: any) => ({
           id: s.id,
           nombre: s.nombre,
+          direccion: s.direccion, // Importante para editar
+          telefono: s.telefono,   // Importante para editar
           activa: s.activa,
           empleadosActivos: s.empleados?.length || 0,
-          horaPico: '20:00', // Dato simulado si el backend no lo envía
+          horaPico: '20:00',
           ventas: s.totalVentasDia || 0, 
           ordenes: s.totalOrdenesDia || 0,
           ticketPromedio: s.ticketPromedio || 0
@@ -159,11 +166,26 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE SUCURSALES (CREAR)
+  // LÓGICA DE SUCURSALES (CREAR / EDITAR / ELIMINAR)
   // ==========================================
 
+  // 1. Abrir Modal para CREAR
   abrirModalSucursal(): void {
+    this.esEdicionSucursal = false;
+    this.idSucursalEdicion = null;
     this.sucursalForm = { nombre: '', direccion: '', telefono: '' };
+    this.mostrarModalSucursal = true;
+  }
+
+  // 2. Abrir Modal para EDITAR (Carga datos existentes)
+  editarSucursal(sucursal: any): void {
+    this.esEdicionSucursal = true;
+    this.idSucursalEdicion = sucursal.id;
+    this.sucursalForm = { 
+      nombre: sucursal.nombre, 
+      direccion: sucursal.direccion || '', 
+      telefono: sucursal.telefono || '' 
+    };
     this.mostrarModalSucursal = true;
   }
 
@@ -171,34 +193,72 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalSucursal = false;
   }
 
+  // 3. Guardar (Maneja POST y PUT)
   guardarSucursal(): void {
     if (!this.sucursalForm.nombre) {
       alert('El nombre de la sucursal es obligatorio');
       return;
     }
 
-    this.adminService.crearSucursal(this.sucursalForm).subscribe({
-      next: (res) => {
-        alert('Sucursal creada con éxito ✅');
-        this.cerrarModalSucursal();
-        this.cargarDatosDelSistema(); // Recargar datos para ver la nueva sucursal
-      },
-      error: (err) => alert('Error al crear sucursal: ' + err.message)
-    });
+    if (this.esEdicionSucursal && this.idSucursalEdicion) {
+      // --- MODO EDICIÓN ---
+      this.adminService.editarSucursal(this.idSucursalEdicion, this.sucursalForm).subscribe({
+        next: () => {
+          alert('Sucursal actualizada correctamente ✅');
+          this.cerrarModalSucursal();
+          this.cargarDatosDelSistema();
+        },
+        error: (err) => alert('Error al actualizar: ' + err.message)
+      });
+    } else {
+      // --- MODO CREACIÓN ---
+      this.adminService.crearSucursal(this.sucursalForm).subscribe({
+        next: () => {
+          alert('Sucursal creada con éxito ✅');
+          this.cerrarModalSucursal();
+          this.cargarDatosDelSistema();
+        },
+        error: (err) => alert('Error al crear: ' + err.message)
+      });
+    }
+  }
+
+  // 4. Eliminar Sucursal
+  eliminarSucursal(id: number): void {
+    if(confirm('⚠️ ¿Estás seguro de eliminar esta sucursal permanentemente?\nEsta acción no se puede deshacer y podría afectar a los empleados asignados.')) {
+      this.adminService.eliminarSucursal(id).subscribe({
+        next: () => {
+          alert('Sucursal eliminada.');
+          this.cargarDatosDelSistema();
+        },
+        error: (err) => alert('No se pudo eliminar la sucursal (puede tener datos relacionados).')
+      });
+    }
   }
 
   // ==========================================
-  // LÓGICA DE PERSONAL (CREAR GERENTE/EMPLEADO)
+  // LÓGICA DE PERSONAL (CREAR Y ASIGNAR DIRECTO)
   // ==========================================
 
   abrirModalEmpleado(): void {
-    // Reseteamos el formulario
     this.empleadoForm = { 
       nombre: '', 
       email: '', 
       password: '', 
-      rol: 'GERENTE', // Por defecto sugerimos crear Gerente
+      rol: 'GERENTE', 
       sucursalId: null 
+    };
+    this.mostrarModalEmpleado = true;
+  }
+
+  // ⚡ NUEVO: Atajo para agregar personal desde la tarjeta de sucursal
+  agregarPersonalASucursal(sucursal: any): void {
+    this.empleadoForm = { 
+      nombre: '', 
+      email: '', 
+      password: '', 
+      rol: 'GERENTE', // Por defecto sugerimos Gerente
+      sucursalId: sucursal.id // Pre-seleccionamos la sucursal
     };
     this.mostrarModalEmpleado = true;
   }
@@ -208,7 +268,6 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
-    // Validaciones básicas
     if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
       alert('Por favor completa los campos obligatorios (Nombre, Email, Contraseña).');
       return;
@@ -223,7 +282,7 @@ export class AdminDashboardComponent implements OnInit {
       next: (res) => {
         alert('Personal registrado correctamente ✅');
         this.cerrarModalEmpleado();
-        this.cargarDatosDelSistema(); // Recargar para ver al nuevo empleado en las gráficas
+        this.cargarDatosDelSistema(); 
       },
       error: (err) => alert('Error al registrar personal: ' + err.message)
     });
@@ -297,6 +356,13 @@ export class AdminDashboardComponent implements OnInit {
     });
     gradiente += ')';
     this.pieChartRol = gradiente;
+
+    // Gráfica de estado (Activo/Inactivo)
+    const totalStatus = (this.estadoPersonal.activo + this.estadoPersonal.vacaciones + this.estadoPersonal.inactivo) || 1;
+    const activePct = (this.estadoPersonal.activo / totalStatus) * 100;
+    const vacationPct = (this.estadoPersonal.vacaciones / totalStatus) * 100;
+    
+    this.pieChartEstado = `conic-gradient(#20c997 0% ${activePct}%, #fbbc04 ${activePct}% ${activePct + vacationPct}%, #e74c3c ${activePct + vacationPct}% 100%)`;
   }
 
   // ==========================================

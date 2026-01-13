@@ -44,4 +44,18 @@ export class AdminService {
       headers: this.getHeaders() 
     });
   }
+
+
+  editarSucursal(id: number, datos: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/sucursales/${id}`, datos, { 
+      headers: this.getHeaders() 
+    });
+  }
+
+  // Eliminar Sucursal
+  eliminarSucursal(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/sucursales/${id}`, { 
+      headers: this.getHeaders() 
+    });
+  }
 }
