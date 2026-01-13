@@ -1,106 +1,99 @@
-import { Injectable, BadRequestException } from '@nestjs/common'; // 👈 Importamos BadRequestException
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class PersonalService {
   constructor(private prisma: PrismaService) {}
 
-  // 1. Listar empleados (Activos)
   async findAll(empresaId: number) {
     return this.prisma.empleado.findMany({
-      where: { 
-        empresaId: empresaId,
-        activo: true 
-      },
+      where: { empresaId },
       include: {
-        sucursal: {
-          select: { nombre: true }
-        }
+        sucursal: true
       },
       orderBy: { nombre: 'asc' }
     });
   }
 
-  // 2. Contratar (Crear Empleado con Validación)
   async create(data: any) {
-    
-    // ✅ VALIDACIÓN DE SEGURIDAD: UN SOLO GERENTE POR SUCURSAL
-    if (data.rol === 'GERENTE' && data.sucursalId) {
-      const sucursalId = Number(data.sucursalId);
+    const { nombre, email, password, rol, sucursalId, empresaId } = data;
 
+    // ✅ Validaciones básicas
+    if (!nombre || !email || !password || !rol || !sucursalId) {
+      throw new HttpException('Datos incompletos', HttpStatus.BAD_REQUEST);
+    }
+
+    // ✅ VALIDACIÓN DE GERENTE ÚNICO POR SUCURSAL
+    if (rol === 'GERENTE') {
       const gerenteExistente = await this.prisma.empleado.findFirst({
         where: {
-          sucursalId: sucursalId,
+          sucursalId: Number(sucursalId),
           rol: 'GERENTE',
-          activo: true // Solo nos importa si está activo
+          activo: true
         }
       });
 
       if (gerenteExistente) {
-        // Obtenemos el nombre de la sucursal para que el error sea claro
-        const sucursal = await this.prisma.sucursal.findUnique({ where: { id: sucursalId }});
-        throw new BadRequestException(`La sucursal "${sucursal?.nombre}" ya tiene un Gerente activo (${gerenteExistente.nombre}). No se puede crear otro.`);
+        throw new HttpException(
+          `La sucursal ya tiene un Gerente activo (${gerenteExistente.nombre}). No se puede asignar otro.`,
+          HttpStatus.BAD_REQUEST
+        );
       }
     }
 
-    // Si pasa la validación, creamos el empleado
-    return this.prisma.empleado.create({
+    // ✅ Verificar si el email ya existe
+    const emailExistente = await this.prisma.empleado.findUnique({
+      where: { email }
+    });
+
+    if (emailExistente) {
+      throw new HttpException('El email ya está registrado', HttpStatus.CONFLICT);
+    }
+
+    // ✅ Hash de contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Crear empleado
+    const nuevoEmpleado = await this.prisma.empleado.create({
       data: {
-        nombre: data.nombre,
-        email: data.email,
-        password: data.password, 
-        rol: data.rol,
-        empresaId: 1, 
-        sucursalId: data.sucursalId ? Number(data.sucursalId) : null,
-        fechaContratacion: new Date(),
+        nombre,
+        email,
+        password: hashedPassword,
+        rol,
+        sucursalId: Number(sucursalId),
+        empresaId: Number(empresaId),
         activo: true
+      },
+      include: {
+        sucursal: true
       }
     });
+
+    return {
+      success: true,
+      message: 'Empleado creado exitosamente',
+      empleado: nuevoEmpleado
+    };
   }
 
-  // 3. Modificar
   async update(id: number, data: any) {
-    
-    // ✅ VALIDACIÓN EN EDICIÓN TAMBIÉN (Por si intentan promover a alguien a Gerente)
-    if (data.rol === 'GERENTE' && data.sucursalId) {
-      const sucursalId = Number(data.sucursalId);
-      
-      const gerenteExistente = await this.prisma.empleado.findFirst({
-        where: {
-          sucursalId: sucursalId,
-          rol: 'GERENTE',
-          activo: true,
-          id: { not: id } // Importante: Excluir al empleado que estamos editando
-        }
-      });
-
-      if (gerenteExistente) {
-        throw new BadRequestException(`Ya existe otro Gerente en esta sucursal.`);
-      }
-    }
-
-    const datosParaActualizar: any = {
-      nombre: data.nombre,
-      email: data.email,
-      rol: data.rol
-    };
-
-    if (data.sucursalId) {
-      datosParaActualizar.sucursalId = Number(data.sucursalId);
-    }
-
-    if (data.password && data.password.trim() !== '') {
-      datosParaActualizar.password = data.password;
+    // Si se está actualizando la contraseña, hashearla
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
     }
 
     return this.prisma.empleado.update({
       where: { id },
-      data: datosParaActualizar
+      data,
+      include: {
+        sucursal: true
+      }
     });
   }
 
-  // 4. Despedir (Soft Delete)
   async remove(id: number) {
+    // Soft delete
     return this.prisma.empleado.update({
       where: { id },
       data: { activo: false }
