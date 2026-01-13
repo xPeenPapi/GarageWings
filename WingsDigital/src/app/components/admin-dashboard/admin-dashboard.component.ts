@@ -30,36 +30,36 @@ interface Sucursal {
 export class AdminDashboardComponent implements OnInit {
 
   // ==========================================
-  // STATE VARIABLES
+  // VARIABLES DE ESTADO
   // ==========================================
   public nombreAdmin: string = '';
   public horaActual: string = '';
   public cargando: boolean = true;
 
-  // Filters and Navigation
+  // Filtros y Navegación
   public sucursalSeleccionada: string = 'todas';
   public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' = 'resumen';
 
-  // Real Data
+  // Datos Reales
   public sucursales: Sucursal[] = [];
   public personal: any[] = [];
   public productos: any[] = [];
   
-  // Dynamic Charts (CSS Gradients)
+  // Gráficas Dinámicas (CSS Gradients)
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
   public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
   
   // ==========================================
-  // MODAL VARIABLES
+  // VARIABLES PARA MODALES
   // ==========================================
   
-  // Branch Modal
+  // Modal Sucursal
   public mostrarModalSucursal: boolean = false;
   public esEdicionSucursal: boolean = false; 
   public idSucursalEdicion: number | null = null; 
   public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
 
-  // Staff Modal
+  // Modal Personal
   public mostrarModalEmpleado: boolean = false;
   public empleadoForm: any = { 
     nombre: '', 
@@ -70,7 +70,7 @@ export class AdminDashboardComponent implements OnInit {
   };
 
   // ==========================================
-  // CALCULATED STATISTICS
+  // ESTADÍSTICAS CALCULADAS
   // ==========================================
   public estadisticas = {
     ventasTotales: 0,
@@ -120,13 +120,13 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // DATA LOADING LOGIC
+  // LOGICA DE CARGA DE DATOS
   // ==========================================
   
   cargarDatosDelSistema(): void {
     this.cargando = true;
 
-    // 1. Load Branches
+    // 1. Cargar Sucursales
     this.adminService.getSucursales().subscribe({
       next: (data) => {
         this.sucursales = data.map((s: any) => ({
@@ -144,10 +144,10 @@ export class AdminDashboardComponent implements OnInit {
 
         this.recalcularEstadisticasGenerales();
       },
-      error: (err) => console.error('Error loading branches', err)
+      error: (err) => console.error('Error cargando sucursales', err)
     });
 
-    // 2. Load Global Staff
+    // 2. Cargar Personal Global
     this.adminService.getAllPersonal().subscribe({
       next: (data) => {
         this.personal = data;
@@ -156,7 +156,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
 
-    // 3. Load Menu
+    // 3. Cargar Menú
     this.productosService.getProductos().subscribe({
       next: (data) => {
         this.productos = data;
@@ -166,10 +166,10 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // BRANCH LOGIC (CREATE / EDIT / DELETE)
+  // LÓGICA DE SUCURSALES (CREAR / EDITAR / ELIMINAR)
   // ==========================================
 
-  // 1. Open Modal for CREATE
+  // 1. Abrir Modal para CREAR
   abrirModalSucursal(): void {
     this.esEdicionSucursal = false;
     this.idSucursalEdicion = null;
@@ -177,7 +177,7 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalSucursal = true;
   }
 
-  // 2. Open Modal for EDIT (Load existing data)
+  // 2. Abrir Modal para EDITAR
   editarSucursal(sucursal: any): void {
     this.esEdicionSucursal = true;
     this.idSucursalEdicion = sucursal.id;
@@ -193,63 +193,65 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalSucursal = false;
   }
 
-  // 3. Save (Handles POST and PUT)
+  // 3. Guardar
   guardarSucursal(): void {
     if (!this.sucursalForm.nombre) {
-      alert('Branch name is mandatory');
+      alert('El nombre de la sucursal es obligatorio');
       return;
     }
 
     if (this.esEdicionSucursal && this.idSucursalEdicion) {
-      // --- EDIT MODE ---
+      // --- MODO EDICIÓN ---
       this.adminService.editarSucursal(this.idSucursalEdicion, this.sucursalForm).subscribe({
         next: () => {
-          alert('Branch updated successfully ✅');
+          alert('Sucursal actualizada correctamente ✅');
           this.cerrarModalSucursal();
           this.cargarDatosDelSistema();
         },
-        error: (err) => alert('Error updating: ' + err.message)
+        error: (err) => alert('Error al actualizar: ' + err.message)
       });
     } else {
-      // --- CREATE MODE ---
+      // --- MODO CREACIÓN ---
       this.adminService.crearSucursal(this.sucursalForm).subscribe({
         next: () => {
-          alert('Branch created successfully ✅');
+          alert('Sucursal creada con éxito ✅');
           this.cerrarModalSucursal();
           this.cargarDatosDelSistema();
         },
-        error: (err) => alert('Error creating: ' + err.message)
+        error: (err) => alert('Error al crear: ' + err.message)
       });
     }
   }
 
-  // 4. Delete Branch
+  // 4. Eliminar Sucursal
   eliminarSucursal(id: number): void {
+    // Verificamos visualmente si parece tener empleados, pero el backend tiene la última palabra
     const sucursal = this.sucursales.find(s => s.id === id);
-    const tieneEmpleados = (sucursal?.empleadosActivos || 0) > 0;
+    const tieneData = (sucursal?.empleadosActivos || 0) > 0 || (sucursal?.ventas || 0) > 0;
     
-    let mensaje = '⚠️ Are you sure you want to permanently delete this branch?';
-    if(tieneEmpleados) {
-      mensaje += '\n\n🔴 WARNING! This branch has active employees or data. Deleting it will erase its entire history.';
+    let mensaje = '⚠️ ¿Estás seguro de eliminar esta sucursal permanentemente?';
+    if(tieneData) {
+      mensaje += '\n\n🔴 ¡ADVERTENCIA! Esta sucursal tiene empleados o ventas registradas. Se borrará TODO el historial relacionado.';
     }
 
     if(confirm(mensaje)) {
       this.adminService.eliminarSucursal(id).subscribe({
         next: () => {
-          alert('Branch deleted successfully.');
+          alert('Sucursal y todos sus datos relacionados fueron eliminados.');
           this.cargarDatosDelSistema();
         },
         error: (err) => {
           console.error(err);
-          // Generic error message if backend does not return specific one
-          alert('❌ Could not delete. Check backend logs for cascade delete constraints.');
+          // Mensaje detallado para ayudar a depurar si falla
+          const msgBackend = err.error?.message || err.message;
+          alert(`❌ No se pudo eliminar.\n\nError del servidor: ${msgBackend}\n\nPosible causa: Existen registros (como Órdenes o Productos) que no se están borrando en cascada.`);
         }
       });
     }
   }
 
   // ==========================================
-  // STAFF LOGIC (CREATE AND DIRECT ASSIGN - WITH VALIDATION)
+  // LÓGICA DE PERSONAL
   // ==========================================
 
   abrirModalEmpleado(): void {
@@ -263,7 +265,6 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalEmpleado = true;
   }
 
-  // Shortcut to add staff from branch card
   agregarPersonalASucursal(sucursal: any): void {
     this.empleadoForm = { 
       nombre: '', 
@@ -280,42 +281,29 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
-    // 1. Basic Validations
     if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
-      alert('Please complete mandatory fields (Name, Email, Password).');
+      alert('Por favor completa los campos obligatorios.');
       return;
     }
 
     if (!this.empleadoForm.sucursalId) {
-      alert('You must assign the employee to a branch.');
+      alert('Debes asignar el empleado a una sucursal.');
       return;
     }
 
-    // 2. ✅ VALIDATION IMPROVED: Single Manager per Branch (Frontend Check)
+    // Validación Frontend de Gerente Único (Respaldo visual)
     if (this.empleadoForm.rol === 'GERENTE') {
-      
-      console.log('--- STARTING MANAGER VALIDATION ---');
-      console.log('Target Branch ID:', this.empleadoForm.sucursalId, '(Type:', typeof this.empleadoForm.sucursalId + ')');
-      console.log('Total Staff Loaded:', this.personal.length);
-
-      // Use '==' for type coercion (string vs number)
+      const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
       const gerenteExistente = this.personal.find(p => {
-          if (p.rol === 'GERENTE' && p.activo) {
-             console.log(`Checking against: ${p.nombre} | Role: ${p.rol} | BranchId: ${p.sucursalId} (Type: ${typeof p.sucursalId}) | Active: ${p.activo}`);
-          }
-          
-          return (p.sucursalId == this.empleadoForm.sucursalId) && 
+          return (p.sucursalId === sucursalIdTarget) && 
                  (p.rol === 'GERENTE') &&
                  (p.activo === true);
       });
 
       if (gerenteExistente) {
-        console.warn('❌ VALIDATION FAILED: Manager exists:', gerenteExistente.nombre);
-        const nombreSucursal = this.sucursales.find(s => s.id == this.empleadoForm.sucursalId)?.nombre;
-        alert(`⛔ Action denied.\n\nThe branch "${nombreSucursal}" already has an active MANAGER (${gerenteExistente.nombre}).\n\nOnly one main manager per branch is allowed.`);
-        return; // Stop here
-      } else {
-        console.log('✅ VALIDATION PASSED: No active manager found.');
+        const nombreSucursal = this.sucursales.find(s => s.id === sucursalIdTarget)?.nombre;
+        alert(`⛔ Acción denegada.\n\nLa sucursal "${nombreSucursal}" ya tiene un GERENTE activo (${gerenteExistente.nombre}).`);
+        return;
       }
     }
 
@@ -323,21 +311,20 @@ export class AdminDashboardComponent implements OnInit {
     this.adminService.crearEmpleado(this.empleadoForm).subscribe({
       next: (res) => {
         this.cargando = false;
-        alert('Staff registered successfully ✅');
+        alert('Personal registrado correctamente ✅');
         this.cerrarModalEmpleado();
         this.cargarDatosDelSistema(); 
       },
       error: (err) => {
         this.cargando = false;
         console.error('Backend Error:', err);
-        // Display backend error message if available (from BadRequestException)
-        alert('Error registering staff: ' + (err.error?.message || err.message));
+        alert('Error al registrar personal: ' + (err.error?.message || err.message));
       }
     });
   }
 
   // ==========================================
-  // CALCULATIONS AND CHARTS
+  // CÁLCULOS Y GRÁFICAS
   // ==========================================
 
   recalcularEstadisticasGenerales(): void {
@@ -405,7 +392,6 @@ export class AdminDashboardComponent implements OnInit {
     gradiente += ')';
     this.pieChartRol = gradiente;
 
-    // Staff Status Chart
     const totalStatus = (this.estadoPersonal.activo + this.estadoPersonal.vacaciones + this.estadoPersonal.inactivo) || 1;
     const activePct = (this.estadoPersonal.activo / totalStatus) * 100;
     const vacationPct = (this.estadoPersonal.vacaciones / totalStatus) * 100;
@@ -414,7 +400,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // UI INTERACTION
+  // INTERACCIÓN UI
   // ==========================================
 
   seleccionarSucursal(sucursal: string): void {

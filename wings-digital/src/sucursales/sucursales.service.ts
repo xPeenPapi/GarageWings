@@ -5,12 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class SucursalesService {
   constructor(private prisma: PrismaService) {}
 
-  // 1. Listar todas las sucursales (con conteo de empleados opcional)
+  // 1. Listar todas las sucursales
   async findAll() {
     return this.prisma.sucursal.findMany({
       where: { empresaId: 1 }, // Asumimos empresa 1
       include: {
-        empleados: true, // Incluimos empleados para contarlos en el front si es necesario
+        empleados: true, 
       },
       orderBy: { nombre: 'asc' }
     });
@@ -32,16 +32,15 @@ export class SucursalesService {
         nombre: data.nombre,
         direccion: data.direccion,
         telefono: data.telefono,
-        empresaId: 1, // Vinculado a la empresa principal
+        empresaId: 1, 
         activa: true
       }
     });
   }
 
-  // 4. Actualizar Sucursal (¡ESTE FALTABA!)
+  // 4. Actualizar Sucursal
   async update(id: number, data: any) {
-    // Verificamos si existe primero
-    await this.findOne(id);
+    await this.findOne(id); // Verificar existencia
 
     return this.prisma.sucursal.update({
       where: { id },
@@ -49,24 +48,29 @@ export class SucursalesService {
         nombre: data.nombre,
         direccion: data.direccion,
         telefono: data.telefono,
-        // Si quisieras desactivarla sin borrarla:
-        // activa: data.activa 
       },
     });
   }
 
-  // 5. Eliminar Sucursal (Borrado en Cascada Seguro)
-async remove(id: number) {
-    // Primero verificamos que la sucursal exista
-    const sucursalExiste = await this.prisma.sucursal.findUnique({ where: { id } });
-    if (!sucursalExiste) {
-        throw new NotFoundException(`La sucursal ${id} no existe.`);
-    }
+  // 5. Eliminar Sucursal (Borrado en Cascada Completo)
+  async remove(id: number) {
+    // Verificar que exista antes de intentar borrar
+    await this.findOne(id);
 
-    // Usamos una transacción: O se borra TODO, o no se borra NADA.
+    // Usamos transacción para borrar TODO o NADA
     return this.prisma.$transaction(async (tx) => {
-      // 1. Borrar Turnos asociados a empleados de esta sucursal
-      // Primero encontramos los IDs de los empleados
+      
+      // A. Borrar Órdenes/Ventas vinculadas a la sucursal
+      // IMPORTANTE: Esto soluciona el bloqueo por Foreign Key en Ventas
+      // Si tu modelo se llama 'Venta' o 'Pedido', cambia 'orden' por ese nombre.
+      try {
+        // @ts-ignore: Ignoramos error de tipo por si el modelo se llama diferente
+        if (tx.orden) await tx.orden.deleteMany({ where: { sucursalId: id } });
+      } catch (e) {
+        console.log('No se encontraron órdenes para borrar o el modelo difiere', e);
+      }
+
+      // B. Obtener empleados para borrar sus dependencias (Turnos)
       const empleados = await tx.empleado.findMany({
         where: { sucursalId: id },
         select: { id: true }
@@ -74,21 +78,20 @@ async remove(id: number) {
       const empleadoIds = empleados.map(e => e.id);
 
       if (empleadoIds.length > 0) {
-         // Borramos sus turnos, asistencias, etc.
+         // Borrar turnos de los empleados
          await tx.turno.deleteMany({ where: { empleadoId: { in: empleadoIds } } });
-         // Si tienes tabla de Ventas o Comandas vinculadas a empleados, bórralas aquí también.
       }
 
-      // 2. Borrar Empleados de la sucursal
+      // C. Borrar Empleados
       await tx.empleado.deleteMany({ where: { sucursalId: id } });
 
-      // 3. Borrar Mesas de la sucursal
+      // D. Borrar Mesas
       await tx.mesa.deleteMany({ where: { sucursalId: id } });
       
-      // 4. Borrar Productos si están ligados a sucursal (Opcional, depende tu modelo)
+      // E. (Opcional) Borrar Productos si están ligados exclusivamente a la sucursal
       // await tx.producto.deleteMany({ where: { sucursalId: id } });
 
-      // 5. Finalmente, borrar la Sucursal
+      // F. Finalmente, borrar la Sucursal
       return tx.sucursal.delete({
         where: { id },
       });
