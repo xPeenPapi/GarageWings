@@ -138,11 +138,23 @@ export class PedidosService {
             console.log('✨ Creando Nueva Orden...');
             const notaCliente = dto.notaGeneral || dto.nota_general || 'Cliente';
             
+            // ✅ Obtener sucursalId del mesero para pedidos para llevar
+            let sucursalIdOrden: number | null = null;
+            if (dto.mesero_id || dto.empleado_id) {
+                const meseroId = dto.mesero_id ? Number(dto.mesero_id) : Number(dto.empleado_id);
+                const mesero = await this.prisma.empleado.findUnique({
+                    where: { id: meseroId },
+                    select: { sucursalId: true }
+                });
+                sucursalIdOrden = mesero?.sucursalId ?? null;
+            }
+            
             const ordenData: any = {
                 meseroId: dto.mesero_id ? Number(dto.mesero_id) : (dto.empleado_id ? Number(dto.empleado_id) : null),
                 estado: EstadoOrden.PENDIENTE,
                 comensales: dto.comensales ? Number(dto.comensales) : 1,
                 notaGeneral: notaCliente,
+                sucursalId: sucursalIdOrden // ✅ Asignar sucursal del mesero
             };
 
             if (dto.mesa_id) ordenData.mesaId = Number(dto.mesa_id);
@@ -156,7 +168,15 @@ export class PedidosService {
                 include: { 
                     mesa: true, 
                     mesero: true,
-                    items: { include: { producto: true } } 
+                    items: { 
+                        include: { 
+                            producto: {
+                                include: {
+                                    categoria: true // ✅ Incluir categoría
+                                }
+                            }
+                        } 
+                    } 
                 }
             });
 

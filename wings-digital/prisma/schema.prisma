@@ -76,7 +76,7 @@ model Sucursal {
   empleados  Empleado[]
   mesas      Mesa[]
   inventario SucursalProducto[]
-  
+  ordenes    Orden[]             // ✅ Relación con órdenes (para llevar)
   turnos     Turno[]
 
   @@map("sucursales")
@@ -192,6 +192,7 @@ model Orden {
   id          Int         @id @default(autoincrement())
   mesaId      Int?        @map("mesa_id")
   meseroId    Int?        @map("empleado_id")
+  sucursalId  Int?        @map("sucursal_id") // ✅ Para pedidos para llevar
   estado      EstadoOrden @default(PENDIENTE)
     
   comensales  Int      @default(1)
@@ -203,12 +204,14 @@ model Orden {
   propina     Float?    @default(0)
   metodoPago  String?
 
-  mesa   Mesa?     @relation(fields: [mesaId], references: [id])
-  mesero Empleado? @relation(fields: [meseroId], references: [id])
-  items  ItemOrden[]
-  pagos  Pago[]
+  mesa     Mesa?     @relation(fields: [mesaId], references: [id])
+  mesero   Empleado? @relation(fields: [meseroId], references: [id])
+  sucursal Sucursal? @relation(fields: [sucursalId], references: [id])
+  items    ItemOrden[]
+  pagos    Pago[]
 
   @@index([mesaId])
+  @@index([sucursalId])
   @@map("ordenes")
 }
 
