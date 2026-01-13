@@ -4,6 +4,7 @@ import { UsersModule } from '../users/users.module'; // O empleados, si cambiast
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module'; // Importante para la BD
+import { JwtStrategy } from './jwt.strategy'; // ✅ AGREGADO
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { PrismaModule } from '../prisma/prisma.module'; // Importante para la BD
       signOptions: { expiresIn: '12h' }, // El token dura 12 horas
     }),
   ],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy], // ✅ AGREGADO JwtStrategy
   controllers: [AuthController], // ⬅️ ¡Sin esto, el controlador no funciona!
   exports: [AuthService],
 })

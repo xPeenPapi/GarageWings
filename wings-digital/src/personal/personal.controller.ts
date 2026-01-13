@@ -10,20 +10,30 @@ export class PersonalController {
   @UseGuards(JwtAuthGuard) // 🔒 Protegemos para leer el token
   @Get('dashboard')
   async getDashboard(@Req() req) {
-    
-    // 1. Extraemos datos del usuario logueado
-    const sucursalId = req.user.sucursalId;
-    const rol = req.user.rol;
+    try {
+      // 1. Extraemos datos del usuario logueado
+      const sucursalId = req.user?.sucursalId;
+      const rol = req.user?.rol;
+      const email = req.user?.email;
 
-    // 2. Definimos el filtro:
-    // - Si es ADMIN, enviamos null (ver todo).
-    // - Si es GERENTE (o cualquier otro), enviamos su sucursalId.
-    const idParaFiltrar = rol === 'ADMIN' ? null : sucursalId;
+      console.log('🔍 Usuario del token:', req.user);
 
-    console.log(`📊 Dashboard solicitado por: ${req.user.email} (${rol}) - Filtro Sucursal ID: ${idParaFiltrar}`);
+      // 2. Definimos el filtro:
+      // - Si es ADMIN_EMPRESA o SUPER_ADMIN, enviamos null (ver todo).
+      // - Si es GERENTE (o cualquier otro), enviamos su sucursalId.
+      const idParaFiltrar = (rol === 'ADMIN_EMPRESA' || rol === 'SUPER_ADMIN') ? null : sucursalId;
 
-    // 3. Llamamos al servicio con el filtro
-    return this.personalService.getDashboardStats(idParaFiltrar);
+      console.log(`📊 Dashboard solicitado por: ${email} (${rol}) - Filtro Sucursal ID: ${idParaFiltrar}`);
+
+      // 3. Llamamos al servicio con el filtro
+      return this.personalService.getDashboardStats(idParaFiltrar);
+    } catch (error) {
+      console.error('❌ Error en getDashboard:', error);
+      throw new HttpException(
+        'Error al obtener estadísticas del dashboard',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   // --- TUS MÉTODOS EXISTENTES (SIN CAMBIOS) ---
