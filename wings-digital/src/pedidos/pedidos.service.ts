@@ -204,7 +204,13 @@ export class PedidosService {
             where: {
                 estado: { not: EstadoOrden.CANCELADA }
             },
-            include: { producto: true } 
+            include: { 
+              producto: {
+                include: {
+                  categoria: true // ✅ Necesario para filtrado en cocina/barra
+                }
+              }
+            } 
         }
       },
       orderBy: { creadaEn: 'asc' }
@@ -439,7 +445,15 @@ export class PedidosService {
       include: {
         mesero: true, 
         mesa: true,
-        items: { include: { producto: true } }
+        items: { 
+          include: { 
+            producto: {
+              include: {
+                categoria: true // ✅ Necesario para filtrado en cocina/barra
+              }
+            }
+          } 
+        }
       }
     });
   }
@@ -450,7 +464,17 @@ export class PedidosService {
           mesaId, 
           estado: { notIn: [EstadoOrden.CANCELADA, EstadoOrden.PAGADA, EstadoOrden.CERRADA] }
         },
-        include: { items: { include: { producto: true } } }
+        include: { 
+          items: { 
+            include: { 
+              producto: {
+                include: {
+                  categoria: true // ✅ Necesario para filtrado en cocina/barra
+                }
+              }
+            } 
+          } 
+        }
       });
   }
 }
