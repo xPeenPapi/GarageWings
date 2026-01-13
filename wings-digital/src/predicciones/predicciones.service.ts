@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoOrden } from '@prisma/client';
 import axios from 'axios';
-import * as dotenv from 'dotenv';
+import dotenv from 'dotenv';
 dotenv.config();
 
 
@@ -198,7 +198,7 @@ Sé conciso, profesional y enfocado en acciones prácticas. Usa formato markdown
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'HTTP-Referer': 'https://garagewings.app',
           'X-Title': 'Garage Wings - Predicción de Ventas',
           'Content-Type': 'application/json'
