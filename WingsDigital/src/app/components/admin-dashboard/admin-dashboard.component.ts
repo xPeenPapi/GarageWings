@@ -301,67 +301,67 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalEmpleado = false;
   }
 
-  guardarEmpleado(): void {
-    // 1. Validaciones básicas
-    if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
-      Swal.fire('Datos Incompletos', 'Por favor completa todos los campos obligatorios.', 'warning');
-      return;
-    }
-
-    if (!this.empleadoForm.sucursalId) {
-      Swal.fire('Falta Sucursal', 'Debes asignar el empleado a una sucursal.', 'warning');
-      return;
-    }
-
-    // 2. Validación de Gerente Único (Frontend)
-    if (this.empleadoForm.rol === 'GERENTE') {
-      // Importante: Asegurar que es número para la comparación
-      const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
-      
-      const gerenteExistente = this.personal.find(p => {
-          return (p.sucursalId === sucursalIdTarget) && 
-                 (p.rol === 'GERENTE') && 
-                 (p.activo === true);
-      });
-
-      if (gerenteExistente) {
-        const nombreSucursal = this.sucursales.find(s => s.id === sucursalIdTarget)?.nombre || 'la sucursal';
-        
-        // Alerta bonita de error
-        Swal.fire({
-          icon: 'error',
-          title: 'Acción Denegada',
-          html: `La sucursal <b>"${nombreSucursal}"</b> ya tiene un Gerente activo:<br><br>
-                 <i class="fas fa-user-tie" style="font-size: 2rem; color: #555; margin: 10px;"></i><br>
-                 <b>${gerenteExistente.nombre}</b><br><br>
-                 No es posible asignar dos gerentes principales a la misma sucursal.`,
-          confirmButtonColor: '#d33',
-          confirmButtonText: 'Entendido'
-        });
-        return; 
-      }
-    }
-
-    this.cargando = true;
-    this.adminService.crearEmpleado(this.empleadoForm).subscribe({
-      next: (res) => {
-        this.cargando = false;
-        Swal.fire({
-          icon: 'success',
-          title: '¡Registrado!',
-          text: 'El personal ha sido registrado correctamente.',
-          timer: 2000,
-          showConfirmButton: false
-        });
-        this.cerrarModalEmpleado();
-        this.cargarDatosDelSistema(); 
-      },
-      error: (err) => {
-        this.cargando = false;
-        Swal.fire('Error', err.error?.message || err.message, 'error');
-      }
-    });
+guardarEmpleado(): void {
+  // 1. Validaciones básicas
+  if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
+    Swal.fire('Datos Incompletos', 'Por favor completa todos los campos obligatorios.', 'warning');
+    return;
   }
+
+  if (!this.empleadoForm.sucursalId) {
+    Swal.fire('Falta Sucursal', 'Debes asignar el empleado a una sucursal.', 'warning');
+    return;
+  }
+
+  // 2. ✅ VALIDACIÓN CORREGIDA: Verificar que el empleado pertenezca A LA MISMA SUCURSAL
+  if (this.empleadoForm.rol === 'GERENTE') {
+    const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
+    
+    // ✅ CORRECCIÓN: Filtrar por sucursalId Y rol simultáneamente
+    const gerenteExistente = this.personal.find(p => {
+      return Number(p.sucursalId) === sucursalIdTarget && 
+             p.rol === 'GERENTE' && 
+             p.activo === true;
+    });
+
+    if (gerenteExistente) {
+      const nombreSucursal = this.sucursales.find(s => s.id === sucursalIdTarget)?.nombre || 'la sucursal';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Acción Denegada',
+        html: `La sucursal <b>"${nombreSucursal}"</b> ya tiene un Gerente activo:<br><br>
+               <i class="fas fa-user-tie" style="font-size: 2rem; color: #555; margin: 10px;"></i><br>
+               <b>${gerenteExistente.nombre}</b><br><br>
+               No es posible asignar dos gerentes principales a la misma sucursal.`,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Entendido'
+      });
+      return; 
+    }
+  }
+
+  // 3. ✅ Proceder con el registro
+  this.cargando = true;
+  this.adminService.crearEmpleado(this.empleadoForm).subscribe({
+    next: (res) => {
+      this.cargando = false;
+      Swal.fire({
+        icon: 'success',
+        title: '¡Registrado!',
+        text: 'El personal ha sido registrado correctamente.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      this.cerrarModalEmpleado();
+      this.cargarDatosDelSistema(); 
+    },
+    error: (err) => {
+      this.cargando = false;
+      Swal.fire('Error', err.error?.message || err.message, 'error');
+    }
+  });
+}
 
   // ==========================================
   // CÁLCULOS Y GRÁFICAS
