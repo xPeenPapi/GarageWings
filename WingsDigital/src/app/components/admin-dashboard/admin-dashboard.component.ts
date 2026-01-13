@@ -91,6 +91,28 @@ export class AdminDashboardComponent implements OnInit {
     return this.mesas.filter(m => Number(m.sucursalId) === Number(sucursal.id));
   }
 
+  get categoriasFiltradas(): any[] {
+    // Las categorías son globales, pero podemos filtrar por productos asociados
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.categorias;
+    }
+    // Mostrar todas las categorías (son globales para la empresa)
+    return this.categorias;
+  }
+
+  get turnosFiltrados(): any[] {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.turnos;
+    }
+    const sucursal = this.sucursales.find(s => s.nombre === this.sucursalSeleccionada);
+    if (!sucursal) return [];
+    // Filtrar turnos por empleados de la sucursal seleccionada
+    return this.turnos.filter(t => {
+      const empleado = this.personal.find(emp => emp.id === t.empleadoId);
+      return empleado && Number(empleado.sucursalId) === Number(sucursal.id);
+    });
+  }
+
   get sucursalesConEmpleados(): any[] {
     console.log('🔍 Personal completo:', this.personal);
     console.log('🏢 Sucursales activas:', this.sucursalesActivas);
@@ -249,6 +271,12 @@ export class AdminDashboardComponent implements OnInit {
     tarjeta: 0,
     transferencia: 0
   };
+
+  // Calendario
+  public mesActual: Date = new Date();
+  public diasDelMes: any[] = [];
+  public ventasPorDia: Map<string, number> = new Map();
+  public cargandoReportes: boolean = false;
 
   public personalPorRol = { meseros: 0, gerentes: 0, cocineros: 0, baristas: 0, cajeros: 0 };
   public estadoPersonal = { activo: 0, vacaciones: 0, inactivo: 0 };
@@ -862,16 +890,31 @@ guardarEmpleado(): void {
   // ==========================================
   
   cargarReportes(): void {
+    this.cargandoReportes = true;
     console.log('📊 Cargando reportes para fecha:', this.fechaReporte);
-    // Por ahora datos de ejemplo, después conectar con el backend
-    this.resumenReporte = {
-      ventasDia: this.estadisticas.ventasTotales,
-      ordenesDia: this.estadisticas.ordenesDelDia,
-      ticketPromedio: this.estadisticas.ventasTotales / (this.estadisticas.ordenesDelDia || 1),
-      efectivo: this.resumenGeneral.efectivo,
-      tarjeta: this.resumenGeneral.tarjeta,
-      transferencia: this.resumenGeneral.transferencia
-    };
+    
+    this.adminService.getReporteDia(this.fechaReporte).subscribe({
+      next: (data) => {
+        console.log('✅ Datos de reporte recibidos:', data);
+        this.resumenReporte = {
+          ventasDia: data.ventasTotales || 0,
+          ordenesDia: data.ordenesTotales || 0,
+          ticketPromedio: data.ticketPromedio || 0,
+          efectivo: data.resumenPago?.efectivo || 0,
+          tarjeta: data.resumenPago?.tarjeta || 0,
+          transferencia: data.resumenPago?.transferencia || 0
+        };
+        this.cargandoReportes = false;
+      },
+      error: (err) => {
+        console.error('❌ Error cargando reportes:', err);
+        this.cargandoReportes = false;
+      }
+    });
+    
+    // Generar calendario del mes actual y cargar ventas
+    this.generarCalendario();
+    this.cargarVentasDelMes();
   }
 
   cambiarFechaReporte(): void {
@@ -881,12 +924,94 @@ guardarEmpleado(): void {
     this.cargarReportes();
   }
 
+  generarCalendario(): void {
+    const year = this.mesActual.getFullYear();
+    const month = this.mesActual.getMonth();
+    
+    // Primer día del mes
+    const primerDia = new Date(year, month, 1);
+    const diaSemanaInicio = primerDia.getDay(); // 0 = Domingo
+    
+    // Último día del mes
+    const ultimoDia = new Date(year, month + 1, 0);
+    const totalDias = ultimoDia.getDate();
+    
+    this.diasDelMes = [];
+    
+    // Agregar días vacíos al inicio
+    for (let i = 0; i < diaSemanaInicio; i++) {
+      this.diasDelMes.push({ dia: null, fecha: null, ventas: 0, esHoy: false, esFuturo: false });
+    }
+    
+    // Agregar días del mes
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    for (let dia = 1; dia <= totalDias; dia++) {
+      const fecha = new Date(year, month, dia);
+      const fechaStr = fecha.toISOString().split('T')[0];
+      const esHoy = fecha.getTime() === hoy.getTime();
+      const esFuturo = fecha > hoy;
+      
+      this.diasDelMes.push({
+        dia,
+        fecha: fechaStr,
+        ventas: this.ventasPorDia.get(fechaStr) || 0,
+        esHoy,
+        esFuturo
+      });
+    }
+  }
+
+  cambiarMes(direccion: number): void {
+    this.mesActual = new Date(this.mesActual.getFullYear(), this.mesActual.getMonth() + direccion, 1);
+    this.generarCalendario();
+    this.cargarVentasDelMes();
+  }
+
+  cargarVentasDelMes(): void {
+    // Cargar ventas de todos los días del mes
+    const year = this.mesActual.getFullYear();
+    const month = this.mesActual.getMonth();
+    const ultimoDia = new Date(year, month + 1, 0).getDate();
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+      const fecha = new Date(year, month, dia);
+      const fechaStr = fecha.toISOString().split('T')[0];
+      
+      this.adminService.getReporteDia(fechaStr).subscribe({
+        next: (data) => {
+          this.ventasPorDia.set(fechaStr, data.ventasTotales || 0);
+          this.generarCalendario();
+        },
+        error: (err) => console.error('Error cargando ventas:', err)
+      });
+    }
+  }
+
+  seleccionarDiaCalendario(dia: any): void {
+    if (!dia.dia || dia.esFuturo) return;
+    this.fechaReporte = dia.fecha;
+    this.cargarReportes();
+  }
+
+  get nombreMes(): string {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return `${meses[this.mesActual.getMonth()]} ${this.mesActual.getFullYear()}`;
+  }
+
   cerrarSesion(): void {
     this.authService.logout();
   }
 
   get ventasPorSucursalData(): { sucursal: string; ventas: number }[] {
-    return this.sucursales
+    // Usar sucursales filtradas en lugar de todas
+    const sucursales = this.sucursalSeleccionada === 'todas' 
+      ? this.sucursales 
+      : this.sucursales.filter(s => s.nombre === this.sucursalSeleccionada);
+    
+    return sucursales
       .filter(s => s.activa)
       .map(s => ({
         sucursal: s.nombre,
@@ -895,7 +1020,10 @@ guardarEmpleado(): void {
   }
 
   get maxVentas(): number {
-    const max = Math.max(...this.sucursales.map(s => s.ventas));
+    const sucursales = this.sucursalSeleccionada === 'todas' 
+      ? this.sucursales 
+      : this.sucursales.filter(s => s.nombre === this.sucursalSeleccionada);
+    const max = Math.max(...sucursales.map(s => s.ventas));
     return max > 0 ? max : 1; 
   }
 

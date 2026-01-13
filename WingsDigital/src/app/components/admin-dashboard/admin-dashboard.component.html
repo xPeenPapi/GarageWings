@@ -548,7 +548,7 @@
         </div>
 
         <div class="grid-categorias">
-          <div class="categoria-card" *ngFor="let categoria of categorias">
+          <div class="categoria-card" *ngFor="let categoria of categoriasFiltradas">
             <div class="categoria-header" [style.background-color]="categoria.iconoColor">
               <i class="fas fa-th-large"></i>
             </div>
@@ -573,9 +573,9 @@
           </div>
         </div>
 
-        <div class="contenido-vacio" *ngIf="categorias.length === 0">
+        <div class="contenido-vacio" *ngIf="categoriasFiltradas.length === 0">
           <i class="fas fa-th-large"></i>
-          <h3>No hay categorías registradas</h3>
+          <h3>No hay categorías para mostrar</h3>
           <p>Comienza creando categorías para organizar tu menú</p>
         </div>
       </div>
@@ -604,7 +604,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let turno of turnos">
+              <tr *ngFor="let turno of turnosFiltrados">
                 <td>{{ turno.empleado?.nombre || 'N/A' }}</td>
                 <td>
                   <span class="badge badge-rol">{{ turno.empleado?.rol || 'N/A' }}</span>
@@ -621,10 +621,10 @@
             </tbody>
           </table>
 
-          <div class="contenido-vacio" *ngIf="turnos.length === 0">
+          <div class="contenido-vacio" *ngIf="turnosFiltrados.length === 0">
             <i class="fas fa-calendar-alt"></i>
-            <h3>No hay turnos asignados</h3>
-            <p>Comienza asignando turnos a tu personal</p>
+            <h3>No hay turnos para mostrar</h3>
+            <p>{{ sucursalSeleccionada === 'todas' ? 'Comienza asignando turnos a tu personal' : 'No hay turnos asignados en esta sucursal' }}</p>
           </div>
         </div>
       </div>
@@ -766,12 +766,55 @@
         <div class="card card-full" style="margin-top: 20px;">
           <h3 class="card-titulo">Calendario de Ganancias</h3>
           <p style="color: #6b7280; margin-bottom: 20px;">Haz clic en un día para ver el detalle de ventas</p>
+          
           <div class="calendario-container" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-            <!-- Aquí irá el calendario con las ganancias por día -->
-            <p style="text-align: center; color: #94a3b8; padding: 40px;">
-              <i class="fas fa-calendar-alt" style="font-size: 3rem; margin-bottom: 15px; display: block;"></i>
-              Calendario en desarrollo
-            </p>
+            
+            <!-- Controles del calendario -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <button (click)="cambiarMes(-1)" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600;">{{ nombreMes }}</h4>
+              <button (click)="cambiarMes(1)" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+
+            <!-- Días de la semana -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px;">
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Dom</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Lun</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Mar</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Mié</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Jue</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Vie</div>
+              <div style="text-align: center; font-weight: 600; color: #6b7280; padding: 10px;">Sáb</div>
+            </div>
+
+            <!-- Días del calendario -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+              <div *ngFor="let dia of diasDelMes" 
+                   (click)="seleccionarDiaCalendario(dia)"
+                   [style.cursor]="dia.dia && !dia.esFuturo ? 'pointer' : 'default'"
+                   [style.opacity]="dia.esFuturo || !dia.dia ? '0.4' : '1'"
+                   [style.background]="dia.esHoy ? '#dbeafe' : (dia.ventas > 0 ? '#dcfce7' : '#f9fafb')"
+                   [style.border]="dia.esHoy ? '2px solid #3b82f6' : (fechaReporte === dia.fecha ? '2px solid #ef4444' : '1px solid #e5e7eb')"
+                   style="padding: 12px; border-radius: 8px; text-align: center; transition: all 0.2s;">
+                
+                <div *ngIf="dia.dia" style="font-weight: 600; margin-bottom: 5px; color: #1f2937;">{{ dia.dia }}</div>
+                <div *ngIf="dia.dia && dia.ventas > 0" style="font-size: 0.75rem; color: #059669; font-weight: 600;">
+                  {{ dia.ventas | currency }}
+                </div>
+                <div *ngIf="dia.dia && dia.ventas === 0 && !dia.esFuturo" style="font-size: 0.75rem; color: #9ca3af;">
+                  Sin ventas
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="cargandoReportes" style="text-align: center; padding: 20px; color: #6b7280;">
+              <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+              <p style="margin-top: 10px;">Cargando datos...</p>
+            </div>
           </div>
         </div>
       </div>

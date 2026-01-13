@@ -118,4 +118,9 @@ export class AdminService {
   eliminarTurno(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/turnos/${id}`, { headers: this.getHeaders() });
   }
+
+  // ✅ REPORTES
+  getReporteDia(fecha: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/reportes/gerente?fecha=${fecha}`, { headers: this.getHeaders() });
+  }
 }
