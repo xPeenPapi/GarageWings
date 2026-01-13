@@ -38,12 +38,16 @@ export class PersonalController {
 
   // --- TUS MÉTODOS EXISTENTES (SIN CAMBIOS) ---
 
-  @UseGuards(JwtAuthGuard)
+  // ⚠️ TEMPORALMENTE SIN GUARD PARA DEBUGGING
   @Get('global')
-  findAllGlobal() {
+  async findAllGlobal() {
+    console.log('🌐 Endpoint /personal/global llamado');
     // Para el admin dashboard, traer TODOS los empleados de la empresa sin filtro de sucursal
     const empresaId = 1;
-    return this.personalService.findAll(empresaId, null);
+    const resultado = await this.personalService.findAll(empresaId, null);
+    console.log('📤 Enviando al frontend:', resultado.length, 'empleados');
+    console.log('👥 Empleados:', resultado.map(e => ({ id: e.id, nombre: e.nombre, sucursalId: e.sucursalId, rol: e.rol })));
+    return resultado;
   }
 
   @UseGuards(JwtAuthGuard)

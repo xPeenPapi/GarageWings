@@ -14,6 +14,7 @@ export class AdminService {
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
+    console.log('🔑 Token para request:', token ? `${token.substring(0, 20)}...` : 'NO HAY TOKEN');
     return new HttpHeaders({ 'Authorization': `Bearer ${token}` });
   }
 
@@ -24,6 +25,7 @@ export class AdminService {
 
   // 2. Obtener todo el personal de la empresa
   getAllPersonal(): Observable<any[]> {
+    console.log('📞 Llamando a /personal/global...');
     return this.http.get<any[]>(`${this.apiUrl}/personal/global`, { headers: this.getHeaders() });
   }
 

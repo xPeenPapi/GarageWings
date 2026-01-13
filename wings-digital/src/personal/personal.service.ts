@@ -14,13 +14,18 @@ export class PersonalService {
       whereClause.sucursalId = sucursalId;
     }
 
-    return this.prisma.empleado.findMany({
+    console.log('🔍 Buscando empleados con filtro:', whereClause);
+
+    const empleados = await this.prisma.empleado.findMany({
       where: whereClause,
       include: {
         sucursal: true
       },
       orderBy: { nombre: 'asc' }
     });
+
+    console.log('✅ Empleados encontrados:', empleados.length);
+    return empleados;
   }
 
   // 2. Crear Empleado (Con validación de Gerente Único)
