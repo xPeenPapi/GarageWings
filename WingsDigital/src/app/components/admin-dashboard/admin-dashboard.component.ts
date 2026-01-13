@@ -313,16 +313,43 @@ guardarEmpleado(): void {
     return;
   }
 
-  // 2. ✅ VALIDACIÓN CORREGIDA: Verificar que el empleado pertenezca A LA MISMA SUCURSAL
+  // 2. ✅ VALIDACIÓN CON DEBUGGING
   if (this.empleadoForm.rol === 'GERENTE') {
     const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
     
-    // ✅ CORRECCIÓN: Filtrar por sucursalId Y rol simultáneamente
-    const gerenteExistente = this.personal.find(p => {
-      return Number(p.sucursalId) === sucursalIdTarget && 
-             p.rol === 'GERENTE' && 
-             p.activo === true;
+    // 🔍 DEBUGGING: Ver qué estamos comparando
+    console.log('🔍 Sucursal seleccionada:', sucursalIdTarget);
+    console.log('🔍 Tipo:', typeof sucursalIdTarget);
+    console.log('🔍 Lista completa de personal:', this.personal);
+    
+    // Filtrar gerentes activos
+    const gerentesActivos = this.personal.filter(p => {
+      const esGerente = p.rol === 'GERENTE';
+      const estaActivo = p.activo === true || p.activo === 1;
+      const sucursalId = Number(p.sucursalId);
+      
+      console.log(`👤 ${p.nombre}:`, {
+        sucursalId: sucursalId,
+        sucursalIdTarget: sucursalIdTarget,
+        sonIguales: sucursalId === sucursalIdTarget,
+        rol: p.rol,
+        esGerente: esGerente,
+        activo: p.activo,
+        estaActivo: estaActivo
+      });
+      
+      return esGerente && estaActivo;
     });
+    
+    console.log('👔 Gerentes activos encontrados:', gerentesActivos);
+    
+    // Buscar si hay gerente en ESTA sucursal
+    const gerenteExistente = gerentesActivos.find(g => {
+      const sucursalDelGerente = Number(g.sucursalId);
+      return sucursalDelGerente === sucursalIdTarget;
+    });
+
+    console.log('❓ ¿Hay gerente en esta sucursal?', gerenteExistente);
 
     if (gerenteExistente) {
       const nombreSucursal = this.sucursales.find(s => s.id === sucursalIdTarget)?.nombre || 'la sucursal';
@@ -332,16 +359,19 @@ guardarEmpleado(): void {
         title: 'Acción Denegada',
         html: `La sucursal <b>"${nombreSucursal}"</b> ya tiene un Gerente activo:<br><br>
                <i class="fas fa-user-tie" style="font-size: 2rem; color: #555; margin: 10px;"></i><br>
-               <b>${gerenteExistente.nombre}</b><br><br>
+               <b>${gerenteExistente.nombre}</b><br>
+               <small>Sucursal ID: ${gerenteExistente.sucursalId}</small><br><br>
                No es posible asignar dos gerentes principales a la misma sucursal.`,
         confirmButtonColor: '#d33',
         confirmButtonText: 'Entendido'
       });
       return; 
     }
+    
+    console.log('✅ No hay gerente en esta sucursal, procediendo...');
   }
 
-  // 3. ✅ Proceder con el registro
+  // 3. Proceder con el registro
   this.cargando = true;
   this.adminService.crearEmpleado(this.empleadoForm).subscribe({
     next: (res) => {
@@ -358,6 +388,7 @@ guardarEmpleado(): void {
     },
     error: (err) => {
       this.cargando = false;
+      console.error('❌ Error del backend:', err);
       Swal.fire('Error', err.error?.message || err.message, 'error');
     }
   });
