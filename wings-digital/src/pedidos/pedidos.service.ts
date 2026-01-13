@@ -236,9 +236,6 @@ export class PedidosService {
       orderBy: { creadaEn: 'asc' }
     });
     
-    console.log('📊 findPendientes devolvió:', ordenes.length, 'órdenes');
-    console.log('📊 Estados:', ordenes.map(o => ({ id: o.id, estado: o.estado, mesa: o.mesaId || 'Llevar', items: o.items.length })));
-    
     return ordenes;
   }
 
