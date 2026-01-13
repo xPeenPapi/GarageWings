@@ -266,6 +266,11 @@ export class PedidosService {
       orderBy: { creadaEn: 'desc' }
     });
 
+    console.log('💰 obtenerOrdenesDelDia devuelve:', ordenesRaw.length, 'órdenes');
+    ordenesRaw.forEach(o => {
+      console.log(`  - Orden ${o.id}: estado=${o.estado}, mesa=${o.mesa?.numero || 'Llevar'}, mesero=${o.mesero?.nombre}`);
+    });
+
     return ordenesRaw.map(orden => {
         const nombreCliente = orden.notaGeneral || 'Cliente';
         const tituloCaja = orden.mesa ? `Mesa ${orden.mesa.numero}` : `Pedido para llevar de ${nombreCliente}`;
