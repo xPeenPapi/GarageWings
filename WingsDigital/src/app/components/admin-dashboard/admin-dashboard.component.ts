@@ -55,8 +55,8 @@ export class AdminDashboardComponent implements OnInit {
   
   // Branch Modal
   public mostrarModalSucursal: boolean = false;
-  public esEdicionSucursal: boolean = false; // To know if we are editing
-  public idSucursalEdicion: number | null = null; // ID of the branch to edit
+  public esEdicionSucursal: boolean = false; 
+  public idSucursalEdicion: number | null = null; 
   public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
 
   // Staff Modal
@@ -132,8 +132,8 @@ export class AdminDashboardComponent implements OnInit {
         this.sucursales = data.map((s: any) => ({
           id: s.id,
           nombre: s.nombre,
-          direccion: s.direccion, // Important for editing
-          telefono: s.telefono,   // Important for editing
+          direccion: s.direccion, 
+          telefono: s.telefono,   
           activa: s.activa,
           empleadosActivos: s.empleados?.length || 0,
           horaPico: '20:00',
@@ -225,7 +225,6 @@ export class AdminDashboardComponent implements OnInit {
 
   // 4. Delete Branch
   eliminarSucursal(id: number): void {
-    // Check if it has employees before trying to delete
     const sucursal = this.sucursales.find(s => s.id === id);
     const tieneEmpleados = (sucursal?.empleadosActivos || 0) > 0;
     
@@ -242,8 +241,8 @@ export class AdminDashboardComponent implements OnInit {
         },
         error: (err) => {
           console.error(err);
-          // Clearer message for the user
-          alert('❌ Could not delete.\n\nIt is likely the branch has linked Tables, Sales, or Employees. Ask the developer to enable "Cascade Delete" on the backend.');
+          // Generic error message if backend does not return specific one
+          alert('❌ Could not delete. Check backend logs for cascade delete constraints.');
         }
       });
     }
@@ -270,8 +269,8 @@ export class AdminDashboardComponent implements OnInit {
       nombre: '', 
       email: '', 
       password: '', 
-      rol: 'GERENTE', // Suggest Manager by default
-      sucursalId: sucursal.id // Pre-select the branch
+      rol: 'GERENTE', 
+      sucursalId: sucursal.id 
     };
     this.mostrarModalEmpleado = true;
   }
@@ -292,28 +291,48 @@ export class AdminDashboardComponent implements OnInit {
       return;
     }
 
-    // 2. ✅ VALIDATION: Only one Manager per Branch
+    // 2. ✅ VALIDATION IMPROVED: Single Manager per Branch (Frontend Check)
     if (this.empleadoForm.rol === 'GERENTE') {
-      const existeGerente = this.personal.some(p => 
-        p.sucursalId === this.empleadoForm.sucursalId && 
-        p.rol === 'GERENTE' &&
-        p.activo // Only counts if the current manager is active
-      );
+      
+      console.log('--- STARTING MANAGER VALIDATION ---');
+      console.log('Target Branch ID:', this.empleadoForm.sucursalId, '(Type:', typeof this.empleadoForm.sucursalId + ')');
+      console.log('Total Staff Loaded:', this.personal.length);
 
-      if (existeGerente) {
-        const nombreSucursal = this.sucursales.find(s => s.id === this.empleadoForm.sucursalId)?.nombre;
-        alert(`⛔ Action denied.\n\nThe branch "${nombreSucursal}" already has an assigned MANAGER.\n\nYou must fire or edit the current manager before assigning a new one.`);
-        return; // Stop process here
+      // Use '==' for type coercion (string vs number)
+      const gerenteExistente = this.personal.find(p => {
+          if (p.rol === 'GERENTE' && p.activo) {
+             console.log(`Checking against: ${p.nombre} | Role: ${p.rol} | BranchId: ${p.sucursalId} (Type: ${typeof p.sucursalId}) | Active: ${p.activo}`);
+          }
+          
+          return (p.sucursalId == this.empleadoForm.sucursalId) && 
+                 (p.rol === 'GERENTE') &&
+                 (p.activo === true);
+      });
+
+      if (gerenteExistente) {
+        console.warn('❌ VALIDATION FAILED: Manager exists:', gerenteExistente.nombre);
+        const nombreSucursal = this.sucursales.find(s => s.id == this.empleadoForm.sucursalId)?.nombre;
+        alert(`⛔ Action denied.\n\nThe branch "${nombreSucursal}" already has an active MANAGER (${gerenteExistente.nombre}).\n\nOnly one main manager per branch is allowed.`);
+        return; // Stop here
+      } else {
+        console.log('✅ VALIDATION PASSED: No active manager found.');
       }
     }
 
+    this.cargando = true;
     this.adminService.crearEmpleado(this.empleadoForm).subscribe({
       next: (res) => {
+        this.cargando = false;
         alert('Staff registered successfully ✅');
         this.cerrarModalEmpleado();
         this.cargarDatosDelSistema(); 
       },
-      error: (err) => alert('Error registering staff: ' + err.message)
+      error: (err) => {
+        this.cargando = false;
+        console.error('Backend Error:', err);
+        // Display backend error message if available (from BadRequestException)
+        alert('Error registering staff: ' + (err.error?.message || err.message));
+      }
     });
   }
 

@@ -56,41 +56,40 @@ export class SucursalesService {
   }
 
   // 5. Eliminar Sucursal (Borrado en Cascada Seguro)
-  async remove(id: number) {
-    // Verificamos si existe
-    await this.findOne(id);
+async remove(id: number) {
+    // Primero verificamos que la sucursal exista
+    const sucursalExiste = await this.prisma.sucursal.findUnique({ where: { id } });
+    if (!sucursalExiste) {
+        throw new NotFoundException(`La sucursal ${id} no existe.`);
+    }
 
-    // PASO 1: Eliminar dependencias (Hijos)
-    // Usamos una transacción para que si algo falla, no se borre nada a medias
-    return this.prisma.$transaction(async (prisma) => {
-      
-      // A. Borrar Turnos asociados a empleados de esa sucursal
-      // (Primero buscamos los empleados de la sucursal)
-      const empleados = await prisma.empleado.findMany({
+    // Usamos una transacción: O se borra TODO, o no se borra NADA.
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Borrar Turnos asociados a empleados de esta sucursal
+      // Primero encontramos los IDs de los empleados
+      const empleados = await tx.empleado.findMany({
         where: { sucursalId: id },
         select: { id: true }
       });
-      
       const empleadoIds = empleados.map(e => e.id);
 
       if (empleadoIds.length > 0) {
-        // Borramos turnos de esos empleados
-        await prisma.turno.deleteMany({
-          where: { empleadoId: { in: empleadoIds } }
-        });
+         // Borramos sus turnos, asistencias, etc.
+         await tx.turno.deleteMany({ where: { empleadoId: { in: empleadoIds } } });
+         // Si tienes tabla de Ventas o Comandas vinculadas a empleados, bórralas aquí también.
       }
 
-      // B. Borrar Empleados
-      await prisma.empleado.deleteMany({ where: { sucursalId: id } });
+      // 2. Borrar Empleados de la sucursal
+      await tx.empleado.deleteMany({ where: { sucursalId: id } });
 
-      // C. Borrar Mesas
-      await prisma.mesa.deleteMany({ where: { sucursalId: id } });
+      // 3. Borrar Mesas de la sucursal
+      await tx.mesa.deleteMany({ where: { sucursalId: id } });
+      
+      // 4. Borrar Productos si están ligados a sucursal (Opcional, depende tu modelo)
+      // await tx.producto.deleteMany({ where: { sucursalId: id } });
 
-      // D. Borrar Productos/Stock (Si tuvieras inventario por sucursal)
-      // await prisma.stock.deleteMany({ where: { sucursalId: id } });
-
-      // PASO 2: Finalmente eliminar la Sucursal
-      return prisma.sucursal.delete({
+      // 5. Finalmente, borrar la Sucursal
+      return tx.sucursal.delete({
         where: { id },
       });
     });
