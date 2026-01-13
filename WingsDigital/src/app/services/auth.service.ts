@@ -2,31 +2,26 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Router } from '@angular/router';
-import { environment } from '../../environments/environment';
-// ==========================================
-// 1. ENUM DE ROLES (Debe coincidir con la BD)
-// ==========================================
+import { environment } from '../../environments/environment.prod';
+
 export enum Role {
   SuperAdmin = 'SUPER_ADMIN',
-  AdminEmpresa = 'ADMIN_EMPRESA', // O 'ADMIN' si así está en tu BD
+  AdminEmpresa = 'ADMIN_EMPRESA',
   Gerente = 'GERENTE',
-  Cajero = 'CAJA',      // En BD suele guardarse como 'CAJA'
+  Cajero = 'CAJA',
   Mesero = 'MESERO',
-  Cocinero = 'COCINA',  // En BD suele guardarse como 'COCINA'
+  Cocinero = 'COCINA',
   Barra = 'BARRA'
 }
 
-// ==========================================
-// 2. INTERFACES
-// ==========================================
 export interface UserData {
   id: number;
   nombre: string;
   email: string;
-  rol: Role; // Usamos el Enum aquí para tipado estricto
+  rol: Role;
   empresaId: number;
   sucursalId: number;
-  sucursalNombre?: string; // Opcional, útil para el dashboard
+  sucursalNombre?: string;
 }
 
 interface LoginResponse {
@@ -35,25 +30,19 @@ interface LoginResponse {
   user: UserData;
 }
 
-// ==========================================
-// 3. SERVICIO
-// ==========================================
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = environment.apiUrl; // ← Usar aquí
-
-  // BehaviorSubject para mantener el estado del usuario en toda la app
+  private apiUrl = environment.apiUrl;
   private currentUserSubject: BehaviorSubject<UserData | null>;
   public currentUser$: Observable<UserData | null>;
 
   constructor(private http: HttpClient, private router: Router) {
-    // ✅ RECUPERACIÓN SÍNCRONA AL INICIAR LA APP
     const storedUser = this.getUserFromStorage();
     
     if (storedUser) {
-      console.log('✅ Sesión recuperada:', storedUser.nombre, '| Rol:', storedUser.rol);
+      console.log('✅ Sesión recuperada:', storedUser.nombre, '| Rol:', storedUser.rol, '| Sucursal:', storedUser.sucursalId);
     } else {
       console.warn('⚠️ No hay sesión activa.');
     }
@@ -62,24 +51,21 @@ export class AuthService {
     this.currentUser$ = this.currentUserSubject.asObservable();
   }
 
-  // --- LOGIN ---
   login(credentials: {email: string, password: string}): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, credentials)
       .pipe(tap(res => {
           if (res && res.access_token) {
+            console.log('📥 Datos recibidos del backend:', res.user);
             this.saveToken(res.access_token);
             this.saveUser(res.user);
           }
         }));
   }
 
-  // --- LOGOUT ---
   logout() {
     console.log('👋 Cerrando sesión...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Limpiezas opcionales de otros módulos
     localStorage.removeItem('inicioTurno'); 
     localStorage.removeItem('montoInicial');
     localStorage.removeItem('uniones_mesas'); 
@@ -88,8 +74,6 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  // --- GETTERS (Síncronos para Guards y Componentes) ---
-  
   get currentUser(): UserData | null {
     return this.currentUserSubject.value;
   }
@@ -110,14 +94,21 @@ export class AuthService {
     return this.currentUser ? this.currentUser.nombre : '';
   }
 
-  // Verifica si está logueado (Token + Usuario en memoria)
+  // ✅ NUEVO: Obtener sucursalId del usuario actual
+  getSucursalId(): number | null {
+    return this.currentUser ? this.currentUser.sucursalId : null;
+  }
+
+  // ✅ NUEVO: Obtener nombre de sucursal del usuario actual
+  getSucursalNombre(): string {
+    return this.currentUser?.sucursalNombre || 'Sin Sucursal';
+  }
+
   isAuthenticated(): boolean {
     const token = this.token;
     const user = this.currentUser;
     return !!token && !!user;
   }
-
-  // --- STORAGE MANAGEMENT (Privados) ---
 
   private saveToken(token: string) {
     localStorage.setItem('token', token);
@@ -126,9 +117,9 @@ export class AuthService {
   private saveUser(user: UserData) {
     localStorage.setItem('user', JSON.stringify(user));
     this.currentUserSubject.next(user);
+    console.log('💾 Usuario guardado en localStorage:', user);
   }
 
-  // Recuperación segura con Try-Catch por si el JSON se rompe
   private getUserFromStorage(): UserData | null {
     const userStr = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -138,7 +129,7 @@ export class AuthService {
         return JSON.parse(userStr);
       } catch (error) {
         console.error('❌ Datos de sesión corruptos. Limpiando storage...');
-        this.logout(); // Limpia todo si está corrupto
+        this.logout();
         return null;
       }
     }

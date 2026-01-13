@@ -1,62 +1,53 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt'; 
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService
   ) {}
 
-  async signIn(email: string, pass: string): Promise<any> {
-    
-    // 1. Buscar al usuario
+  async validateUser(email: string, password: string) {
+    // ✅ INCLUIR SUCURSAL en la consulta
     const user = await this.prisma.empleado.findUnique({
-      where: { email: email },
+      where: { email },
+      include: {
+        sucursal: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      }
     });
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
     }
 
-    // 2. Comprobación Híbrida (Texto Plano vs Hash)
-    let isMatch = false;
-
-    // A) Primero intentamos comparación directa (Texto plano)
-    if (user.password === pass) {
-        isMatch = true;
-    } 
-    // B) Si no coincide, intentamos como Hash (bcrypt)
-    else {
-        try {
-            // El try-catch evita que el servidor explote si user.password no es un hash válido
-            isMatch = await bcrypt.compare(pass, user.password);
-        } catch (error) {
-            isMatch = false;
-        }
+    if (!user.activo) {
+      throw new HttpException('Usuario inactivo', HttpStatus.FORBIDDEN);
     }
 
-    if (!isMatch) {
-      throw new UnauthorizedException('Credenciales inválidas');
+    if (user.password !== password) {
+      throw new HttpException('Contraseña incorrecta', HttpStatus.UNAUTHORIZED);
     }
 
-    // 3. Generar Token
+    // ✅ Crear payload del JWT con sucursalId
     const payload = { 
       sub: user.id, 
       email: user.email, 
       rol: user.rol,
-      nombre: user.nombre, // Importante para el frontend
       empresaId: user.empresaId,
       sucursalId: user.sucursalId
     };
+    
+    const token = this.jwtService.sign(payload);
 
-    const token = await this.jwtService.signAsync(payload);
-
+    // ✅ Retornar datos completos incluyendo sucursal
     return {
-      message: 'Login exitoso',
       access_token: token,
       user: {
         id: user.id,
@@ -64,7 +55,8 @@ export class AuthService {
         email: user.email,
         rol: user.rol,
         empresaId: user.empresaId,
-        sucursalId: user.sucursalId
+        sucursalId: user.sucursalId,
+        sucursalNombre: user.sucursal?.nombre || 'Sin Sucursal'
       }
     };
   }

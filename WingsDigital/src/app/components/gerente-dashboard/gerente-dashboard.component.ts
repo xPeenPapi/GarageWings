@@ -29,12 +29,9 @@ interface EstadisticaDia {
 })
 export class GerenteDashboardComponent implements OnInit {
   
-  // ==========================================
-  // 1. VARIABLES GENERALES
-  // ==========================================
   public nombreGerente: string = '';
   public sucursalNombre: string = ''; 
-  public sucursalId: number = 0;      
+  public sucursalId: number | null = null; // ✅ Cambiar a nullable
   public horaActual: string = '';
   public cargando: boolean = true;
   
@@ -46,9 +43,6 @@ export class GerenteDashboardComponent implements OnInit {
 
   public tabActiva: 'resumen' | 'personal' | 'turnos' | 'configuracion' = 'resumen';
 
-  // ==========================================
-  // 2. VARIABLES DEL DASHBOARD
-  // ==========================================
   public resumenDia: ResumenDia = { efectivo: 0, tarjeta: 0, transferencia: 0 };
   public totalGeneral: number = 0;
   public estadisticas: EstadisticaDia = {
@@ -58,17 +52,11 @@ export class GerenteDashboardComponent implements OnInit {
     ticketPromedio: 0
   };
 
-  // ==========================================
-  // 3. VARIABLES DE PERSONAL
-  // ==========================================
   public empleados: Empleado[] = [];
   public mostrarModalEmpleado: boolean = false;
   public esEdicion: boolean = false;
   public empleadoForm: any = { nombre: '', email: '', password: '', rol: 'MESERO' };
 
-  // ==========================================
-  // 4. VARIABLES DE TURNOS
-  // ==========================================
   public turnos: Turno[] = [];
   public mostrarModalTurno: boolean = false;
   public turnoForm: any = { 
@@ -79,15 +67,12 @@ export class GerenteDashboardComponent implements OnInit {
     notas: ''
   };
 
-  // ==========================================
-  // 5. VARIABLES DE CONFIGURACIÓN
-  // ==========================================
   public mesas: any[] = [];
   public categorias: any[] = [];
   public productos: any[] = [];
 
-  public chartGradient: string = 'conic-gradient(#ccc 0% 100%)'; // Color base gris
-  public rolesStats: any[] = []; // Para la leyenda (colores y cantidades)
+  public chartGradient: string = 'conic-gradient(#ccc 0% 100%)';
+  public rolesStats: any[] = [];
 
   constructor(
     private authService: AuthService,
@@ -121,12 +106,30 @@ export class GerenteDashboardComponent implements OnInit {
     this.mostrarAlertaModal = false;
   }
 
+  // ✅ MÉTODO CORREGIDO
   cargarDatosUsuario(): void {
     const user = this.authService.currentUser;
-    if (user) {
-      this.nombreGerente = user.nombre;
-      this.sucursalId = (user as any).sucursalId || 1; 
-      this.sucursalNombre = (user as any).sucursalNombre || 'Garage Sushis Centro';
+    
+    if (!user) {
+      console.error('❌ No hay usuario en sesión');
+      this.authService.logout();
+      return;
+    }
+
+    this.nombreGerente = user.nombre;
+    this.sucursalId = user.sucursalId;
+    this.sucursalNombre = user.sucursalNombre || 'Sin Sucursal';
+
+    // 🔍 DEBUGGING
+    console.log('═══════════════════════════════');
+    console.log('👤 Gerente:', this.nombreGerente);
+    console.log('🏢 Sucursal:', this.sucursalNombre);
+    console.log('🔢 SucursalId:', this.sucursalId);
+    console.log('═══════════════════════════════');
+
+    // ✅ Validar que tenga sucursal asignada
+    if (!this.sucursalId) {
+      this.mostrarAlerta('⚠️ Tu cuenta no tiene una sucursal asignada. Contacta al administrador.');
     }
   }
 
@@ -146,6 +149,11 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   cargarDatosDashboard(): void {
+    if (!this.sucursalId) {
+      console.error('❌ No se puede cargar dashboard sin sucursalId');
+      return;
+    }
+
     this.cargando = true;
     this.gerenteService.getDashboardData(this.fechaSeleccionada).subscribe({
       next: (data: DashboardData) => {
@@ -167,16 +175,13 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE PERSONAL (RRHH)
+  // LÓGICA DE PERSONAL
   // ==========================================
   
-cargarEmpleados(): void {
+  cargarEmpleados(): void {
     this.gerenteService.getEmpleados().subscribe({
       next: (data) => {
-        // Filtramos para no mostrar al gerente
         this.empleados = data.filter(emp => emp.rol !== 'GERENTE');
-        
-        // ✅ CALCULAMOS LA GRÁFICA INMEDIATAMENTE
         this.calcularGraficaRoles();
       },
       error: (err) => console.error('Error cargando empleados:', err)
@@ -200,7 +205,6 @@ cargarEmpleados(): void {
   }
 
   guardarEmpleado(): void {
-    // 🛡️ DOBLE VALIDACIÓN: Por si intentan inyectar el rol manualmente
     if (this.empleadoForm.rol === 'GERENTE') {
       this.mostrarAlerta('Acceso Denegado: Solo el Administrador puede gestionar Gerentes.');
       return;
@@ -211,7 +215,11 @@ cargarEmpleados(): void {
       return;
     }
 
-    const datosEmpleado = { ...this.empleadoForm, sucursalId: this.sucursalId };
+    // ✅ Incluir sucursalId del gerente actual
+    const datosEmpleado = { 
+      ...this.empleadoForm, 
+      sucursalId: this.sucursalId 
+    };
 
     if (this.esEdicion && this.empleadoForm.id) {
       this.gerenteService.editarEmpleado(this.empleadoForm.id, datosEmpleado).subscribe({
@@ -242,7 +250,6 @@ cargarEmpleados(): void {
   cargarTurnos(): void {
     this.gerenteService.getTurnos().subscribe({
       next: (data) => {
-        // Mapeamos para asegurar que no haya errores si falta info del empleado
         this.turnos = data.map((t: any) => ({
           ...t,
           empleadoNombre: t.empleado?.nombre || 'Desconocido',
@@ -254,7 +261,6 @@ cargarEmpleados(): void {
   }
 
   abrirModalTurno(): void {
-    // Reseteamos el formulario con fecha de hoy por defecto
     const hoy = new Date().toISOString().split('T')[0];
     this.turnoForm = { empleadoId: null, fecha: hoy, horaInicio: '09:00', horaFin: '17:00', notas: '' };
     this.mostrarModalTurno = true;
@@ -270,10 +276,9 @@ cargarEmpleados(): void {
       return;
     }
     
-    // Enviamos el turno al servicio
     this.gerenteService.crearTurno({ ...this.turnoForm, sucursalId: this.sucursalId }).subscribe({
       next: () => { 
-        this.cargarTurnos(); // Recargamos la lista
+        this.cargarTurnos();
         this.cerrarModalTurno(); 
         this.mostrarAlerta('Turno asignado correctamente ✅');
       },
@@ -291,7 +296,7 @@ cargarEmpleados(): void {
   }
 
   // ==========================================
-  // LÓGICA DE CONFIGURACIÓN (ENABLE/DISABLE)
+  // LÓGICA DE CONFIGURACIÓN
   // ==========================================
 
   cargarDatosConfiguracion(): void {
@@ -301,7 +306,6 @@ cargarEmpleados(): void {
   }
 
   toggleMesa(mesa: any): void {
-    // Manejo robusto de mayúsculas/minúsculas para el estado
     const estaEnMantenimiento = mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento';
     const nuevoEstado = estaEnMantenimiento ? 'DISPONIBLE' : 'MANTENIMIENTO';
 
@@ -333,42 +337,37 @@ cargarEmpleados(): void {
 
   cambiarTab(tab: 'resumen' | 'personal' | 'turnos' | 'configuracion'): void {
     this.tabActiva = tab;
-    // Carga perezosa de datos según la pestaña
     if (tab === 'personal') this.cargarEmpleados();
     else if (tab === 'resumen') this.cargarDatosDashboard();
     else if (tab === 'turnos') { 
-      this.cargarEmpleados(); // Necesitamos empleados para el select del modal
+      this.cargarEmpleados();
       this.cargarTurnos(); 
     }
     else if (tab === 'configuracion') this.cargarDatosConfiguracion();
   }
 
-
   calcularGraficaRoles(): void {
     if (this.empleados.length === 0) {
-      this.chartGradient = 'conic-gradient(#f1f5f9 0% 100%)'; // Gris si no hay nadie
+      this.chartGradient = 'conic-gradient(#f1f5f9 0% 100%)';
       return;
     }
 
-    // 1. Contar empleados por rol
     const conteo: any = { MESERO: 0, COCINA: 0, BARRA: 0, CAJA: 0 };
     this.empleados.forEach(e => {
       if (conteo[e.rol] !== undefined) conteo[e.rol]++;
     });
 
-    // 2. Definir colores para cada rol
     const colores: any = {
-      MESERO: '#4285f4', // Azul
-      COCINA: '#ea4c89', // Rosa
-      BARRA: '#34a853',  // Verde
-      CAJA: '#fbbc04'    // Amarillo
+      MESERO: '#4285f4',
+      COCINA: '#ea4c89',
+      BARRA: '#34a853',
+      CAJA: '#fbbc04'
     };
 
-    // 3. Generar el string del gradiente y la leyenda
     let currentDeg = 0;
     const total = this.empleados.length;
     let gradientParts = [];
-    this.rolesStats = []; // Reiniciar leyenda
+    this.rolesStats = [];
 
     for (const rol in conteo) {
       const count = conteo[rol];
@@ -377,10 +376,8 @@ cargarEmpleados(): void {
         const degrees = (count / total) * 360;
         const color = colores[rol];
 
-        // Parte para el CSS
         gradientParts.push(`${color} 0 ${currentDeg + degrees}deg`);
         
-        // Parte para la leyenda HTML
         this.rolesStats.push({
           nombre: rol,
           cantidad: count,
@@ -392,8 +389,6 @@ cargarEmpleados(): void {
       }
     }
 
-    // 4. Construir el estilo final. 
-    // Truco: Usamos "puntos de parada" acumulativos para que se vea bien
     let gradientString = 'conic-gradient(';
     let acumulado = 0;
     
