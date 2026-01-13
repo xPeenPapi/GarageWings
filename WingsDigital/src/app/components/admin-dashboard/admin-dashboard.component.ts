@@ -626,4 +626,23 @@ guardarEmpleado(): void {
     });
     return agrupadas;
   }
+
+  get mesasPorSucursalArray(): Array<{ nombre: string; mesas: any[] }> {
+    const agrupadas: any = {};
+    this.mesas.forEach(mesa => {
+      const sucursal = this.sucursales.find(s => s.id === mesa.sucursalId);
+      const nombreSucursal = sucursal?.nombre || 'Sin sucursal';
+      
+      if (!agrupadas[nombreSucursal]) {
+        agrupadas[nombreSucursal] = [];
+      }
+      agrupadas[nombreSucursal].push(mesa);
+    });
+    
+    // Convertir objeto a array
+    return Object.keys(agrupadas).map(nombre => ({
+      nombre,
+      mesas: agrupadas[nombre]
+    }));
+  }
 }

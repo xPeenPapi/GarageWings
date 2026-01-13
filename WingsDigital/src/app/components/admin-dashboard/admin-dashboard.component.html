@@ -434,14 +434,14 @@
         </div>
 
         <div class="mesas-por-sucursal">
-          <div class="sucursal-section" *ngFor="let sucursal of mesasPorSucursal | keyvalue">
+          <div class="sucursal-section" *ngFor="let item of mesasPorSucursalArray">
             <h3 class="sucursal-titulo">
               <i class="fas fa-map-marker-alt"></i>
-              {{ sucursal.key }}
+              {{ item.nombre }}
             </h3>
 
             <div class="grid-mesas">
-              <div class="mesa-card" *ngFor="let mesa of sucursal.value">
+              <div class="mesa-card" *ngFor="let mesa of item.mesas">
                 <div class="mesa-header">
                   <h4>{{ mesa.numero }}</h4>
                   <span class="mesa-badge" [ngClass]="'badge-' + mesa.estado.toLowerCase()">
@@ -463,7 +463,7 @@
               </div>
             </div>
 
-            <div class="sin-mesas" *ngIf="sucursal.value.length === 0">
+            <div class="sin-mesas" *ngIf="item.mesas.length === 0">
               <p><i class="fas fa-info-circle"></i> No hay mesas registradas en esta sucursal</p>
             </div>
           </div>
