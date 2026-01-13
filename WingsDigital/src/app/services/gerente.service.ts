@@ -159,4 +159,13 @@ export class GerenteService {
       headers: this.getHeaders() 
     });
   }
+
+
+  patchProducto(id: number, data: any): Observable<any> {
+  return this.http.patch(`${environment.apiUrl}/productos/${id}`, data);
+  }
+
+  patchCategoria(id: number, data: any): Observable<any> {
+  return this.http.patch(`${environment.apiUrl}/categorias/${id}`, data);
+  }
 }

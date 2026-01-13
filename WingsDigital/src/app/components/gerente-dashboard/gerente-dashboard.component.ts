@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { GerenteService, DashboardData, Empleado, Turno } from '../../services/gerente.service';
+// 👇 Servicios necesarios para la pestaña de configuración
+import { MesaService, Mesa } from '../../services/mesa.service';
+import { ProductosService, Producto, Categoria } from '../../services/productos.service';
 
 interface ResumenDia {
   efectivo: number;
@@ -33,31 +36,22 @@ export class GerenteDashboardComponent implements OnInit {
   public nombreGerente: string = '';
   public sucursalNombre: string = ''; 
   public sucursalId: number = 0;      
-  
   public horaActual: string = '';
   public cargando: boolean = true;
   
-  // 👇 VARIABLES DE FECHA
   public fechaSeleccionada: string = ''; 
-  public maxDate: string = ''; // Límite para no seleccionar futuro
+  public maxDate: string = ''; 
 
-  // 👇 VARIABLES PARA ALERTA PERSONALIZADA
   public mostrarAlertaModal: boolean = false;
   public textoAlerta: string = '';
 
-  public tabActiva: 'resumen' | 'personal' | 'turnos' = 'resumen';
+  public tabActiva: 'resumen' | 'personal' | 'turnos' | 'configuracion' = 'resumen';
 
   // ==========================================
   // 2. VARIABLES DEL DASHBOARD (RESUMEN)
   // ==========================================
-  public resumenDia: ResumenDia = {
-    efectivo: 0,
-    tarjeta: 0,
-    transferencia: 0
-  };
-
+  public resumenDia: ResumenDia = { efectivo: 0, tarjeta: 0, transferencia: 0 };
   public totalGeneral: number = 0;
-
   public estadisticas: EstadisticaDia = {
     ventasTotales: 0,
     ordenesTotales: 0,
@@ -71,20 +65,13 @@ export class GerenteDashboardComponent implements OnInit {
   public empleados: Empleado[] = [];
   public mostrarModalEmpleado: boolean = false;
   public esEdicion: boolean = false;
-  
-  public empleadoForm: any = {
-    nombre: '',
-    email: '',
-    password: '',
-    rol: 'MESERO'
-  };
+  public empleadoForm: any = { nombre: '', email: '', password: '', rol: 'MESERO' };
 
   // ==========================================
   // 4. VARIABLES DE TURNOS
   // ==========================================
   public turnos: Turno[] = [];
   public mostrarModalTurno: boolean = false;
-  
   public turnoForm: any = { 
     empleadoId: null,
     fecha: '',
@@ -93,24 +80,29 @@ export class GerenteDashboardComponent implements OnInit {
     notas: ''
   };
 
+  // ==========================================
+  // 5. VARIABLES DE CONFIGURACIÓN (NUEVO)
+  // ==========================================
+  public mesas: Mesa[] = [];
+  public categorias: Categoria[] = [];
+  public productos: Producto[] = [];
+
   constructor(
     private authService: AuthService,
     private router: Router,
-    private gerenteService: GerenteService
+    private gerenteService: GerenteService,
+    private mesaService: MesaService,
+    private productosService: ProductosService
   ) {
-    // Inicializamos las fechas con el día de HOY
     const hoy = new Date();
-    const hoyStr = hoy.toISOString().split('T')[0]; // "YYYY-MM-DD"
-    
+    const hoyStr = hoy.toISOString().split('T')[0]; 
     this.fechaSeleccionada = hoyStr;
-    this.maxDate = hoyStr; // Establecemos el tope máximo como hoy
+    this.maxDate = hoyStr; 
   }
 
   ngOnInit(): void {
     this.cargarDatosUsuario();
     this.actualizarHora();
-    
-    // Carga inicial del dashboard
     this.cargarDatosDashboard();
     
     setInterval(() => {
@@ -119,7 +111,7 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // HELPER: ALERTAS BONITAS
+  // HELPER: ALERTAS
   // ==========================================
   mostrarAlerta(mensaje: string): void {
     this.textoAlerta = mensaje;
@@ -142,38 +134,27 @@ export class GerenteDashboardComponent implements OnInit {
   actualizarHora(): void {
     const ahora = new Date();
     this.horaActual = ahora.toLocaleTimeString('es-MX', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
+      hour: '2-digit', minute: '2-digit', hour12: true 
     });
   }
 
   // ==========================================
-  // LÓGICA DEL DASHBOARD (REPORTES)
+  // LÓGICA DEL DASHBOARD
   // ==========================================
   
   cambiarFecha(): void {
-    // 👇 Validación: No permitir fechas futuras
     if (this.fechaSeleccionada > this.maxDate) {
       this.mostrarAlerta("No puedes ver reportes del futuro 🔮. Se mostrará el día de hoy.");
       this.fechaSeleccionada = this.maxDate;
     }
-    
-    console.log("Consultando fecha:", this.fechaSeleccionada);
     this.cargarDatosDashboard();
   }
 
   cargarDatosDashboard(): void {
     this.cargando = true;
-    
-    // Pasamos la fecha seleccionada al servicio
     this.gerenteService.getDashboardData(this.fechaSeleccionada).subscribe({
       next: (data: DashboardData) => {
-        this.resumenDia = {
-          efectivo: data.resumenPago.efectivo,
-          tarjeta: data.resumenPago.tarjeta,
-          transferencia: data.resumenPago.transferencia
-        };
+        this.resumenDia = { ...data.resumenPago };
         this.totalGeneral = data.totalGeneral;
         this.estadisticas = {
           ventasTotales: data.ventasTotales,
@@ -182,7 +163,6 @@ export class GerenteDashboardComponent implements OnInit {
           ticketPromedio: data.ticketPromedio
         };
         this.cargando = false;
-        console.log(`✅ Datos actualizados para: ${this.fechaSeleccionada}`);
       },
       error: (error) => {
         console.error('❌ Error dashboard:', error);
@@ -192,26 +172,19 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE GESTIÓN DE PERSONAL
+  // LÓGICA DE PERSONAL
   // ==========================================
   
   cargarEmpleados(): void {
     this.gerenteService.getEmpleados().subscribe({
-      next: (data) => {
-        this.empleados = data;
-      },
+      next: (data) => this.empleados = data,
       error: (err) => console.error('Error cargando empleados:', err)
     });
   }
 
   abrirModalNuevo(): void {
     this.esEdicion = false;
-    this.empleadoForm = { 
-      nombre: '', 
-      email: '', 
-      password: '', 
-      rol: 'MESERO'
-    };
+    this.empleadoForm = { nombre: '', email: '', password: '', rol: 'MESERO' };
     this.mostrarModalEmpleado = true;
   }
 
@@ -226,30 +199,27 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
+    // 🛡️ VALIDACIÓN SEGURIDAD: Gerente no puede crear ni editar otros Gerentes
+    if (this.empleadoForm.rol === 'GERENTE') {
+      this.mostrarAlerta('Acceso Denegado: Un Gerente no puede asignar roles de Gerencia. Contacta al Administrador.');
+      return;
+    }
+
     if (!this.empleadoForm.nombre || !this.empleadoForm.email) {
       this.mostrarAlerta('Por favor completa el nombre y el email.');
       return;
     }
 
-    const datosEmpleado = {
-      ...this.empleadoForm,
-      sucursalId: this.sucursalId 
-    };
+    const datosEmpleado = { ...this.empleadoForm, sucursalId: this.sucursalId };
 
     if (this.esEdicion && this.empleadoForm.id) {
       this.gerenteService.editarEmpleado(this.empleadoForm.id, datosEmpleado).subscribe({
-        next: () => {
-          this.cargarEmpleados();
-          this.cerrarModalEmpleado();
-        },
+        next: () => { this.cargarEmpleados(); this.cerrarModalEmpleado(); },
         error: (err) => this.mostrarAlerta('Error al actualizar: ' + err.message)
       });
     } else {
       this.gerenteService.crearEmpleado(datosEmpleado).subscribe({
-        next: () => {
-          this.cargarEmpleados();
-          this.cerrarModalEmpleado();
-        },
+        next: () => { this.cargarEmpleados(); this.cerrarModalEmpleado(); },
         error: (err) => this.mostrarAlerta('Error al crear: ' + err.message)
       });
     }
@@ -265,7 +235,7 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE GESTIÓN DE TURNOS
+  // LÓGICA DE TURNOS
   // ==========================================
 
   cargarTurnos(): void {
@@ -282,13 +252,7 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   abrirModalTurno(): void {
-    this.turnoForm = { 
-      empleadoId: null, 
-      fecha: '', 
-      horaInicio: '09:00', 
-      horaFin: '17:00', 
-      notas: '' 
-    };
+    this.turnoForm = { empleadoId: null, fecha: '', horaInicio: '09:00', horaFin: '17:00', notas: '' };
     this.mostrarModalTurno = true;
   }
 
@@ -301,17 +265,8 @@ export class GerenteDashboardComponent implements OnInit {
       this.mostrarAlerta('Por favor selecciona un empleado y una fecha.');
       return;
     }
-    
-    const datosTurno = {
-      ...this.turnoForm,
-      sucursalId: this.sucursalId
-    };
-
-    this.gerenteService.crearTurno(datosTurno).subscribe({
-      next: () => {
-        this.cargarTurnos();
-        this.cerrarModalTurno();
-      },
+    this.gerenteService.crearTurno({ ...this.turnoForm, sucursalId: this.sucursalId }).subscribe({
+      next: () => { this.cargarTurnos(); this.cerrarModalTurno(); },
       error: (err) => this.mostrarAlerta('Error creando turno: ' + err.message)
     });
   }
@@ -326,10 +281,59 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
+  // ⚙️ LÓGICA DE CONFIGURACIÓN (ENABLE/DISABLE)
+  // ==========================================
+
+  cargarDatosConfiguracion(): void {
+    this.mesaService.getMesas().subscribe({
+      next: (data) => this.mesas = data,
+      error: (err) => console.error('Error mesas:', err)
+    });
+
+    this.productosService.getCategorias().subscribe({
+      next: (data) => this.categorias = data,
+      error: (err) => console.error('Error categorías:', err)
+    });
+
+    this.productosService.getProductos().subscribe({
+      next: (data) => this.productos = data,
+      error: (err) => console.error('Error productos:', err)
+    });
+  }
+
+  // Desactivar/Activar Mesa (Usamos el estado 'mantenimiento' para desactivar)
+  toggleMesa(mesa: Mesa): void {
+    const nuevoEstado = mesa.estado === 'mantenimiento' ? 'disponible' : 'mantenimiento';
+    this.mesaService.actualizarEstadoMesa(mesa.id, nuevoEstado, '').subscribe({
+      next: () => this.cargarDatosConfiguracion(),
+      error: () => this.mostrarAlerta('Error al cambiar estado de la mesa')
+    });
+  }
+
+  // Desactivar/Activar Producto
+  toggleProducto(prod: any): void {
+    const nuevoEstadoActivo = !prod.activo;
+    // El gerente solo hace PATCH del booleano activo, no borra
+    this.gerenteService.patchProducto(prod.id, { activo: nuevoEstadoActivo }).subscribe({
+      next: () => this.cargarDatosConfiguracion(),
+      error: () => this.mostrarAlerta('Error al actualizar disponibilidad del producto')
+    });
+  }
+
+  // Desactivar/Activar Categoría
+  toggleCategoria(cat: any): void {
+    const nuevoEstadoActivo = !cat.activo;
+    this.gerenteService.patchCategoria(cat.id, { activo: nuevoEstadoActivo }).subscribe({
+      next: () => this.cargarDatosConfiguracion(),
+      error: () => this.mostrarAlerta('Error al actualizar disponibilidad de la categoría')
+    });
+  }
+
+  // ==========================================
   // NAVEGACIÓN Y UTILIDADES
   // ==========================================
 
-  cambiarTab(tab: 'resumen' | 'personal' | 'turnos'): void {
+  cambiarTab(tab: 'resumen' | 'personal' | 'turnos' | 'configuracion'): void {
     this.tabActiva = tab;
     
     if (tab === 'personal') {
@@ -341,6 +345,9 @@ export class GerenteDashboardComponent implements OnInit {
     else if (tab === 'turnos') {
       this.cargarEmpleados();
       this.cargarTurnos();
+    }
+    else if (tab === 'configuracion') {
+      this.cargarDatosConfiguracion();
     }
   }
 
