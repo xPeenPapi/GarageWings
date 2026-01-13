@@ -1005,3 +1005,25 @@
   max-width: 40px; /* Que sea cuadradito pequeño */
 }
 .btn-mini.delete:hover { background-color: #fee2e2; border-color: #fca5a5; }
+
+.sucursal-card.inactiva {
+  background-color: #f3f4f6; /* Gris muy claro */
+  border-color: #e5e7eb;
+  opacity: 0.8;
+}
+
+.sucursal-card.inactiva .sucursal-header h4,
+.sucursal-card.inactiva .sucursal-ventas {
+  color: #9ca3af; /* Texto gris */
+}
+
+.sucursal-card.inactiva .sucursal-icono {
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* Ajuste para el botón de encendido */
+.btn-mini.power {
+  width: 32px;
+  justify-content: center;
+}

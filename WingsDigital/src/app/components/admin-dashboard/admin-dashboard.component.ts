@@ -57,10 +57,16 @@ export class AdminDashboardComponent implements OnInit {
   public mostrarModalSucursal: boolean = false;
   public esEdicionSucursal: boolean = false; 
   public idSucursalEdicion: number | null = null; 
+  
+  // Extended form to include all fields shown in the edit modal
   public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
 
   // Staff Modal
   public mostrarModalEmpleado: boolean = false;
+  // New variables to control fixed branch context
+  public esSucursalFija: boolean = false; 
+  public nombreSucursalFija: string = '';
+
   public empleadoForm: any = { 
     nombre: '', 
     email: '', 
@@ -134,7 +140,7 @@ export class AdminDashboardComponent implements OnInit {
           nombre: s.nombre,
           direccion: s.direccion, 
           telefono: s.telefono,   
-          activa: s.activa, // Viene de la BD (1 o 0)
+          activa: s.activa, // From DB (1 or 0)
           empleadosActivos: s.empleados?.length || 0,
           horaPico: '20:00',
           ventas: s.totalVentasDia || 0, 
@@ -181,6 +187,7 @@ export class AdminDashboardComponent implements OnInit {
   editarSucursal(sucursal: any): void {
     this.esEdicionSucursal = true;
     this.idSucursalEdicion = sucursal.id;
+    // Load all available data into the form
     this.sucursalForm = { 
       nombre: sucursal.nombre, 
       direccion: sucursal.direccion || '', 
@@ -224,7 +231,6 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // 4. Toggle Status (Soft Delete / Desactivar)
-  // Reemplazamos 'eliminarSucursal' por esta lógica más segura
   alternarEstadoSucursal(sucursal: Sucursal): void {
     const nuevoEstado = !sucursal.activa;
     const accion = nuevoEstado ? 'ACTIVAR' : 'DESACTIVAR';
@@ -234,10 +240,8 @@ export class AdminDashboardComponent implements OnInit {
       : `¿Deseas DESACTIVAR la sucursal "${sucursal.nombre}"?\n\nNo se eliminarán datos, pero dejará de aparecer en los reportes activos.`;
 
     if(confirm(mensaje)) {
-      // Usamos el endpoint de editar enviando solo el campo 'activa'
       this.adminService.editarSucursal(sucursal.id, { activa: nuevoEstado }).subscribe({
         next: () => {
-          // Actualizamos localmente para feedback inmediato
           sucursal.activa = nuevoEstado;
           this.recalcularEstadisticasGenerales();
           alert(`Sucursal ${nuevoEstado ? 'activada' : 'desactivada'} correctamente.`);
@@ -250,8 +254,7 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  // Mantenemos esta función por compatibilidad con el HTML si aún llama a 'eliminarSucursal'
-  // pero internamente redirige a la lógica de desactivación si hay datos.
+  // Fallback for HTML compatibility
   eliminarSucursal(id: number): void {
     const sucursal = this.sucursales.find(s => s.id === id);
     if (sucursal) {
@@ -263,7 +266,10 @@ export class AdminDashboardComponent implements OnInit {
   // STAFF LOGIC (CREATE AND DIRECT ASSIGN)
   // ==========================================
 
+  // General "Add Staff" (top button)
   abrirModalEmpleado(): void {
+    this.esSucursalFija = false; // Allow choosing branch
+    this.nombreSucursalFija = '';
     this.empleadoForm = { 
       nombre: '', 
       email: '', 
@@ -274,7 +280,11 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalEmpleado = true;
   }
 
+  // Specific "Add Staff" (button on branch card)
   agregarPersonalASucursal(sucursal: any): void {
+    this.esSucursalFija = true; // Lock the select
+    this.nombreSucursalFija = sucursal.nombre;
+    
     this.empleadoForm = { 
       nombre: '', 
       email: '', 
@@ -300,7 +310,7 @@ export class AdminDashboardComponent implements OnInit {
       return;
     }
 
-    // Validación Frontend de Gerente Único
+    // Frontend Single Manager Validation
     if (this.empleadoForm.rol === 'GERENTE') {
       const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
       const gerenteExistente = this.personal.find(p => {
