@@ -174,6 +174,9 @@
         <button class="tab-button" [class.active]="tabActiva === 'turnos'" (click)="cambiarTab('turnos')">
           Turnos
         </button>
+        <button class="tab-button" [class.active]="tabActiva === 'mesas'" (click)="cambiarTab('mesas')">
+          Mesas
+        </button>
       </div>
 
       <div class="tab-content" *ngIf="tabActiva === 'resumen'">
@@ -419,6 +422,60 @@
         </div>
       </div>
 
+      <!-- =====================================================
+           ✅ NUEVA PESTAÑA: GESTIÓN DE MESAS
+           ===================================================== -->
+      <div class="tab-content" *ngIf="tabActiva === 'mesas'">
+        <div class="header-accion">
+          <h2>Gestión de Mesas</h2>
+          <button class="btn-nuevo" (click)="abrirModalMesa()">
+            <i class="fas fa-plus"></i> Nueva Mesa
+          </button>
+        </div>
+
+        <div class="mesas-por-sucursal">
+          <div class="sucursal-section" *ngFor="let sucursal of mesasPorSucursal | keyvalue">
+            <h3 class="sucursal-titulo">
+              <i class="fas fa-map-marker-alt"></i>
+              {{ sucursal.key }}
+            </h3>
+
+            <div class="grid-mesas">
+              <div class="mesa-card" *ngFor="let mesa of sucursal.value">
+                <div class="mesa-header">
+                  <h4>{{ mesa.numero }}</h4>
+                  <span class="mesa-badge" [ngClass]="'badge-' + mesa.estado.toLowerCase()">
+                    {{ mesa.estado }}
+                  </span>
+                </div>
+                <div class="mesa-info">
+                  <p><i class="fas fa-users"></i> Capacidad: {{ mesa.capacidad }} personas</p>
+                  <p><i class="fas fa-table"></i> Tipo: {{ mesa.tipo }}</p>
+                </div>
+                <div class="mesa-actions">
+                  <button class="btn-editar" (click)="editarMesa(mesa)" title="Editar">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button class="btn-eliminar" (click)="eliminarMesa(mesa)" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sin-mesas" *ngIf="sucursal.value.length === 0">
+              <p><i class="fas fa-info-circle"></i> No hay mesas registradas en esta sucursal</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="contenido-vacio" *ngIf="mesas.length === 0">
+          <i class="fas fa-table"></i>
+          <h3>No hay mesas registradas</h3>
+          <p>Comienza agregando mesas a tus sucursales</p>
+        </div>
+      </div>
+
     </div>
 
   </main>
@@ -507,6 +564,56 @@
       <div class="modal-footer">
         <button class="btn-secondary" (click)="cerrarModalEmpleado()">Cancelar</button>
         <button class="btn-primary" (click)="guardarEmpleado()">Registrar Usuario</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       ✅ MODAL PARA GESTIÓN DE MESAS
+       ===================================================== -->
+  <div class="modal-overlay" *ngIf="mostrarModalMesa" (click)="cerrarModalMesa()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ esEdicionMesa ? 'Editar Mesa' : 'Nueva Mesa' }}</h2>
+        <button class="btn-close" (click)="cerrarModalMesa()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Número de Mesa</label>
+          <input type="text" [(ngModel)]="mesaForm.numero" placeholder="M1">
+        </div>
+
+        <div class="form-group">
+          <label>Capacidad (personas)</label>
+          <input type="number" [(ngModel)]="mesaForm.capacidad" min="1" max="20">
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Mesa</label>
+          <select [(ngModel)]="mesaForm.tipo">
+            <option value="cuadrada">Cuadrada</option>
+            <option value="rectangular">Rectangular</option>
+            <option value="circular">Circular</option>
+          </select>
+        </div>
+
+        <div class="form-group" *ngIf="!esEdicionMesa">
+          <label>Sucursal</label>
+          <select [(ngModel)]="mesaForm.sucursalId" required>
+            <option [ngValue]="null">Selecciona una sucursal</option>
+            <option *ngFor="let sucursal of sucursales" [value]="sucursal.id">
+              {{ sucursal.nombre }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalMesa()">Cancelar</button>
+        <button class="btn-primary" (click)="guardarMesa()">
+          {{ esEdicionMesa ? 'Actualizar' : 'Crear' }}
+        </button>
       </div>
     </div>
   </div>

@@ -87,4 +87,20 @@ export class MesaService {
       { headers: this.getHeaders() }
     );
   }
+
+  // ==========================================
+  // ✅ NUEVOS MÉTODOS PARA ADMINISTRACIÓN
+  // ==========================================
+
+  crearMesa(mesa: { numero: string, capacidad: number, tipo: string, sucursalId: number, posX?: number, posY?: number }): Observable<Mesa> {
+    return this.http.post<Mesa>(this.apiUrl, mesa, { headers: this.getHeaders() });
+  }
+
+  editarMesa(id: number, mesa: Partial<Mesa>): Observable<Mesa> {
+    return this.http.patch<Mesa>(`${this.apiUrl}/${id}`, mesa, { headers: this.getHeaders() });
+  }
+
+  eliminarMesa(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
+  }
 }

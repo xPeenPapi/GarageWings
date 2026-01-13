@@ -1027,3 +1027,164 @@
   width: 32px;
   justify-content: center;
 }
+
+/* ===========================
+   ✅ ESTILOS PARA GESTIÓN DE MESAS
+   =========================== */
+
+.mesas-por-sucursal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.sucursal-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.sucursal-titulo {
+  font-size: 1.2rem;
+  color: #2d3748;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sucursal-titulo i {
+  color: #3b82f6;
+}
+
+.grid-mesas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.mesa-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.mesa-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mesa-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mesa-header h4 {
+  font-size: 1.1rem;
+  color: #1f2937;
+  margin: 0;
+}
+
+.mesa-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-disponible {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-ocupada {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.badge-sucia {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-mantenimiento {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.mesa-info {
+  margin-bottom: 12px;
+}
+
+.mesa-info p {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mesa-info i {
+  color: #9ca3af;
+  width: 16px;
+}
+
+.mesa-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-editar,
+.btn-eliminar {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-editar {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.btn-editar:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-eliminar {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.btn-eliminar:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.sin-mesas {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+}
+
+.sin-mesas i {
+  margin-right: 8px;
+}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, HttpException, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoMesa } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwd.guard';
@@ -267,6 +267,137 @@ export class MesasController {
       console.error(`❌ Error marcando mesa ${id} como sucia:`, error);
       throw new HttpException(
         `Error al marcar mesa como sucia: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  // ==========================================
+  // ✅ NUEVOS ENDPOINTS PARA ADMINISTRACIÓN
+  // ==========================================
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async crearMesa(@Body() createData: any, @Req() req) {
+    try {
+      const { numero, capacidad, tipo, sucursalId } = createData;
+      const usuarioSucursalId = req.user?.sucursalId;
+      const rol = req.user?.rol;
+
+      // Validar que tenga permisos
+      if (rol !== 'ADMIN_EMPRESA' && rol !== 'SUPER_ADMIN') {
+        throw new HttpException('No tienes permisos para crear mesas', HttpStatus.FORBIDDEN);
+      }
+
+      // Validar datos requeridos
+      if (!numero || !capacidad || !sucursalId) {
+        throw new HttpException('Faltan datos: numero, capacidad, sucursalId', HttpStatus.BAD_REQUEST);
+      }
+
+      // Verificar que la mesa no exista ya en esa sucursal
+      const mesaExistente = await this.prisma.mesa.findFirst({
+        where: {
+          numero: numero,
+          sucursalId: Number(sucursalId)
+        }
+      });
+
+      if (mesaExistente) {
+        throw new HttpException(`Ya existe una mesa ${numero} en esta sucursal`, HttpStatus.CONFLICT);
+      }
+
+      // Crear la mesa
+      const nuevaMesa = await this.prisma.mesa.create({
+        data: {
+          numero,
+          capacidad: Number(capacidad),
+          tipo: tipo || 'cuadrada',
+          estado: EstadoMesa.DISPONIBLE,
+          posX: createData.posX || 0,
+          posY: createData.posY || 0,
+          sucursalId: Number(sucursalId)
+        }
+      });
+
+      console.log(`✅ Mesa ${numero} creada en sucursal ${sucursalId}`);
+      return nuevaMesa;
+
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        `Error al crear mesa: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async editarMesa(@Param('id', ParseIntPipe) id: number, @Body() updateData: any, @Req() req) {
+    try {
+      const rol = req.user?.rol;
+
+      // Validar permisos
+      if (rol !== 'ADMIN_EMPRESA' && rol !== 'SUPER_ADMIN') {
+        throw new HttpException('No tienes permisos para editar mesas', HttpStatus.FORBIDDEN);
+      }
+
+      const mesaActualizada = await this.prisma.mesa.update({
+        where: { id },
+        data: {
+          numero: updateData.numero,
+          capacidad: updateData.capacidad ? Number(updateData.capacidad) : undefined,
+          tipo: updateData.tipo,
+          posX: updateData.posX !== undefined ? Number(updateData.posX) : undefined,
+          posY: updateData.posY !== undefined ? Number(updateData.posY) : undefined
+        }
+      });
+
+      return mesaActualizada;
+
+    } catch (error) {
+      throw new HttpException(
+        `Error al actualizar mesa: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async eliminarMesa(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    try {
+      const rol = req.user?.rol;
+
+      // Solo admins pueden eliminar mesas
+      if (rol !== 'ADMIN_EMPRESA' && rol !== 'SUPER_ADMIN') {
+        throw new HttpException('No tienes permisos para eliminar mesas', HttpStatus.FORBIDDEN);
+      }
+
+      // Verificar que la mesa no tenga órdenes activas
+      const ordenesActivas = await this.prisma.orden.count({
+        where: {
+          mesaId: id,
+          estado: { not: 'CERRADA' }
+        }
+      });
+
+      if (ordenesActivas > 0) {
+        throw new HttpException(
+          'No se puede eliminar una mesa con órdenes activas',
+          HttpStatus.CONFLICT
+        );
+      }
+
+      await this.prisma.mesa.delete({ where: { id } });
+      
+      console.log(`✅ Mesa ${id} eliminada`);
+      return { message: 'Mesa eliminada exitosamente' };
+
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        `Error al eliminar mesa: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

@@ -20,7 +20,8 @@ export class SucursalesService {
   }
 
   async create(data: any) {
-    return this.prisma.sucursal.create({
+    // 1. Crear la sucursal
+    const nuevaSucursal = await this.prisma.sucursal.create({
       data: {
         nombre: data.nombre,
         direccion: data.direccion,
@@ -29,6 +30,31 @@ export class SucursalesService {
         activa: true // Por defecto nace activa
       }
     });
+
+    // 2. ✅ AUTO-CREAR MESAS POR DEFECTO (configurable)
+    const cantidadMesasPorDefecto = data.cantidadMesas || 12; // Default: 12 mesas
+    const mesasACrear = [];
+
+    for (let i = 1; i <= cantidadMesasPorDefecto; i++) {
+      mesasACrear.push({
+        numero: `M${i}`,
+        capacidad: i <= 8 ? 4 : 2, // Primeras 8 son de 4 personas, resto de 2
+        tipo: i <= 8 ? 'cuadrada' : 'rectangular',
+        estado: 'DISPONIBLE',
+        posX: i <= 8 ? (i - 1) * 150 : (i - 9) * 150,
+        posY: i <= 8 ? 50 : 250,
+        sucursalId: nuevaSucursal.id
+      });
+    }
+
+    // Crear todas las mesas en batch
+    await this.prisma.mesa.createMany({
+      data: mesasACrear
+    });
+
+    console.log(`✅ Sucursal "${nuevaSucursal.nombre}" creada con ${cantidadMesasPorDefecto} mesas`);
+
+    return nuevaSucursal;
   }
 
   // ✅ ACTUALIZADO: Ahora permite recibir 'activa' en el body

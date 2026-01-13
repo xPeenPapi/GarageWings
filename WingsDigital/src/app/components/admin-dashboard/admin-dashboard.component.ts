@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { AdminService } from '../../services/admin.service';
 import { ProductosService } from '../../services/productos.service';
+import { MesaService } from '../../services/mesa.service';
 import Swal from 'sweetalert2'; // Importamos SweetAlert2 para las alertas bonitas
 
 // Interface for typing
@@ -39,7 +40,7 @@ export class AdminDashboardComponent implements OnInit {
 
   // Filtros y Navegación
   public sucursalSeleccionada: string = 'todas';
-  public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' = 'resumen';
+  public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas' = 'resumen';
 
   // Datos Reales
   public sucursales: Sucursal[] = [];
@@ -74,6 +75,17 @@ export class AdminDashboardComponent implements OnInit {
     sucursalId: null 
   };
 
+  // Modal Mesas
+  public mesas: any[] = [];
+  public mostrarModalMesa: boolean = false;
+  public esEdicionMesa: boolean = false;
+  public mesaForm: any = { 
+    numero: '', 
+    capacidad: 4, 
+    tipo: 'cuadrada', 
+    sucursalId: null 
+  };
+
   // ==========================================
   // ESTADÍSTICAS CALCULADAS
   // ==========================================
@@ -99,6 +111,7 @@ export class AdminDashboardComponent implements OnInit {
     private authService: AuthService,
     private adminService: AdminService,
     private productosService: ProductosService,
+    private mesaService: MesaService,
     private router: Router
   ) {}
 
@@ -478,8 +491,11 @@ guardarEmpleado(): void {
     this.sucursalSeleccionada = sucursal;
   }
 
-  cambiarTab(tab: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos'): void {
+  cambiarTab(tab: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas'): void {
     this.tabActiva = tab;
+    if (tab === 'mesas') {
+      this.cargarMesas();
+    }
   }
 
   cerrarSesion(): void {
@@ -502,5 +518,112 @@ guardarEmpleado(): void {
 
   calcularPorcentaje(valor: number, total: number): number {
     return total > 0 ? (valor / total) * 100 : 0;
+  }
+
+  // ==========================================
+  // ✅ LÓGICA DE GESTIÓN DE MESAS
+  // ==========================================
+
+  cargarMesas(): void {
+    this.mesaService.getMesas().subscribe({
+      next: (data) => {
+        this.mesas = data;
+        console.log('✅ Mesas cargadas:', this.mesas.length);
+      },
+      error: (err) => console.error('❌ Error cargando mesas:', err)
+    });
+  }
+
+  abrirModalMesa(sucursalId?: number): void {
+    this.esEdicionMesa = false;
+    this.mesaForm = { 
+      numero: '', 
+      capacidad: 4, 
+      tipo: 'cuadrada', 
+      sucursalId: sucursalId || null 
+    };
+    this.mostrarModalMesa = true;
+  }
+
+  editarMesa(mesa: any): void {
+    this.esEdicionMesa = true;
+    this.mesaForm = { ...mesa };
+    this.mostrarModalMesa = true;
+  }
+
+  cerrarModalMesa(): void {
+    this.mostrarModalMesa = false;
+  }
+
+  guardarMesa(): void {
+    if (!this.mesaForm.numero || !this.mesaForm.capacidad || !this.mesaForm.sucursalId) {
+      Swal.fire('Error', 'Por favor completa todos los campos requeridos', 'error');
+      return;
+    }
+
+    if (this.esEdicionMesa && this.mesaForm.id) {
+      // Editar mesa existente
+      this.mesaService.editarMesa(this.mesaForm.id, this.mesaForm).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Mesa actualizada correctamente', 'success');
+          this.cargarMesas();
+          this.cerrarModalMesa();
+        },
+        error: (err) => {
+          Swal.fire('Error', err.error?.message || 'Error al actualizar mesa', 'error');
+        }
+      });
+    } else {
+      // Crear nueva mesa
+      this.mesaService.crearMesa(this.mesaForm).subscribe({
+        next: () => {
+          Swal.fire('¡Éxito!', 'Mesa creada correctamente', 'success');
+          this.cargarMesas();
+          this.cerrarModalMesa();
+        },
+        error: (err) => {
+          Swal.fire('Error', err.error?.message || 'Error al crear mesa', 'error');
+        }
+      });
+    }
+  }
+
+  eliminarMesa(mesa: any): void {
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: `Se eliminará la mesa ${mesa.numero}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.mesaService.eliminarMesa(mesa.id).subscribe({
+          next: () => {
+            Swal.fire('Eliminada', 'Mesa eliminada correctamente', 'success');
+            this.cargarMesas();
+          },
+          error: (err) => {
+            Swal.fire('Error', err.error?.message || 'No se pudo eliminar la mesa', 'error');
+          }
+        });
+      }
+    });
+  }
+
+  get mesasPorSucursal(): any {
+    const agrupadas: any = {};
+    this.mesas.forEach(mesa => {
+      const sucursal = this.sucursales.find(s => s.id === mesa.sucursalId);
+      const nombreSucursal = sucursal?.nombre || 'Sin sucursal';
+      
+      if (!agrupadas[nombreSucursal]) {
+        agrupadas[nombreSucursal] = [];
+      }
+      agrupadas[nombreSucursal].push(mesa);
+    });
+    return agrupadas;
   }
 }
