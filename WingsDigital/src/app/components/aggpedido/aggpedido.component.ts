@@ -628,35 +628,22 @@ agregarAlPedido(item: Producto): void {
     });
   }
 
-  // ✅ CORREGIDO: Solo quita notificación visual, NO actualiza a ENTREGADA
+  // ✅ CORREGIDO: Solo quita notificación visual, NO actualiza backend
   confirmarEntrega(pedido: any) {
     console.log(`🔔 Quitando notificación de orden ${pedido.id}...`);
     
-    // ❌ NO actualizar estado de la orden a ENTREGADA
-    // La orden debe permanecer en LISTA hasta que se pague en caja
+    // ✅ IMPORTANTE: NO actualizar estado de items ni de la orden
+    // La orden debe permanecer en estado LISTA con items en LISTA
+    // hasta que se pague en caja. Esto permite que:
+    // 1. La sesión para llevar siga visible en la vista de mesas
+    // 2. El mesero pueda pedir la cuenta
+    // 3. La orden aparezca en caja para cobrar
     
-    // Solo actualizar items individuales a ENTREGADA para limpiar pantallas de cocina
-    if (pedido.items && pedido.items.length > 0) {
-      pedido.items.forEach((item: any) => {
-        if (item.estado === 'LISTA') {
-          this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe({
-            next: () => console.log(`✅ Item ${item.id} marcado como ENTREGADO (limpia cocina)`),
-            error: (err) => console.error(`❌ Error al actualizar item ${item.id}:`, err)
-          });
-        }
-      });
-    }
-    
-    // Limpiar interfaz local (quitar notificación)
+    // Solo limpiar interfaz local (quitar notificación visual)
     this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
     this.contadorNotificaciones = this.pedidosListos.length;
     
-    // Recargar datos si estamos en la misma mesa
-    if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
-      this.recargarDatosMesa();
-    }
-    
-    console.log('✅ Notificación removida. Orden permanece en estado LISTA hasta que se pague.');
+    console.log('✅ Notificación removida. Orden permanece en LISTA con items en LISTA.');
   }
 
   // ✅ MODIFICADO: Procesa todas las entregas con logs
