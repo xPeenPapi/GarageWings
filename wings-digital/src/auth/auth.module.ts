@@ -12,7 +12,7 @@ import { JwtStrategy } from './jwt.strategy'; // ✅ AGREGADO
     UsersModule,
     JwtModule.register({
       global: true,
-      secret: 'TU_CLAVE_SECRETA_SUPER_SEGURA', // Debe coincidir con tu strategy
+      secret: process.env.JWT_SECRET || 'tu_clave_secreta_super_segura_123456',
       signOptions: { expiresIn: '12h' }, // El token dura 12 horas
     }),
   ],
