@@ -51,9 +51,6 @@ export class AdminDashboardComponent implements OnInit {
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
   public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
 
-  // ✅ FILTROS DE SUCURSAL
-  public sucursalSeleccionada: string = 'todas'; // 'todas' o el nombre de la sucursal
-
   // ✅ Propiedades computadas para filtros
   get sucursalesActivas(): Sucursal[] {
     return this.sucursales.filter(s => s.activa);
