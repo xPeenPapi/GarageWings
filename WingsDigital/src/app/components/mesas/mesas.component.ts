@@ -738,21 +738,22 @@ irAMesa(pedido: any) {
 irAPedidoParaLlevar(id: number) {
 this.router.navigate(['/pedido/orden', id]);
 }
-// ✅ CORREGIDO: Ahora recarga la lista de para llevar después de confirmar
+// ✅ CORREGIDO: Solo quita notificación visual, NO actualiza backend
 confirmarEntrega(p: any) { 
-  // ✅ NO actualizar estados en backend
-  // Solo remover de la lista de notificaciones localmente
+  console.log('🔔 Quitando notificación de orden:', p.id);
   
+  // Solo remover de la lista de notificaciones localmente
   const idx = this.pedidosListos.indexOf(p); 
   if(idx > -1) { 
     this.pedidosListos.splice(idx, 1); 
     this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
   } 
   
-  // ✅ La orden permanece en estado LISTA hasta que se pague
-  // No hacemos ninguna llamada al backend
+  // ✅ IMPORTANTE: La orden permanece en estado LISTA en el backend
+  // No actualizar a ENTREGADA hasta que se pague en caja
+  // Esto permite que el mesero aún pueda enviar la cuenta
   
-  this.verificarNotificacionesComida();
+  console.log('✅ Notificación removida. Orden sigue en estado LISTA.');
 }
 marcarComoVista(p: any) {
 this.confirmarEntrega(p);

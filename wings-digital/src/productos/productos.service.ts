@@ -14,6 +14,32 @@ export class ProductosService {
     return productos;
   }
 
+  // ✅ NUEVO: Filtrar productos disponibles en una sucursal específica
+  async findBySucursal(sucursalId: number) {
+    // Primero obtenemos los productos disponibles en esta sucursal
+    const disponibilidad = await this.prisma.sucursalProducto.findMany({
+      where: { 
+        sucursalId: sucursalId,
+        disponible: true 
+      },
+      select: { productoId: true }
+    });
+
+    const productosIds = disponibilidad.map(d => d.productoId);
+
+    // Luego obtenemos los productos completos
+    const productos = await this.prisma.producto.findMany({
+      where: { 
+        id: { in: productosIds },
+        activo: true // Solo productos activos
+      },
+      include: { categoria: true }
+    });
+    
+    console.log(`📊 Productos disponibles para sucursal ${sucursalId}:`, productos.length);
+    return productos;
+  }
+
   // ✅ MODIFICADO: Agregamos _count para arreglar el "0 elementos"
 async findAllCategorias() {
     console.log("🔍 Buscando categorías..."); // Log de inicio

@@ -1,6 +1,7 @@
 
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { ProductosService } from './productos.service';
+import { JwtAuthGuard } from '../auth/jwd.guard';
 
 @Controller('productos')
 export class ProductosController {
@@ -11,9 +12,19 @@ export class ProductosController {
     return this.productosService.create(createProductoDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.productosService.findAll();
+  findAll(@Req() req) {
+    const sucursalId = req.user?.sucursalId;
+    const rol = req.user?.rol;
+    
+    // Si es ADMIN, devolver todos los productos
+    if (rol === 'ADMIN_EMPRESA' || rol === 'SUPER_ADMIN') {
+      return this.productosService.findAll();
+    }
+    
+    // Para GERENTE u otros roles, filtrar por su sucursal
+    return this.productosService.findBySucursal(Number(sucursalId));
   }
 
   @Get('categorias')

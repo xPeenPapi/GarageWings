@@ -590,44 +590,35 @@ agregarAlPedido(item: Producto): void {
     });
   }
 
-  // ✅ MODIFICADO: Actualiza orden e items individuales
+  // ✅ CORREGIDO: Solo quita notificación visual, NO actualiza a ENTREGADA
   confirmarEntrega(pedido: any) {
-    console.log(`🍽️ Confirmando entrega de orden ${pedido.id}...`);
+    console.log(`🔔 Quitando notificación de orden ${pedido.id}...`);
     
-    // 1. Actualizar estado de la orden completa
-    this.pedidosService.actualizarEstado(pedido.id, 'ENTREGADA').subscribe({
-      next: () => {
-        console.log(`✅ Orden ${pedido.id} marcada como ENTREGADA`);
-        
-        // 2. Actualizar cada item para que se limpie en Cocina/Barra
-        if (pedido.items && pedido.items.length > 0) {
-          pedido.items.forEach((item: any) => {
-            if (item.estado === 'LISTA' || item.estado === 'EN_PREPARACION') {
-              this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe({
-                next: () => console.log(`✅ Item ${item.id} marcado como ENTREGADO`),
-                error: (err) => console.error(`❌ Error al actualizar item ${item.id}:`, err)
-              });
-            }
+    // ❌ NO actualizar estado de la orden a ENTREGADA
+    // La orden debe permanecer en LISTA hasta que se pague en caja
+    
+    // Solo actualizar items individuales a ENTREGADA para limpiar pantallas de cocina
+    if (pedido.items && pedido.items.length > 0) {
+      pedido.items.forEach((item: any) => {
+        if (item.estado === 'LISTA') {
+          this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe({
+            next: () => console.log(`✅ Item ${item.id} marcado como ENTREGADO (limpia cocina)`),
+            error: (err) => console.error(`❌ Error al actualizar item ${item.id}:`, err)
           });
         }
-        
-        // 3. Limpiar interfaz local
-        this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
-        this.contadorNotificaciones = this.pedidosListos.length;
-        
-        // 4. Recargar datos si estamos en la misma mesa
-        if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
-          this.recargarDatosMesa();
-        }
-      },
-      error: (err) => {
-        console.error('❌ Error al confirmar entrega:', err);
-        const mensaje = err.status === 404 
-          ? 'Ruta no encontrada. Verifica el backend.'
-          : err.error?.message || 'Error de conexión';
-        alert(`Error: ${mensaje}`);
-      }
-    });
+      });
+    }
+    
+    // Limpiar interfaz local (quitar notificación)
+    this.pedidosListos = this.pedidosListos.filter(p => p.id !== pedido.id);
+    this.contadorNotificaciones = this.pedidosListos.length;
+    
+    // Recargar datos si estamos en la misma mesa
+    if (this.mesaId && String(this.mesaId) === String(pedido.mesaId)) {
+      this.recargarDatosMesa();
+    }
+    
+    console.log('✅ Notificación removida. Orden permanece en estado LISTA hasta que se pague.');
   }
 
   // ✅ MODIFICADO: Procesa todas las entregas con logs
@@ -646,21 +637,22 @@ agregarAlPedido(item: Producto): void {
 
   toggleListaNotificaciones() { this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; }
   
-  // ✅ MODIFICADO: Espera confirmación antes de navegar
+  // ✅ CORREGIDO: Solo navega, NO confirma entrega automáticamente
   irAMesa(pedido: any) {
     this.mostrarListaNotificaciones = false;
     
-    // Confirmar entrega primero
-    this.confirmarEntrega(pedido); 
-
-    // Navegar después de un breve delay
-    setTimeout(() => {
-      if (pedido.mesaId && pedido.mesaId !== 'Llevar') {
-        this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
-          this.router.navigate(['/pedido', pedido.mesaId]);
-        });
-      }
-    }, 300);
+    // ❌ NO confirmar entrega automáticamente
+    // El mesero debe confirmar manualmente con el botón de check
+    
+    // Navegar a la mesa o pedido para llevar
+    if (pedido.mesaId && pedido.mesaId !== 'Llevar') {
+      this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+        this.router.navigate(['/pedido', pedido.mesaId]);
+      });
+    } else {
+      // Pedido para llevar
+      this.router.navigate(['/pedido/orden', pedido.id]);
+    }
   }
 
   filtrarPorCategoria(categoriaId: number): void {
