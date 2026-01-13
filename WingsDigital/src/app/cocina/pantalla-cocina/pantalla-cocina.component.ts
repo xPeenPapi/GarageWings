@@ -49,6 +49,9 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
   conteoPendientes: number = 0;
   conteoPreparando: number = 0;
   conteoListos: number = 0;
+  
+  // 🏢 SUCURSAL DEL USUARIO
+  sucursalId: number | null = null;
 
   private subscriptions = new Subscription();
   private apiUrl = `${environment.apiUrl}/pedidos`; 
@@ -62,6 +65,9 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     private http: HttpClient
   ) {
     this.nombreChef = this.authService.getNombreUsuario() || 'Chef';
+    this.sucursalId = this.authService.getSucursalId();
+    console.log('🏢 Cocina de sucursal:', this.sucursalId);
+    
     this.actualizarReloj();
     setInterval(() => this.actualizarReloj(), 1000);
     setInterval(() => this.recalcularTiempos(), 60000); 
@@ -81,11 +87,28 @@ export class PantallaCocinaComponent implements OnInit, OnDestroy {
     this.horaActual = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // 1. CARGA DE DATOS (Sin filtrar todavía)
+  // 1. CARGA DE DATOS (Filtrar por sucursal)
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
-        this.todasLasOrdenes = pedidos;
+        // 🏢 FILTRAR POR SUCURSAL
+        if (this.sucursalId) {
+          this.todasLasOrdenes = pedidos.filter((p: any) => {
+            // Verificar si el pedido tiene mesa y que la mesa pertenezca a la sucursal
+            if (p.mesa && p.mesa.sucursalId) {
+              return Number(p.mesa.sucursalId) === Number(this.sucursalId);
+            }
+            // Si no tiene mesa (para llevar), verificar si el pedido tiene sucursalId
+            if (p.sucursalId) {
+              return Number(p.sucursalId) === Number(this.sucursalId);
+            }
+            return false;
+          });
+          console.log(`🏢 Pedidos filtrados para sucursal ${this.sucursalId}:`, this.todasLasOrdenes.length);
+        } else {
+          this.todasLasOrdenes = pedidos;
+        }
+        
         this.procesarListasVisuales(); // 🔥 Aquí ocurre la magia de filtrado y ordenamiento
       },
       error: (err) => console.error('Error cargando pedidos:', err)

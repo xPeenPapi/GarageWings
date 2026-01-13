@@ -7,12 +7,34 @@ import { JwtAuthGuard } from '../auth/jwd.guard';
 export class MesasController {
   constructor(private prisma: PrismaService) {}
 
-  // ⚠️ TEMPORALMENTE SIN GUARD
+  // ✅ ENDPOINT MEJORADO: Filtra por sucursal según el rol del usuario
+  @UseGuards(JwtAuthGuard)
   @Get()
-  async findAll() {
-    return this.prisma.mesa.findMany({
+  async findAll(@Req() req) {
+    const sucursalId = req.user?.sucursalId;
+    const rol = req.user?.rol;
+    
+    console.log('🏢 Usuario solicitando mesas:', { rol, sucursalId });
+    
+    // Si es ADMIN o SUPER_ADMIN, devolver todas las mesas
+    if (rol === 'ADMIN_EMPRESA' || rol === 'SUPER_ADMIN') {
+      return this.prisma.mesa.findMany({
+        orderBy: { numero: 'asc' }
+      });
+    }
+    
+    // Para roles operativos (GERENTE, MESERO, COCINA, BARRA, CAJA), filtrar por sucursal
+    if (!sucursalId) {
+      throw new HttpException('Usuario sin sucursal asignada', HttpStatus.FORBIDDEN);
+    }
+    
+    const mesas = await this.prisma.mesa.findMany({
+      where: { sucursalId: Number(sucursalId) },
       orderBy: { numero: 'asc' }
     });
+    
+    console.log(`📊 Devolviendo ${mesas.length} mesas para sucursal ${sucursalId}`);
+    return mesas;
   }
 
   // ⚠️ TEMPORALMENTE SIN GUARD

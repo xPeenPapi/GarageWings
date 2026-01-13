@@ -37,6 +37,9 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   horaActual: string = '';
   conteoPendientes: number = 0;
   conteoListas: number = 0;
+  
+  // 🏢 SUCURSAL DEL USUARIO
+  sucursalId: number | null = null;
 
   private subscriptions = new Subscription();
   private apiUrl = `${environment.apiUrl}/pedidos`;
@@ -50,6 +53,9 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
     private http: HttpClient
   ) {
     this.nombreBarista = this.authService.getNombreUsuario() || 'Barista';
+    this.sucursalId = this.authService.getSucursalId();
+    console.log('🏢 Barra de sucursal:', this.sucursalId);
+    
     this.actualizarReloj();
     setInterval(() => this.actualizarReloj(), 1000);
     setInterval(() => this.recalcularTiempos(), 60000); 
@@ -69,7 +75,22 @@ export class PantallaBarraComponent implements OnInit, OnDestroy {
   cargarPedidos() {
     this.pedidosService.obtenerPendientes().subscribe({
       next: (pedidos) => {
-        this.todasLasOrdenes = pedidos;
+        // 🏢 FILTRAR POR SUCURSAL
+        if (this.sucursalId) {
+          this.todasLasOrdenes = pedidos.filter((p: any) => {
+            if (p.mesa && p.mesa.sucursalId) {
+              return Number(p.mesa.sucursalId) === Number(this.sucursalId);
+            }
+            if (p.sucursalId) {
+              return Number(p.sucursalId) === Number(this.sucursalId);
+            }
+            return false;
+          });
+          console.log(`🏢 Pedidos de barra filtrados para sucursal ${this.sucursalId}:`, this.todasLasOrdenes.length);
+        } else {
+          this.todasLasOrdenes = pedidos;
+        }
+        
         this.procesarListasVisuales();
       },
       error: (err) => console.error(err)

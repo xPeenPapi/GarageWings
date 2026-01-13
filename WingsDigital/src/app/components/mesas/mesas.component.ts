@@ -37,6 +37,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   public nombreMesero = ''; 
   public usuarioActualId: number = 0; 
   public rolUsuario: string = ''; // Para validar permisos especiales (Gerente)
+  public sucursalId: number | null = null; // Sucursal del usuario
 
   public ordenesParaLlevarActivas: any[] = [];
   public filtroActual: 'TODAS' | 'DISPONIBLES' | 'OCUPADAS' | 'SUCIAS' = 'TODAS';
@@ -84,7 +85,10 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.audio = new Audio('assets/sounds/notification.mp3');
     const user = this.authService.currentUser; 
     this.usuarioActualId = user ? user.id : 0;
-    this.rolUsuario = user ? (user.rol || '') : ''; 
+    this.rolUsuario = user ? (user.rol || '') : '';
+    this.sucursalId = this.authService.getSucursalId();
+    
+    console.log('🏢 Usuario de sucursal:', this.sucursalId);
   }
 
   ngOnInit(): void {
@@ -166,7 +170,13 @@ export class MesasComponent implements OnInit, OnDestroy {
   cargarMesas() {
     this.mesaService.getMesas().subscribe({
       next: (data) => {
-        const listaMesas = data as any[];
+        let listaMesas = data as any[];
+        
+        // 🏢 FILTRAR POR SUCURSAL DEL USUARIO
+        if (this.sucursalId) {
+          listaMesas = listaMesas.filter(m => Number(m.sucursalId) === Number(this.sucursalId));
+          console.log(`🏢 Mesas filtradas para sucursal ${this.sucursalId}:`, listaMesas.length);
+        }
         
         this.limpiarUnionesObsoletas(listaMesas);
 
