@@ -301,6 +301,7 @@ export class AdminDashboardComponent implements OnInit {
     // 1. Cargar Sucursales
     this.adminService.getSucursales().subscribe({
       next: (data) => {
+        console.log('📦 Sucursales recibidas del backend:', data);
         this.sucursales = data.map((s: any) => ({
           id: s.id,
           nombre: s.nombre,
@@ -313,6 +314,10 @@ export class AdminDashboardComponent implements OnInit {
           ordenes: s.totalOrdenesDia || 0,
           ticketPromedio: s.ticketPromedio || 0
         }));
+
+        console.log('🏢 Total sucursales:', this.sucursales.length);
+        console.log('✅ Activas:', this.sucursales.filter(s => s.activa).length);
+        console.log('❌ Inactivas:', this.sucursales.filter(s => !s.activa).length);
 
         this.recalcularEstadisticasGenerales();
       },
