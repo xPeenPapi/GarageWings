@@ -30,36 +30,36 @@ interface Sucursal {
 export class AdminDashboardComponent implements OnInit {
 
   // ==========================================
-  // VARIABLES DE ESTADO
+  // STATE VARIABLES
   // ==========================================
   public nombreAdmin: string = '';
   public horaActual: string = '';
   public cargando: boolean = true;
 
-  // Filtros y Navegación
+  // Filters and Navigation
   public sucursalSeleccionada: string = 'todas';
   public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' = 'resumen';
 
-  // Datos Reales
+  // Real Data
   public sucursales: Sucursal[] = [];
   public personal: any[] = [];
   public productos: any[] = [];
   
-  // Gráficas Dinámicas (CSS Gradients)
+  // Dynamic Charts (CSS Gradients)
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
   public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
   
   // ==========================================
-  // VARIABLES PARA MODALES
+  // MODAL VARIABLES
   // ==========================================
   
-  // Modal Sucursal
+  // Branch Modal
   public mostrarModalSucursal: boolean = false;
   public esEdicionSucursal: boolean = false; 
   public idSucursalEdicion: number | null = null; 
   public sucursalForm: any = { nombre: '', direccion: '', telefono: '' };
 
-  // Modal Personal
+  // Staff Modal
   public mostrarModalEmpleado: boolean = false;
   public empleadoForm: any = { 
     nombre: '', 
@@ -70,7 +70,7 @@ export class AdminDashboardComponent implements OnInit {
   };
 
   // ==========================================
-  // ESTADÍSTICAS CALCULADAS
+  // CALCULATED STATISTICS
   // ==========================================
   public estadisticas = {
     ventasTotales: 0,
@@ -120,13 +120,13 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LOGICA DE CARGA DE DATOS
+  // DATA LOADING LOGIC
   // ==========================================
   
   cargarDatosDelSistema(): void {
     this.cargando = true;
 
-    // 1. Cargar Sucursales
+    // 1. Load Branches
     this.adminService.getSucursales().subscribe({
       next: (data) => {
         this.sucursales = data.map((s: any) => ({
@@ -134,7 +134,7 @@ export class AdminDashboardComponent implements OnInit {
           nombre: s.nombre,
           direccion: s.direccion, 
           telefono: s.telefono,   
-          activa: s.activa,
+          activa: s.activa, // Viene de la BD (1 o 0)
           empleadosActivos: s.empleados?.length || 0,
           horaPico: '20:00',
           ventas: s.totalVentasDia || 0, 
@@ -144,10 +144,10 @@ export class AdminDashboardComponent implements OnInit {
 
         this.recalcularEstadisticasGenerales();
       },
-      error: (err) => console.error('Error cargando sucursales', err)
+      error: (err) => console.error('Error loading branches', err)
     });
 
-    // 2. Cargar Personal Global
+    // 2. Load Global Staff
     this.adminService.getAllPersonal().subscribe({
       next: (data) => {
         this.personal = data;
@@ -156,7 +156,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
 
-    // 3. Cargar Menú
+    // 3. Load Menu
     this.productosService.getProductos().subscribe({
       next: (data) => {
         this.productos = data;
@@ -166,10 +166,10 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE SUCURSALES (CREAR / EDITAR / ELIMINAR)
+  // BRANCH LOGIC (CREATE / EDIT / SOFT DELETE)
   // ==========================================
 
-  // 1. Abrir Modal para CREAR
+  // 1. Open Modal for CREATE
   abrirModalSucursal(): void {
     this.esEdicionSucursal = false;
     this.idSucursalEdicion = null;
@@ -177,7 +177,7 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalSucursal = true;
   }
 
-  // 2. Abrir Modal para EDITAR
+  // 2. Open Modal for EDIT
   editarSucursal(sucursal: any): void {
     this.esEdicionSucursal = true;
     this.idSucursalEdicion = sucursal.id;
@@ -193,7 +193,7 @@ export class AdminDashboardComponent implements OnInit {
     this.mostrarModalSucursal = false;
   }
 
-  // 3. Guardar
+  // 3. Save
   guardarSucursal(): void {
     if (!this.sucursalForm.nombre) {
       alert('El nombre de la sucursal es obligatorio');
@@ -201,7 +201,7 @@ export class AdminDashboardComponent implements OnInit {
     }
 
     if (this.esEdicionSucursal && this.idSucursalEdicion) {
-      // --- MODO EDICIÓN ---
+      // --- EDIT MODE ---
       this.adminService.editarSucursal(this.idSucursalEdicion, this.sucursalForm).subscribe({
         next: () => {
           alert('Sucursal actualizada correctamente ✅');
@@ -211,7 +211,7 @@ export class AdminDashboardComponent implements OnInit {
         error: (err) => alert('Error al actualizar: ' + err.message)
       });
     } else {
-      // --- MODO CREACIÓN ---
+      // --- CREATE MODE ---
       this.adminService.crearSucursal(this.sucursalForm).subscribe({
         next: () => {
           alert('Sucursal creada con éxito ✅');
@@ -223,35 +223,44 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  // 4. Eliminar Sucursal
-  eliminarSucursal(id: number): void {
-    // Verificamos visualmente si parece tener empleados, pero el backend tiene la última palabra
-    const sucursal = this.sucursales.find(s => s.id === id);
-    const tieneData = (sucursal?.empleadosActivos || 0) > 0 || (sucursal?.ventas || 0) > 0;
+  // 4. Toggle Status (Soft Delete / Desactivar)
+  // Reemplazamos 'eliminarSucursal' por esta lógica más segura
+  alternarEstadoSucursal(sucursal: Sucursal): void {
+    const nuevoEstado = !sucursal.activa;
+    const accion = nuevoEstado ? 'ACTIVAR' : 'DESACTIVAR';
     
-    let mensaje = '⚠️ ¿Estás seguro de eliminar esta sucursal permanentemente?';
-    if(tieneData) {
-      mensaje += '\n\n🔴 ¡ADVERTENCIA! Esta sucursal tiene empleados o ventas registradas. Se borrará TODO el historial relacionado.';
-    }
+    const mensaje = nuevoEstado 
+      ? `¿Deseas REACTIVAR la sucursal "${sucursal.nombre}"?`
+      : `¿Deseas DESACTIVAR la sucursal "${sucursal.nombre}"?\n\nNo se eliminarán datos, pero dejará de aparecer en los reportes activos.`;
 
     if(confirm(mensaje)) {
-      this.adminService.eliminarSucursal(id).subscribe({
+      // Usamos el endpoint de editar enviando solo el campo 'activa'
+      this.adminService.editarSucursal(sucursal.id, { activa: nuevoEstado }).subscribe({
         next: () => {
-          alert('Sucursal y todos sus datos relacionados fueron eliminados.');
-          this.cargarDatosDelSistema();
+          // Actualizamos localmente para feedback inmediato
+          sucursal.activa = nuevoEstado;
+          this.recalcularEstadisticasGenerales();
+          alert(`Sucursal ${nuevoEstado ? 'activada' : 'desactivada'} correctamente.`);
         },
         error: (err) => {
           console.error(err);
-          // Mensaje detallado para ayudar a depurar si falla
-          const msgBackend = err.error?.message || err.message;
-          alert(`❌ No se pudo eliminar.\n\nError del servidor: ${msgBackend}\n\nPosible causa: Existen registros (como Órdenes o Productos) que no se están borrando en cascada.`);
+          alert('Error al cambiar el estado de la sucursal.');
         }
       });
     }
   }
 
+  // Mantenemos esta función por compatibilidad con el HTML si aún llama a 'eliminarSucursal'
+  // pero internamente redirige a la lógica de desactivación si hay datos.
+  eliminarSucursal(id: number): void {
+    const sucursal = this.sucursales.find(s => s.id === id);
+    if (sucursal) {
+      this.alternarEstadoSucursal(sucursal);
+    }
+  }
+
   // ==========================================
-  // LÓGICA DE PERSONAL
+  // STAFF LOGIC (CREATE AND DIRECT ASSIGN)
   // ==========================================
 
   abrirModalEmpleado(): void {
@@ -291,7 +300,7 @@ export class AdminDashboardComponent implements OnInit {
       return;
     }
 
-    // Validación Frontend de Gerente Único (Respaldo visual)
+    // Validación Frontend de Gerente Único
     if (this.empleadoForm.rol === 'GERENTE') {
       const sucursalIdTarget = Number(this.empleadoForm.sucursalId);
       const gerenteExistente = this.personal.find(p => {
@@ -324,7 +333,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // CÁLCULOS Y GRÁFICAS
+  // CALCULATIONS AND CHARTS
   // ==========================================
 
   recalcularEstadisticasGenerales(): void {
@@ -400,7 +409,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // INTERACCIÓN UI
+  // UI INTERACTION
   // ==========================================
 
   seleccionarSucursal(sucursal: string): void {
