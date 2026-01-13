@@ -222,19 +222,19 @@ export class MesasComponent implements OnInit, OnDestroy {
   }
 
   // ✅ CORREGIDO: Ahora excluye también 'ENTREGADA'
-  cargarOrdenesParaLlevar() { 
-    this.pedidosService.obtenerPendientes().subscribe({ 
-      next: (ordenes: any[]) => { 
-        this.ordenesParaLlevarActivas = ordenes.filter(o => 
-          !o.mesaId && 
-          o.estado !== 'CANCELADA' && 
-          o.estado !== 'PAGADA' && 
-          o.estado !== 'CERRADA' &&
-          o.estado !== 'ENTREGADA' // ✅ AGREGADO
-        ); 
-      } 
-    }); 
-  }
+cargarOrdenesParaLlevar() { 
+  this.pedidosService.obtenerPendientes().subscribe({ 
+    next: (ordenes: any[]) => { 
+      this.ordenesParaLlevarActivas = ordenes.filter(o => 
+        !o.mesaId && 
+        o.estado !== 'CANCELADA' && 
+        o.estado !== 'PAGADA' && 
+        o.estado !== 'CERRADA'
+        // ✅ NO excluimos ENTREGADA porque aún no están pagados
+      ); 
+    } 
+  }); 
+}
   
   // VERIFICACIÓN DE NOTIFICACIONES
   verificarNotificacionesComida() { 
@@ -725,28 +725,28 @@ irAPedidoParaLlevar(id: number) {
 this.router.navigate(['/pedido/orden', id]);
 }
 // ✅ CORREGIDO: Ahora recarga la lista de para llevar después de confirmar
-confirmarEntrega(p: any) {
-this.pedidosService.actualizarEstado(p.id, 'ENTREGADA').subscribe({
-next: () => {
-if (p.items && p.items.length > 0) {
-p.items.forEach((item: any) => {
-if (item.estado === 'LISTA') {
-this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
-}
-});
-}
-    const idx = this.pedidosListos.indexOf(p); 
-    if(idx > -1) { 
-      this.pedidosListos.splice(idx, 1); 
-      this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
-    } 
-    
-    // ✅ RECARGAR LISTA DE PARA LLEVAR
-    this.verificarNotificacionesComida();
-    this.cargarOrdenesParaLlevar();
-  },
-  error: (err) => console.error('Error al confirmar entrega:', err)
-});
+confirmarEntrega(p: any) { 
+  // ✅ Solo actualizar los ÍTEMS a ENTREGADA, NO la orden
+  if (p.items && p.items.length > 0) {
+    p.items.forEach((item: any) => {
+      if (item.estado === 'LISTA') {
+        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
+      }
+    });
+  }
+
+  // ✅ Quitar de la lista de notificaciones (campanita)
+  const idx = this.pedidosListos.indexOf(p); 
+  if(idx > -1) { 
+    this.pedidosListos.splice(idx, 1); 
+    this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
+  } 
+  
+  // ✅ NO cambiar el estado de la orden a ENTREGADA
+  // La orden sigue ACTIVA hasta que se pague
+  
+  this.verificarNotificacionesComida();
+  // ✅ NO recargar órdenes para llevar porque el pedido sigue activo
 }
 marcarComoVista(p: any) {
 this.confirmarEntrega(p);
