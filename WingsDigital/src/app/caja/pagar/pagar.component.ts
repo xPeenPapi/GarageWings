@@ -670,20 +670,44 @@ export class PagarComponent implements OnInit, OnDestroy {
 
   convertirAOrden(pedido: any): Orden {
     const total = (pedido.items || []).reduce((acc: number, i: any) => acc + (Number(i.precioUnitario)*i.cantidad), 0);
+    
+    // ✅ Determinar título de la mesa/orden
     let tituloMesa = pedido.identificadorMesa;
     if (!tituloMesa) {
-      if (pedido.mesa) tituloMesa = `Mesa ${pedido.mesa.numero}`;
-      else tituloMesa = `Pedido para llevar de ${pedido.notaGeneral || 'Cliente'}`; 
+      if (pedido.mesa) {
+        tituloMesa = `Mesa ${pedido.mesa.numero}`;
+      } else {
+        tituloMesa = `Pedido para llevar de ${pedido.notaGeneral || 'Cliente'}`; 
+      }
     }
+    
+    // ✅ Manejar mesero correctamente (puede ser null, objeto, o string)
+    let nombreMesero = 'Mesero';
+    if (pedido.mesero) {
+      if (typeof pedido.mesero === 'string') {
+        nombreMesero = pedido.mesero;
+      } else if (pedido.mesero.nombre) {
+        nombreMesero = pedido.mesero.nombre;
+      }
+    }
+    
     return {
-      id: pedido.id, mesa: tituloMesa, mesero: pedido.mesero?.nombre || 'Mesero',
+      id: pedido.id,
+      mesa: tituloMesa,
+      mesero: nombreMesero,
       hora: new Date(pedido.creadaEn || pedido.fecha).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
-      total, estado: pedido.estado, seleccionada: false, 
+      total,
+      estado: pedido.estado,
+      seleccionada: false, 
       items: (pedido.items || []).map((i: any) => ({
-        nombre: i.producto?.nombre, cantidad: i.cantidad, precioUnitario: Number(i.precioUnitario), notas: i.notas, opciones: i.opcionesElegidas
+        nombre: i.producto?.nombre || 'Producto',
+        cantidad: i.cantidad,
+        precioUnitario: Number(i.precioUnitario),
+        notas: i.notas,
+        opciones: i.opcionesElegidas
       })),
-      propina: Number(pedido.propina),
-      metodoPago: pedido.metodoPago,
+      propina: Number(pedido.propina) || 0,
+      metodoPago: pedido.metodoPago || 'Efectivo',
       fechaCierre: pedido.cerradaEn ? new Date(pedido.cerradaEn) : undefined
     };
   }

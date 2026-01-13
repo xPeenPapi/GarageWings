@@ -103,6 +103,11 @@ async function main() {
 
   // 2. EMPLEADOS (con verificación)
   const empleados = [
+    // ✅ USUARIOS ADMINISTRADORES
+    { nombre: 'Admin Principal', email: 'admin@garage.com', password: passwordSimple, rol: RolEmpleado.ADMIN_EMPRESA },
+    { nombre: 'Gerente', email: 'gerente@garage.com', password: passwordSimple, rol: RolEmpleado.GERENTE },
+    
+    // USUARIOS OPERATIVOS
     { nombre: 'Carlos', email: 'mesero@garage.com', password: passwordSimple, rol: RolEmpleado.MESERO },
     { nombre: 'Chef Luigi', email: 'cocina@garage.com', password: passwordSimple, rol: RolEmpleado.COCINA },
     { nombre: 'Barman Moe', email: 'barra@garage.com', password: passwordSimple, rol: RolEmpleado.BARRA },

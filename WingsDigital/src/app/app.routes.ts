@@ -74,7 +74,8 @@ export const routes: Routes = [
     {
       path: 'admin', // Antes era 'admin/dashboard'
       component: AdminDashboardComponent,
-
+      canActivate: [authGuard],
+      data: { roles: [Role.AdminEmpresa, Role.SuperAdmin] }
     },
     
     { path: '', redirectTo: '/login', pathMatch: 'full' },

@@ -645,11 +645,31 @@ agregarAlPedido(item: Producto): void {
   // =========================================================
 
   conectarSocket() {
+    // Escuchar cuando la orden está lista para cobrar
     this.socketSub = this.socketService.escucharPedidosParaCobrar().subscribe((data: any) => {
         if (data && this.mesaId && data.mesaId === this.mesaId) {
             this.recargarDatosMesa(); 
         }
+        
+        // ✅ CRÍTICO: Verificar notificaciones inmediatamente
+        this.verificarNotificaciones();
     });
+    
+    // ✅ NUEVO: Escuchar también cuando hay nuevos pedidos (items listos)
+    const nuevosSub = this.socketService.escucharNuevosPedidos().subscribe((data: any) => {
+        // Verificar notificaciones cuando hay actualizaciones de items
+        this.verificarNotificaciones();
+        
+        // Si estamos en la misma mesa, recargar datos
+        if (data && this.mesaId && data.mesaId === this.mesaId) {
+            this.recargarDatosMesa();
+        }
+    });
+    
+    // Agregar a la suscripción para limpiar después
+    if (this.socketSub) {
+        this.socketSub.add(nuevosSub);
+    }
   }
 
   verificarNotificaciones() {
