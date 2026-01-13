@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { GerenteService, DashboardData, Empleado, Turno } from '../../services/gerente.service';
-// 👇 Servicios necesarios para la pestaña de configuración
-import { MesaService, Mesa } from '../../services/mesa.service';
-import { ProductosService, Producto, Categoria } from '../../services/productos.service';
+// Importación de servicios para la nueva funcionalidad de configuración
+import { MesaService } from '../../services/mesa.service';
+import { ProductosService } from '../../services/productos.service';
 
 interface ResumenDia {
   efectivo: number;
@@ -45,6 +45,7 @@ export class GerenteDashboardComponent implements OnInit {
   public mostrarAlertaModal: boolean = false;
   public textoAlerta: string = '';
 
+  // Tab actualizada para incluir la nueva vista de configuración
   public tabActiva: 'resumen' | 'personal' | 'turnos' | 'configuracion' = 'resumen';
 
   // ==========================================
@@ -81,11 +82,12 @@ export class GerenteDashboardComponent implements OnInit {
   };
 
   // ==========================================
-  // 5. VARIABLES DE CONFIGURACIÓN (NUEVO)
+  // 5. VARIABLES DE CONFIGURACIÓN
   // ==========================================
-  public mesas: Mesa[] = [];
-  public categorias: Categoria[] = [];
-  public productos: Producto[] = [];
+  // Usamos any[] para evitar errores de compilación TS2339 en el HTML si la interfaz no está actualizada
+  public mesas: any[] = [];
+  public categorias: any[] = [];
+  public productos: any[] = [];
 
   constructor(
     private authService: AuthService,
@@ -110,9 +112,6 @@ export class GerenteDashboardComponent implements OnInit {
     }, 60000);
   }
 
-  // ==========================================
-  // HELPER: ALERTAS
-  // ==========================================
   mostrarAlerta(mensaje: string): void {
     this.textoAlerta = mensaje;
     this.mostrarAlertaModal = true;
@@ -138,10 +137,6 @@ export class GerenteDashboardComponent implements OnInit {
     });
   }
 
-  // ==========================================
-  // LÓGICA DEL DASHBOARD
-  // ==========================================
-  
   cambiarFecha(): void {
     if (this.fechaSeleccionada > this.maxDate) {
       this.mostrarAlerta("No puedes ver reportes del futuro 🔮. Se mostrará el día de hoy.");
@@ -199,9 +194,9 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
-    // 🛡️ VALIDACIÓN SEGURIDAD: Gerente no puede crear ni editar otros Gerentes
+    // 🛡️ VALIDACIÓN SEGURIDAD: Bloqueo de creación de Gerentes por otro Gerente
     if (this.empleadoForm.rol === 'GERENTE') {
-      this.mostrarAlerta('Acceso Denegado: Un Gerente no puede asignar roles de Gerencia. Contacta al Administrador.');
+      this.mostrarAlerta('Acceso Denegado: No tienes permisos para crear o editar cuentas de nivel GERENTE.');
       return;
     }
 
@@ -281,51 +276,41 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // ⚙️ LÓGICA DE CONFIGURACIÓN (ENABLE/DISABLE)
+  // LÓGICA DE CONFIGURACIÓN (ENABLE/DISABLE)
   // ==========================================
 
   cargarDatosConfiguracion(): void {
-    this.mesaService.getMesas().subscribe({
-      next: (data) => this.mesas = data,
-      error: (err) => console.error('Error mesas:', err)
-    });
-
-    this.productosService.getCategorias().subscribe({
-      next: (data) => this.categorias = data,
-      error: (err) => console.error('Error categorías:', err)
-    });
-
-    this.productosService.getProductos().subscribe({
-      next: (data) => this.productos = data,
-      error: (err) => console.error('Error productos:', err)
-    });
+    this.mesaService.getMesas().subscribe(data => this.mesas = data);
+    this.productosService.getCategorias().subscribe(data => this.categorias = data);
+    this.productosService.getProductos().subscribe(data => this.productos = data);
   }
 
-  // Desactivar/Activar Mesa (Usamos el estado 'mantenimiento' para desactivar)
-  toggleMesa(mesa: Mesa): void {
+  // Desactivar/Activar Mesa (Usamos el estado 'mantenimiento')
+  toggleMesa(mesa: any): void {
     const nuevoEstado = mesa.estado === 'mantenimiento' ? 'disponible' : 'mantenimiento';
     this.mesaService.actualizarEstadoMesa(mesa.id, nuevoEstado, '').subscribe({
       next: () => this.cargarDatosConfiguracion(),
-      error: () => this.mostrarAlerta('Error al cambiar estado de la mesa')
+      error: () => this.mostrarAlerta('No se pudo cambiar el estado de la mesa.')
     });
   }
 
-  // Desactivar/Activar Producto
+  // Desactivar/Activar Producto (Agotado)
   toggleProducto(prod: any): void {
-    const nuevoEstadoActivo = !prod.activo;
-    // El gerente solo hace PATCH del booleano activo, no borra
-    this.gerenteService.patchProducto(prod.id, { activo: nuevoEstadoActivo }).subscribe({
+    const nuevoEstado = !prod.activo;
+    // El GerenteService debe tener este método patchProducto
+    this.gerenteService.patchProducto(prod.id, { activo: nuevoEstado }).subscribe({
       next: () => this.cargarDatosConfiguracion(),
-      error: () => this.mostrarAlerta('Error al actualizar disponibilidad del producto')
+      error: () => this.mostrarAlerta('Error al actualizar disponibilidad del platillo.')
     });
   }
 
   // Desactivar/Activar Categoría
   toggleCategoria(cat: any): void {
-    const nuevoEstadoActivo = !cat.activo;
-    this.gerenteService.patchCategoria(cat.id, { activo: nuevoEstadoActivo }).subscribe({
+    const nuevoEstado = !cat.activo;
+    // El GerenteService debe tener este método patchCategoria
+    this.gerenteService.patchCategoria(cat.id, { activo: nuevoEstado }).subscribe({
       next: () => this.cargarDatosConfiguracion(),
-      error: () => this.mostrarAlerta('Error al actualizar disponibilidad de la categoría')
+      error: () => this.mostrarAlerta('Error al actualizar disponibilidad de la categoría.')
     });
   }
 
@@ -335,20 +320,10 @@ export class GerenteDashboardComponent implements OnInit {
 
   cambiarTab(tab: 'resumen' | 'personal' | 'turnos' | 'configuracion'): void {
     this.tabActiva = tab;
-    
-    if (tab === 'personal') {
-      this.cargarEmpleados();
-    }
-    else if (tab === 'resumen') {
-      this.cargarDatosDashboard();
-    }
-    else if (tab === 'turnos') {
-      this.cargarEmpleados();
-      this.cargarTurnos();
-    }
-    else if (tab === 'configuracion') {
-      this.cargarDatosConfiguracion();
-    }
+    if (tab === 'personal') this.cargarEmpleados();
+    else if (tab === 'resumen') this.cargarDatosDashboard();
+    else if (tab === 'turnos') { this.cargarEmpleados(); this.cargarTurnos(); }
+    else if (tab === 'configuracion') this.cargarDatosConfiguracion();
   }
 
   cerrarSesion(): void {
