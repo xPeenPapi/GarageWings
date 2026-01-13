@@ -33,7 +33,7 @@ export class SucursalesService {
 
     // 2. ✅ AUTO-CREAR MESAS POR DEFECTO (configurable)
     const cantidadMesasPorDefecto = data.cantidadMesas || 12; // Default: 12 mesas
-    const mesasACrear = [];
+    const mesasACrear: any[] = [];
 
     for (let i = 1; i <= cantidadMesasPorDefecto; i++) {
       mesasACrear.push({
