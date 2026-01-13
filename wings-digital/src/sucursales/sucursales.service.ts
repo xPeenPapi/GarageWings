@@ -32,17 +32,20 @@ export class SucursalesService {
   }
 
   // ✅ ACTUALIZADO: Ahora permite recibir 'activa' en el body
-  async update(id: number, data: any) {
-    await this.findOne(id);
+async update(id: number, data: any) {
+    // 1. Verificar si existe
+    const existe = await this.prisma.sucursal.findUnique({ where: { id } });
+    if (!existe) throw new NotFoundException(`Sucursal #${id} no encontrada`);
 
+    // 2. Actualizar
     return this.prisma.sucursal.update({
       where: { id },
       data: {
         nombre: data.nombre,
         direccion: data.direccion,
         telefono: data.telefono,
-        // 👇 IMPORTANTE: Permitir cambiar el estado si viene en los datos
-        activa: data.activa !== undefined ? data.activa : undefined 
+        // 👇 IMPORTANTE: Esto permite que el switch de activar/desactivar funcione
+        activa: data.activa 
       },
     });
   }
