@@ -40,7 +40,7 @@ export class AdminDashboardComponent implements OnInit {
 
   // Filtros y Navegación
   public sucursalSeleccionada: string = 'todas';
-  public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas' = 'resumen';
+  public tabActiva: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas' | 'reportes' = 'resumen';
 
   // Datos Reales
   public sucursales: Sucursal[] = [];
@@ -57,10 +57,11 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   get sucursalesFiltradas(): Sucursal[] {
+    // Mostrar TODAS las sucursales (activas e inactivas) para el admin
     if (this.sucursalSeleccionada === 'todas') {
-      return this.sucursalesActivas;
+      return this.sucursales;
     }
-    return this.sucursalesActivas.filter(s => s.nombre === this.sucursalSeleccionada);
+    return this.sucursales.filter(s => s.nombre === this.sucursalSeleccionada);
   }
 
   get personalFiltrado(): any[] {
@@ -237,6 +238,18 @@ export class AdminDashboardComponent implements OnInit {
     total: 0
   };
 
+  // ✅ REPORTES Y CALENDARIO
+  public fechaReporte: string = '';
+  public fechaMaxima: string = '';
+  public resumenReporte = {
+    ventasDia: 0,
+    ordenesDia: 0,
+    ticketPromedio: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    transferencia: 0
+  };
+
   public personalPorRol = { meseros: 0, gerentes: 0, cocineros: 0, baristas: 0, cajeros: 0 };
   public estadoPersonal = { activo: 0, vacaciones: 0, inactivo: 0 };
   public platillos: number = 0;
@@ -253,10 +266,17 @@ export class AdminDashboardComponent implements OnInit {
     this.cargarDatosUsuario();
     this.actualizarHora();
     this.cargarDatosDelSistema();
+    this.inicializarFechas();
 
     setInterval(() => {
       this.actualizarHora();
     }, 60000);
+  }
+
+  inicializarFechas(): void {
+    const hoy = new Date();
+    this.fechaReporte = hoy.toISOString().split('T')[0];
+    this.fechaMaxima = hoy.toISOString().split('T')[0];
   }
 
   cargarDatosUsuario(): void {
@@ -816,7 +836,7 @@ guardarEmpleado(): void {
     this.sucursalSeleccionada = sucursal;
   }
 
-  cambiarTab(tab: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas'): void {
+  cambiarTab(tab: 'resumen' | 'sucursales' | 'personal' | 'menu' | 'categorias' | 'turnos' | 'mesas' | 'reportes'): void {
     this.tabActiva = tab;
     if (tab === 'mesas') {
       this.cargarMesas();
@@ -827,7 +847,33 @@ guardarEmpleado(): void {
       this.cargarCategorias();
     } else if (tab === 'turnos') {
       this.cargarTurnos();
+    } else if (tab === 'reportes') {
+      this.cargarReportes();
     }
+  }
+
+  // ==========================================
+  // REPORTES Y CALENDARIO
+  // ==========================================
+  
+  cargarReportes(): void {
+    console.log('📊 Cargando reportes para fecha:', this.fechaReporte);
+    // Por ahora datos de ejemplo, después conectar con el backend
+    this.resumenReporte = {
+      ventasDia: this.estadisticas.ventasTotales,
+      ordenesDia: this.estadisticas.ordenesDelDia,
+      ticketPromedio: this.estadisticas.ventasTotales / (this.estadisticas.ordenesDelDia || 1),
+      efectivo: this.resumenGeneral.efectivo,
+      tarjeta: this.resumenGeneral.tarjeta,
+      transferencia: this.resumenGeneral.transferencia
+    };
+  }
+
+  cambiarFechaReporte(): void {
+    if (this.fechaReporte > this.fechaMaxima) {
+      this.fechaReporte = this.fechaMaxima;
+    }
+    this.cargarReportes();
   }
 
   cerrarSesion(): void {
@@ -897,9 +943,6 @@ guardarEmpleado(): void {
         break;
       case 'rectangular':
         this.mesaForm.capacidad = 2;
-        break;
-      case 'circular':
-        this.mesaForm.capacidad = 6;
         break;
       default:
         this.mesaForm.capacidad = 4;

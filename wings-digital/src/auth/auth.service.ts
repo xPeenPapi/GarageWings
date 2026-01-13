@@ -35,9 +35,17 @@ export class AuthService {
       throw new HttpException('Usuario inactivo', HttpStatus.FORBIDDEN);
     }
 
-    // ✅ NUEVA VALIDACIÓN: Verificar que la sucursal esté activa
-    if (user.sucursal && !user.sucursal.activa) {
-      throw new HttpException('La sucursal está inactiva. Contacte al administrador.', HttpStatus.FORBIDDEN);
+    // ✅ VALIDACIÓN DE SUCURSAL ACTIVA
+    // Solo validar sucursal activa para roles operativos (no admins)
+    const rolesOperativos = ['GERENTE', 'MESERO', 'COCINA', 'BARRA', 'CAJA'];
+    if (rolesOperativos.includes(user.rol)) {
+      if (!user.sucursalId) {
+        throw new HttpException('El usuario no tiene sucursal asignada. Contacte al administrador.', HttpStatus.FORBIDDEN);
+      }
+      
+      if (user.sucursal && !user.sucursal.activa) {
+        throw new HttpException('La sucursal está inactiva. No puede iniciar sesión. Contacte al administrador.', HttpStatus.FORBIDDEN);
+      }
     }
 
     if (user.password !== password) {
