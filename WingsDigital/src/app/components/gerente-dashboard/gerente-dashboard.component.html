@@ -332,7 +332,8 @@
                 <span>Mesa {{ mesa.numero }}</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
                   
-                  <span class="badge" [ngClass]="(mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'bg-danger' : 'bg-success'">
+                  <span class="badge" 
+                        [ngClass]="(mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'bg-danger' : 'bg-success'">
                     {{ (mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'Inactiva' : 'Activa' }}
                   </span>
 
