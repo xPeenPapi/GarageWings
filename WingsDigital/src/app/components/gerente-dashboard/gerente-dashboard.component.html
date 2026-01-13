@@ -160,16 +160,29 @@
           
           <div class="card">
             <h3 class="card-titulo">Personal por Rol</h3>
-            <div class="chart-container">
-              <div class="pie-chart">
-                 <svg viewBox="0 0 200 200" width="220" height="220">
-                  <path d="M 100 100 L 100 20 A 80 80 0 0 1 180 100 Z" fill="#4285f4"/>
-                  <path d="M 100 100 L 180 100 A 80 80 0 0 1 100 180 Z" fill="#ea4c89"/>
-                  <path d="M 100 100 L 100 180 A 80 80 0 0 1 20 100 Z" fill="#34a853"/>
-                  <path d="M 100 100 L 20 100 A 80 80 0 0 1 100 20 Z" fill="#fbbc04"/>
-                </svg>
+            
+            <div class="grafica-container" style="display: flex; align-items: center; gap: 20px; padding: 10px;">
+              <div class="pie-chart-css" 
+                   [style.background]="chartGradient || 'conic-gradient(#ccc 0% 100%)'"
+                   style="width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              </div>
+
+              <div class="leyenda" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <div *ngFor="let stat of rolesStats" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span [style.background-color]="stat.color" style="width: 12px; height: 12px; border-radius: 3px; display: block;"></span>
+                    <span style="color: #555; text-transform: capitalize;">{{ stat.nombre | lowercase }}</span>
+                  </div>
+                  <div style="font-weight: bold; color: #333;">
+                    {{ stat.cantidad }} <span style="font-weight: normal; color: #999; font-size: 0.8rem;">({{ stat.porcentaje }}%)</span>
+                  </div>
+                </div>
+                <div *ngIf="!rolesStats || rolesStats.length === 0" style="color: #999; font-style: italic; font-size: 0.8rem;">
+                  Sin datos de personal.
+                </div>
               </div>
             </div>
+
           </div>
 
           <div class="card">
@@ -332,8 +345,7 @@
                 <span>Mesa {{ mesa.numero }}</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
                   
-                  <span class="badge" 
-                        [ngClass]="(mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'bg-danger' : 'bg-success'">
+                  <span class="badge" [ngClass]="(mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'bg-danger' : 'bg-success'">
                     {{ (mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'Inactiva' : 'Activa' }}
                   </span>
 

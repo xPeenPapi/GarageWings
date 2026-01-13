@@ -86,6 +86,9 @@ export class GerenteDashboardComponent implements OnInit {
   public categorias: any[] = [];
   public productos: any[] = [];
 
+  public chartGradient: string = 'conic-gradient(#ccc 0% 100%)'; // Color base gris
+  public rolesStats: any[] = []; // Para la leyenda (colores y cantidades)
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -167,12 +170,14 @@ export class GerenteDashboardComponent implements OnInit {
   // LÓGICA DE PERSONAL (RRHH)
   // ==========================================
   
-  cargarEmpleados(): void {
+cargarEmpleados(): void {
     this.gerenteService.getEmpleados().subscribe({
       next: (data) => {
-        // ✅ FILTRO APLICADO: Ocultamos cualquier usuario con rol 'GERENTE'
-        // Esto evita que el gerente se edite a sí mismo o a otros gerentes.
+        // Filtramos para no mostrar al gerente
         this.empleados = data.filter(emp => emp.rol !== 'GERENTE');
+        
+        // ✅ CALCULAMOS LA GRÁFICA INMEDIATAMENTE
+        this.calcularGraficaRoles();
       },
       error: (err) => console.error('Error cargando empleados:', err)
     });
@@ -336,6 +341,71 @@ export class GerenteDashboardComponent implements OnInit {
       this.cargarTurnos(); 
     }
     else if (tab === 'configuracion') this.cargarDatosConfiguracion();
+  }
+
+
+  calcularGraficaRoles(): void {
+    if (this.empleados.length === 0) {
+      this.chartGradient = 'conic-gradient(#f1f5f9 0% 100%)'; // Gris si no hay nadie
+      return;
+    }
+
+    // 1. Contar empleados por rol
+    const conteo: any = { MESERO: 0, COCINA: 0, BARRA: 0, CAJA: 0 };
+    this.empleados.forEach(e => {
+      if (conteo[e.rol] !== undefined) conteo[e.rol]++;
+    });
+
+    // 2. Definir colores para cada rol
+    const colores: any = {
+      MESERO: '#4285f4', // Azul
+      COCINA: '#ea4c89', // Rosa
+      BARRA: '#34a853',  // Verde
+      CAJA: '#fbbc04'    // Amarillo
+    };
+
+    // 3. Generar el string del gradiente y la leyenda
+    let currentDeg = 0;
+    const total = this.empleados.length;
+    let gradientParts = [];
+    this.rolesStats = []; // Reiniciar leyenda
+
+    for (const rol in conteo) {
+      const count = conteo[rol];
+      if (count > 0) {
+        const percentage = (count / total) * 100;
+        const degrees = (count / total) * 360;
+        const color = colores[rol];
+
+        // Parte para el CSS
+        gradientParts.push(`${color} 0 ${currentDeg + degrees}deg`);
+        
+        // Parte para la leyenda HTML
+        this.rolesStats.push({
+          nombre: rol,
+          cantidad: count,
+          color: color,
+          porcentaje: Math.round(percentage)
+        });
+
+        currentDeg += degrees;
+      }
+    }
+
+    // 4. Construir el estilo final. 
+    // Truco: Usamos "puntos de parada" acumulativos para que se vea bien
+    let gradientString = 'conic-gradient(';
+    let acumulado = 0;
+    
+    this.rolesStats.forEach((stat, index) => {
+        const grados = (stat.cantidad / total) * 360;
+        gradientString += `${stat.color} ${acumulado}deg ${acumulado + grados}deg`;
+        if (index < this.rolesStats.length - 1) gradientString += ', ';
+        acumulado += grados;
+    });
+    gradientString += ')';
+
+    this.chartGradient = gradientString;
   }
 
   cerrarSesion(): void {
