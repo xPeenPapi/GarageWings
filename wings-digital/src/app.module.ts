@@ -11,6 +11,7 @@ import { PersonalModule } from './personal/personal.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { SucursalesModule } from './sucursales/sucursales.module';
 import { CategoriasModule } from './categorias/categorias.module'; // 👈 Importar archivo
+import { PrediccionesModule } from './predicciones/predicciones.module'; // 🤖 IA Predictions
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { CategoriasModule } from './categorias/categorias.module'; // 👈 Impor
     // 👇 2. AGREGARLOS A LA LISTA DE IMPORTS
     TurnosModule,     // Para gestionar horarios
     SucursalesModule, // Para abrir nuevas ubicaciones
-    CategoriasModule
+    CategoriasModule,
+    PrediccionesModule // 🤖 IA para predicciones de ventas
   ],
 })
 export class AppModule {}

@@ -188,4 +188,14 @@ export class GerenteService {
       headers: this.getHeaders() 
     });
   }
+
+  // ==========================================
+  // E) PREDICCIONES CON IA
+  // ==========================================
+  
+  obtenerPrediccionVentas(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/predicciones/ventas-semana`, { 
+      headers: this.getHeaders() 
+    });
+  }
 }

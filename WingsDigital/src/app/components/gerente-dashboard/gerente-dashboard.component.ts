@@ -74,6 +74,12 @@ export class GerenteDashboardComponent implements OnInit {
   public chartGradient: string = 'conic-gradient(#ccc 0% 100%)';
   public rolesStats: any[] = [];
 
+  // 🤖 IA PREDICCIONES
+  public prediccionIA: string = '';
+  public cargandoPrediccion: boolean = false;
+  public mostrarPrediccion: boolean = false;
+  public datosPrediccion: any = null;
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -356,8 +362,45 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // NAVEGACIÓN Y UTILIDADES
+  // PREDICCIONES CON IA
   // ==========================================
+
+  solicitarPrediccionIA(): void {
+    if (!this.sucursalId) {
+      this.mostrarAlerta('⚠️ No se puede generar predicción sin sucursal asignada');
+      return;
+    }
+
+    this.cargandoPrediccion = true;
+    this.gerenteService.obtenerPrediccionVentas().subscribe({
+      next: (response) => {
+        console.log('🤖 Predicción recibida:', response);
+        
+        if (response.success) {
+          this.prediccionIA = response.prediccion;
+          this.datosPrediccion = response.datos;
+          this.mostrarPrediccion = true;
+        } else {
+          this.mostrarAlerta('⚠️ ' + (response.error || 'No se pudo generar la predicción'));
+          // Mostrar datos aunque no haya predicción
+          if (response.datos) {
+            this.datosPrediccion = response.datos;
+          }
+        }
+        
+        this.cargandoPrediccion = false;
+      },
+      error: (error) => {
+        console.error('❌ Error al obtener predicción:', error);
+        this.mostrarAlerta('Error al conectar con el servicio de predicciones');
+        this.cargandoPrediccion = false;
+      }
+    });
+  }
+
+  cerrarPrediccion(): void {
+    this.mostrarPrediccion = false;
+  }
 
   cambiarTab(tab: 'resumen' | 'personal' | 'turnos' | 'configuracion'): void {
     this.tabActiva = tab;
