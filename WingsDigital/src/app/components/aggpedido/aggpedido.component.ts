@@ -297,15 +297,15 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   // =========================================================
 
 agregarAlPedido(item: Producto): void {
-  // 🛡️ VALIDACIÓN DE SEGURIDAD
-  if (!item.activo) {
-    alert('Este producto está agotado temporalmente.');
-    return;
-  }
+    // 🛡️ VALIDACIÓN DE SEGURIDAD: Si está desactivado, no hacer nada
+    if (item.activo === false) {
+      alert('🚫 Este producto está marcado como AGOTADO.');
+      return;
+    }
 
-  this.itemSeleccionadoParaModal = { ...item, cantidad: 1, notas: '' };
-  this.mostrarModal = true;
-}
+    this.itemSeleccionadoParaModal = { ...item, cantidad: 1, notas: '' };
+    this.mostrarModal = true;
+  }
 
   confirmarAgregarItem(itemConDetalles: any): void {
     const itemExistente = this.pedido.find(p => 

@@ -241,20 +241,32 @@
           <div class="grid-menu-items">
             <div *ngFor="let item of itemsFiltrados" 
                  class="menu-item-card"
-                 [class.agotado]="!item.activo">
+                 [class.item-agotado]="!item.activo">
               
-              <div class="badge-agotado" *ngIf="!item.activo">AGOTADO</div>
-
               <div class="item-info">
-                <h4>{{ item.nombre }}</h4>
+                <h4 [style.text-decoration]="!item.activo ? 'line-through' : 'none'">
+                    {{ item.nombre }}
+                </h4>
                 <p>{{ item.descripcion }}</p>
+                
+                <span *ngIf="!item.activo" 
+                      style="color: white; background: #e74c3c; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;">
+                  Agotado
+                </span>
               </div>
+
               <div class="item-precio-accion">
-                <span class="precio">${{ (item.precioBase || 0) | number:'1.2-2' }}</span>
+                <span class="precio" [style.color]="!item.activo ? '#95a5a6' : ''">
+                    ${{ (item.precioBase || 0) | number:'1.2-2' }}
+                </span>
+                
                 <button class="btn-agregar" 
                         [disabled]="!item.activo"
+                        [style.background-color]="!item.activo ? '#95a5a6' : ''"
+                        [style.cursor]="!item.activo ? 'not-allowed' : 'pointer'"
                         (click)="item.activo ? agregarAlPedido(item) : null">
-                    {{ item.activo ? '+ Agregar' : 'No disponible' }}
+                    <i class="fas" [ngClass]="item.activo ? 'fa-plus' : 'fa-ban'"></i>
+                    {{ item.activo ? '+ Agregar' : 'No Disp.' }}
                 </button>
               </div>
             </div>
@@ -428,7 +440,6 @@
           <img *ngIf="categoria.imagenUrl" [src]="categoria.imagenUrl" style="width: 40px; height: 40px; border-radius: 5px; object-fit: cover; margin-right: 10px;">
           
           <span [style.text-decoration]="!categoria.activo ? 'line-through' : 'none'">{{ categoria.nombre }}</span>
-          
           <span *ngIf="!categoria.activo" style="margin-left: auto; color: red; font-size: 0.7rem; font-weight: bold; margin-right: 10px;">AGOTADO</span>
           
           <i *ngIf="categoria.activo" class="fas fa-chevron-right" style="margin-left: auto;"></i>
@@ -445,16 +456,19 @@
         <div *ngFor="let item of itemsFiltrados" 
              class="item-platillo-movil"
              [class.agotado-movil]="!item.activo">
+          
           <div class="info-platillo">
             <h4 [style.text-decoration]="!item.activo ? 'line-through' : 'none'">{{ item.nombre }}</h4>
-            <p>{{ item.precioBase | currency }}</p>
+            <p [style.color]="!item.activo ? '#999' : ''">{{ item.precioBase | currency }}</p>
             <span *ngIf="!item.activo" style="color: red; font-size: 0.7rem; font-weight: bold;">AGOTADO</span>
           </div>
+          
           <button class="btn-agregar-movil" 
                   [disabled]="!item.activo"
                   [style.opacity]="!item.activo ? '0.5' : '1'"
+                  [style.backgroundColor]="!item.activo ? '#ccc' : ''"
                   (click)="item.activo ? agregarAlPedido(item) : null">
-              Agregar
+              {{ item.activo ? 'Agregar' : 'No Disp.' }}
           </button>
         </div>
       </div>
