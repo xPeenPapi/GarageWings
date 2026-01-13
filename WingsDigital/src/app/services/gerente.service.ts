@@ -162,10 +162,15 @@ export class GerenteService {
 
 
   patchProducto(id: number, data: any): Observable<any> {
-  return this.http.patch(`${environment.apiUrl}/productos/${id}`, data);
+    return this.http.patch(`${this.baseUrl}/productos/${id}`, data, { 
+      headers: this.getHeaders() 
+    });
   }
 
+  // ✅ CORREGIDO: Ahora incluye { headers: this.getHeaders() }
   patchCategoria(id: number, data: any): Observable<any> {
-  return this.http.patch(`${environment.apiUrl}/categorias/${id}`, data);
+    return this.http.patch(`${this.baseUrl}/categorias/${id}`, data, { 
+      headers: this.getHeaders() 
+    });
   }
 }

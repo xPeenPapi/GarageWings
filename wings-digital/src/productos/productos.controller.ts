@@ -38,12 +38,9 @@ export class ProductosController {
   }
 
 @Patch(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number, 
-    @Body() updateData: any // Recibe { activo: false }
-  ) {
-    return this.productosService.update(id, updateData);
-  }
+update(@Param('id', ParseIntPipe) id: number, @Body() updateData: any) {
+  return this.productosService.update(id, updateData);
+}
 }
 
 

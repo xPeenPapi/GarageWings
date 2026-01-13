@@ -101,7 +101,7 @@ async findAllCategorias() {
 async update(id: number, data: any) {
   return this.prisma.producto.update({
     where: { id },
-    data: data, // Actualiza lo que venga (ej: activo: false)
+    data: data // Aquí llegará { activo: false }
   });
 }
 }
