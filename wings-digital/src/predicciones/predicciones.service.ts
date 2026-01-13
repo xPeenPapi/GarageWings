@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoOrden } from '@prisma/client';
-import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -163,42 +162,51 @@ ${productosPopulares.slice(0, 5).map((p, i) =>
 ).join('\n')}
 
 Por favor proporciona:
-1. 📊 Análisis de tendencias (días más fuertes, patrones detectados)
-2. 🎯 Predicción de ventas para la próxima semana (con rango estimado)
-3. 💡 3 recomendaciones estratégicas específicas para aumentar ventas
-4. ⚠️ Alertas o puntos de atención
+1. Análisis de tendencias (días más fuertes, patrones detectados)
+2. Predicción de ventas para la próxima semana (con rango estimado)
+3. 3 recomendaciones estratégicas específicas para aumentar ventas
+4. Alertas o puntos de atención
 
 Sé conciso, profesional y enfocado en acciones prácticas. Usa formato markdown con emojis.`;
   }
 
   private async llamarOpenRouter(prompt: string) {
+    const API_KEY = process.env.OPENROUTER_API_KEY;
+    
+    console.log('🔑 API KEY presente:', !!API_KEY);
+    console.log('🔑 Primeros 15 chars:', API_KEY?.substring(0, 15));
+    
+    if (!API_KEY || API_KEY.includes('REEMPLAZA')) {
+      throw new Error('API Key de OpenRouter no configurada. Configura OPENROUTER_API_KEY en el archivo .env');
+    }
     
     console.log('📤 Enviando petición a OpenRouter...');
     
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'anthropic/claude-3.5-sonnet',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`,
+        "HTTP-Referer": "https://garagewings.app",
+        "X-Title": "Garage Wings - Predicción de Ventas"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
         max_tokens: 1500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://garagewings.app',
-          'X-Title': 'Garage Wings - Predicción de Ventas',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+      }),
+    });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('📡 Respuesta de error:', errorData);
+      throw new Error(`Error ${response.status}: ${errorData.error?.message || 'Error en la API'}`);
+    }
+
+    const data = await response.json();
     console.log('✅ Respuesta recibida de OpenRouter');
-    return response.data.choices[0].message.content;
+    
+    return data.choices[0].message.content;
   }
 }
