@@ -331,13 +331,18 @@
               <div *ngFor="let mesa of mesas" class="config-row">
                 <span>Mesa {{ mesa.numero }}</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <span class="badge" [ngClass]="mesa.estado === 'mantenimiento' ? 'bg-danger' : 'bg-success'">
-                    {{ mesa.estado === 'mantenimiento' ? 'Inactiva' : 'Activa' }}
+                  
+                  <span class="badge" [ngClass]="(mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'bg-danger' : 'bg-success'">
+                    {{ (mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento') ? 'Inactiva' : 'Activa' }}
                   </span>
+
                   <label class="switch">
-                    <input type="checkbox" [checked]="mesa.estado !== 'mantenimiento'" (change)="toggleMesa(mesa)">
+                    <input type="checkbox" 
+                           [checked]="mesa.estado !== 'MANTENIMIENTO' && mesa.estado !== 'mantenimiento'" 
+                           (change)="toggleMesa(mesa)">
                     <span class="slider round"></span>
                   </label>
+
                 </div>
               </div>
             </div>
@@ -382,7 +387,7 @@
             <option value="COCINA">Cocina</option>
             <option value="BARRA">Barra</option>
             <option value="CAJA">Caja</option>
-            </select>
+          </select>
         </div>
   
         <div class="form-group">

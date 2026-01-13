@@ -287,7 +287,12 @@ export class GerenteDashboardComponent implements OnInit {
 
   // Desactivar/Activar Mesa (Usamos el estado 'mantenimiento')
   toggleMesa(mesa: any): void {
-    const nuevoEstado = mesa.estado === 'mantenimiento' ? 'disponible' : 'mantenimiento';
+    // Verificar si está en mantenimiento (comprobando mayúsculas y minúsculas por si acaso)
+    const estaEnMantenimiento = mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento';
+    
+    // Si estaba en mantenimiento, lo pasamos a DISPONIBLE. Si no, a MANTENIMIENTO.
+    const nuevoEstado = estaEnMantenimiento ? 'DISPONIBLE' : 'MANTENIMIENTO';
+
     this.mesaService.actualizarEstadoMesa(mesa.id, nuevoEstado, '').subscribe({
       next: () => this.cargarDatosConfiguracion(),
       error: () => this.mostrarAlerta('No se pudo cambiar el estado de la mesa.')
