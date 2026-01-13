@@ -156,40 +156,22 @@
 
     <div class="tabs-container">
       <div class="tabs-header">
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'resumen'"
-          (click)="cambiarTab('resumen')">
+        <button class="tab-button" [class.active]="tabActiva === 'resumen'" (click)="cambiarTab('resumen')">
           Resumen
         </button>
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'sucursales'"
-          (click)="cambiarTab('sucursales')">
+        <button class="tab-button" [class.active]="tabActiva === 'sucursales'" (click)="cambiarTab('sucursales')">
           Sucursales
         </button>
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'personal'"
-          (click)="cambiarTab('personal')">
+        <button class="tab-button" [class.active]="tabActiva === 'personal'" (click)="cambiarTab('personal')">
           Personal
         </button>
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'menu'"
-          (click)="cambiarTab('menu')">
+        <button class="tab-button" [class.active]="tabActiva === 'menu'" (click)="cambiarTab('menu')">
           Menú
         </button>
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'categorias'"
-          (click)="cambiarTab('categorias')">
+        <button class="tab-button" [class.active]="tabActiva === 'categorias'" (click)="cambiarTab('categorias')">
           Categorías
         </button>
-        <button 
-          class="tab-button" 
-          [class.active]="tabActiva === 'turnos'"
-          (click)="cambiarTab('turnos')">
+        <button class="tab-button" [class.active]="tabActiva === 'turnos'" (click)="cambiarTab('turnos')">
           Turnos
         </button>
       </div>
@@ -279,9 +261,11 @@
           
           <div class="lista-sucursales">
             <div class="sucursal-card" *ngFor="let sucursal of sucursales" [class.inactiva]="!sucursal.activa">
+              
               <div class="sucursal-icono">
                 <i class="fas" [class.fa-building]="sucursal.activa" [class.fa-ban]="!sucursal.activa"></i>
               </div>
+              
               <div class="sucursal-info">
                 <div class="sucursal-header">
                   <h4>{{ sucursal.nombre }}</h4>
@@ -313,7 +297,7 @@
                           [style.color]="sucursal.activa ? '#dc2626' : '#166534'" 
                           [style.background]="sucursal.activa ? '#fef2f2' : '#dcfce7'"
                           [style.borderColor]="sucursal.activa ? '#fecaca' : '#bbf7d0'">
-                    <i class="fas" [class.fa-power-off]="true"></i>
+                    <i class="fas fa-power-off"></i>
                   </button>
 
                 </div>
@@ -452,11 +436,11 @@
           <input type="text" [(ngModel)]="sucursalForm.nombre" placeholder="Ej. Garage Wings Centro">
         </div>
         <div class="form-group">
-          <label>Dirección Completa</label>
-          <input type="text" [(ngModel)]="sucursalForm.direccion" placeholder="Calle, Número, Colonia, CP">
+          <label>Dirección</label>
+          <input type="text" [(ngModel)]="sucursalForm.direccion" placeholder="Calle, Número, Colonia">
         </div>
         <div class="form-group">
-          <label>Teléfono de Contacto</label>
+          <label>Teléfono</label>
           <input type="tel" [(ngModel)]="sucursalForm.telefono" placeholder="555-000-0000">
         </div>
       </div>
@@ -485,7 +469,8 @@
                   [disabled]="esSucursalFija"
                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background-color: #f9fafb;">
             <option [ngValue]="null" *ngIf="!esSucursalFija">-- Selecciona una sucursal --</option>
-            <option *ngFor="let suc of sucursales" [value]="suc.id">
+            
+            <option *ngFor="let suc of sucursales" [ngValue]="suc.id">
               {{ suc.nombre }}
             </option>
           </select>
