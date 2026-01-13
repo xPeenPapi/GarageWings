@@ -243,21 +243,30 @@ export class AggpedidoComponent implements OnInit, OnDestroy {
   }
 
   cargarMenu() {
-    this.productosService.getCategorias().subscribe({
-      next: (data: any[]) => {
-        this.categorias = data.map(cat => ({
-          ...cat,
-          elementos: cat.productos ? cat.productos.length : 0, 
-          iconoColor: cat.iconoColor || '#3498db'
-        }));
-      },
-      error: (error: any) => console.error('❌ Error categorías:', error)
-    });
-
+    // Primero cargar productos
     this.productosService.getProductos().subscribe({
       next: (productos: any) => {
         this.productos = productos;
         this.productosOriginales = productos;
+        
+        // Luego cargar categorías y calcular elementos
+        this.productosService.getCategorias().subscribe({
+          next: (data: any[]) => {
+            this.categorias = data.map(cat => {
+              // Contar productos de esta categoría desde el array de productos cargado
+              const productosDeCategoria = this.productos.filter(p => p.categoriaId === cat.id && p.activo);
+              
+              return {
+                ...cat,
+                elementos: productosDeCategoria.length,
+                iconoColor: cat.iconoColor || '#3498db'
+              };
+            });
+            
+            console.log('🍽️ Categorías cargadas:', this.categorias.map(c => `${c.nombre}: ${c.elementos} elementos`));
+          },
+          error: (error: any) => console.error('❌ Error categorías:', error)
+        });
       },
       error: (error: any) => console.error('❌ Error productos:', error)
     });
@@ -465,15 +474,18 @@ agregarAlPedido(item: Producto): void {
   // CUENTA Y LIBERACIÓN
   // =========================================================
 
+  // ✅ MODIFICADO: Solo permitir si hay items en cocina
   abrirModalCuenta() {
-    if (!this.hayConsumo && this.ordenActiva?.estado !== 'POR_COBRAR') {
-        alert("No hay consumo pendiente para cobrar.");
+    // Verificar que haya items en cocina (enviados, no solo en carrito local)
+    if (this.itemsEnCocina.length === 0 && this.ordenActiva?.estado !== 'POR_COBRAR') {
+        alert("⚠️ Debes enviar platillos a cocina antes de pedir la cuenta.");
         return;
     }
+    
     this.mostrarModalCuenta = true;
   }
 
-  // ✅ MODIFICADO: Manejo de errores mejorado
+  // ✅ MODIFICADO: NO limpiar items en cocina al pedir cuenta
   confirmarPedirCuenta() {
     const idParaCuenta = this.ordenId; 
     if (!idParaCuenta) return;
@@ -485,7 +497,10 @@ agregarAlPedido(item: Producto): void {
         this.mostrarModalCuenta = false;
         alert('✅ Cuenta solicitada a caja.');
         
-        this.itemsEnCocina = [];
+        // ✅ NO limpiar itemsEnCocina - deben permanecer visibles en cocina/barra
+        // Solo los items terminados (LISTA) se ocultarán cuando el mesero confirme entrega
+        // this.itemsEnCocina = []; // ❌ ELIMINAR ESTA LÍNEA
+        
         if (this.ordenActiva) this.ordenActiva.estado = 'POR_COBRAR';
 
         this.regresar();

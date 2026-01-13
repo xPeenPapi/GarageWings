@@ -150,7 +150,7 @@
           
           <button class="btn-pedir-cuenta" 
                   (click)="abrirModalCuenta()" 
-                  [disabled]="!hayConsumo || ordenActiva?.estado === 'PAGADA'">
+                  [disabled]="itemsEnCocina.length === 0 || ordenActiva?.estado === 'PAGADA'">
             <i class="fas fa-file-invoice-dollar"></i> 
             {{ ordenActiva?.estado === 'POR_COBRAR' ? 'Cuenta Pedida' : 'Pedir Cuenta' }}
           </button>
