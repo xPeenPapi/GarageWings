@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { GerenteService, DashboardData, Empleado, Turno } from '../../services/gerente.service';
-// Importación de servicios para la nueva funcionalidad de configuración
 import { MesaService } from '../../services/mesa.service';
 import { ProductosService } from '../../services/productos.service';
 
@@ -45,11 +44,10 @@ export class GerenteDashboardComponent implements OnInit {
   public mostrarAlertaModal: boolean = false;
   public textoAlerta: string = '';
 
-  // Tab actualizada para incluir la nueva vista de configuración
   public tabActiva: 'resumen' | 'personal' | 'turnos' | 'configuracion' = 'resumen';
 
   // ==========================================
-  // 2. VARIABLES DEL DASHBOARD (RESUMEN)
+  // 2. VARIABLES DEL DASHBOARD
   // ==========================================
   public resumenDia: ResumenDia = { efectivo: 0, tarjeta: 0, transferencia: 0 };
   public totalGeneral: number = 0;
@@ -61,7 +59,7 @@ export class GerenteDashboardComponent implements OnInit {
   };
 
   // ==========================================
-  // 3. VARIABLES DE PERSONAL (RRHH)
+  // 3. VARIABLES DE PERSONAL
   // ==========================================
   public empleados: Empleado[] = [];
   public mostrarModalEmpleado: boolean = false;
@@ -84,7 +82,6 @@ export class GerenteDashboardComponent implements OnInit {
   // ==========================================
   // 5. VARIABLES DE CONFIGURACIÓN
   // ==========================================
-  // Usamos any[] para evitar errores de compilación TS2339 en el HTML si la interfaz no está actualizada
   public mesas: any[] = [];
   public categorias: any[] = [];
   public productos: any[] = [];
@@ -167,12 +164,16 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // LÓGICA DE PERSONAL
+  // LÓGICA DE PERSONAL (RRHH)
   // ==========================================
   
   cargarEmpleados(): void {
     this.gerenteService.getEmpleados().subscribe({
-      next: (data) => this.empleados = data,
+      next: (data) => {
+        // ✅ FILTRO APLICADO: Ocultamos cualquier usuario con rol 'GERENTE'
+        // Esto evita que el gerente se edite a sí mismo o a otros gerentes.
+        this.empleados = data.filter(emp => emp.rol !== 'GERENTE');
+      },
       error: (err) => console.error('Error cargando empleados:', err)
     });
   }
@@ -194,9 +195,9 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   guardarEmpleado(): void {
-    // 🛡️ VALIDACIÓN SEGURIDAD: Bloqueo de creación de Gerentes por otro Gerente
+    // 🛡️ DOBLE VALIDACIÓN: Por si intentan inyectar el rol manualmente
     if (this.empleadoForm.rol === 'GERENTE') {
-      this.mostrarAlerta('Acceso Denegado: No tienes permisos para crear o editar cuentas de nivel GERENTE.');
+      this.mostrarAlerta('Acceso Denegado: Solo el Administrador puede gestionar Gerentes.');
       return;
     }
 
@@ -236,6 +237,7 @@ export class GerenteDashboardComponent implements OnInit {
   cargarTurnos(): void {
     this.gerenteService.getTurnos().subscribe({
       next: (data) => {
+        // Mapeamos para asegurar que no haya errores si falta info del empleado
         this.turnos = data.map((t: any) => ({
           ...t,
           empleadoNombre: t.empleado?.nombre || 'Desconocido',
@@ -247,7 +249,9 @@ export class GerenteDashboardComponent implements OnInit {
   }
 
   abrirModalTurno(): void {
-    this.turnoForm = { empleadoId: null, fecha: '', horaInicio: '09:00', horaFin: '17:00', notas: '' };
+    // Reseteamos el formulario con fecha de hoy por defecto
+    const hoy = new Date().toISOString().split('T')[0];
+    this.turnoForm = { empleadoId: null, fecha: hoy, horaInicio: '09:00', horaFin: '17:00', notas: '' };
     this.mostrarModalTurno = true;
   }
 
@@ -260,8 +264,14 @@ export class GerenteDashboardComponent implements OnInit {
       this.mostrarAlerta('Por favor selecciona un empleado y una fecha.');
       return;
     }
+    
+    // Enviamos el turno al servicio
     this.gerenteService.crearTurno({ ...this.turnoForm, sucursalId: this.sucursalId }).subscribe({
-      next: () => { this.cargarTurnos(); this.cerrarModalTurno(); },
+      next: () => { 
+        this.cargarTurnos(); // Recargamos la lista
+        this.cerrarModalTurno(); 
+        this.mostrarAlerta('Turno asignado correctamente ✅');
+      },
       error: (err) => this.mostrarAlerta('Error creando turno: ' + err.message)
     });
   }
@@ -285,12 +295,9 @@ export class GerenteDashboardComponent implements OnInit {
     this.productosService.getProductos().subscribe(data => this.productos = data);
   }
 
-  // Desactivar/Activar Mesa (Usamos el estado 'mantenimiento')
   toggleMesa(mesa: any): void {
-    // Verificar si está en mantenimiento (comprobando mayúsculas y minúsculas por si acaso)
+    // Manejo robusto de mayúsculas/minúsculas para el estado
     const estaEnMantenimiento = mesa.estado === 'MANTENIMIENTO' || mesa.estado === 'mantenimiento';
-    
-    // Si estaba en mantenimiento, lo pasamos a DISPONIBLE. Si no, a MANTENIMIENTO.
     const nuevoEstado = estaEnMantenimiento ? 'DISPONIBLE' : 'MANTENIMIENTO';
 
     this.mesaService.actualizarEstadoMesa(mesa.id, nuevoEstado, '').subscribe({
@@ -299,20 +306,16 @@ export class GerenteDashboardComponent implements OnInit {
     });
   }
 
-  // Desactivar/Activar Producto (Agotado)
   toggleProducto(prod: any): void {
     const nuevoEstado = !prod.activo;
-    // El GerenteService debe tener este método patchProducto
     this.gerenteService.patchProducto(prod.id, { activo: nuevoEstado }).subscribe({
       next: () => this.cargarDatosConfiguracion(),
       error: () => this.mostrarAlerta('Error al actualizar disponibilidad del platillo.')
     });
   }
 
-  // Desactivar/Activar Categoría
   toggleCategoria(cat: any): void {
     const nuevoEstado = !cat.activo;
-    // El GerenteService debe tener este método patchCategoria
     this.gerenteService.patchCategoria(cat.id, { activo: nuevoEstado }).subscribe({
       next: () => this.cargarDatosConfiguracion(),
       error: () => this.mostrarAlerta('Error al actualizar disponibilidad de la categoría.')
@@ -325,9 +328,13 @@ export class GerenteDashboardComponent implements OnInit {
 
   cambiarTab(tab: 'resumen' | 'personal' | 'turnos' | 'configuracion'): void {
     this.tabActiva = tab;
+    // Carga perezosa de datos según la pestaña
     if (tab === 'personal') this.cargarEmpleados();
     else if (tab === 'resumen') this.cargarDatosDashboard();
-    else if (tab === 'turnos') { this.cargarEmpleados(); this.cargarTurnos(); }
+    else if (tab === 'turnos') { 
+      this.cargarEmpleados(); // Necesitamos empleados para el select del modal
+      this.cargarTurnos(); 
+    }
     else if (tab === 'configuracion') this.cargarDatosConfiguracion();
   }
 
