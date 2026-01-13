@@ -699,54 +699,45 @@ cargarOrdenesParaLlevar() {
     this.mostrarListaNotificaciones = !this.mostrarListaNotificaciones; 
   }
   
-  limpiarNotificaciones() { 
-    const copiaPendientes = [...this.pedidosListos];
-    copiaPendientes.forEach(p => {
-      this.confirmarEntrega(p);
-    });
-
-    this.pedidosListos = []; 
-    this.contadorNotificaciones = 0;
-    this.mostrarListaNotificaciones = false;
-setTimeout(() => {
-  this.verificarNotificacionesComida();
-  this.cargarOrdenesParaLlevar(); // ✅ AGREGADO
-}, 500);
+limpiarNotificaciones() { 
+  // ✅ Simplemente limpiar la lista local, NO actualizar backend
+  this.pedidosListos = []; 
+  this.contadorNotificaciones = 0;
+  this.mostrarListaNotificaciones = false;
+  
+  // ✅ Recargar por si hay nuevas notificaciones
+  setTimeout(() => {
+    this.verificarNotificacionesComida();
+  }, 500);
 }
-irAMesa(pedido: any) {
-this.confirmarEntrega(pedido);
-if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
-  this.router.navigate(['/pedido', pedido.mesaId]); 
-} else {
-  this.router.navigate(['/pedido/orden', pedido.id]); 
-}
+irAMesa(pedido: any) { 
+  // ✅ NO confirmar entrega, solo navegar
+  // this.confirmarEntrega(pedido); // ❌ ELIMINAR ESTA LÍNEA
+  
+  if(pedido.mesaId && pedido.mesaId !== 'Llevar') {
+    this.router.navigate(['/pedido', pedido.mesaId]); 
+  } else {
+    this.router.navigate(['/pedido/orden', pedido.id]); 
+  }
 }
 irAPedidoParaLlevar(id: number) {
 this.router.navigate(['/pedido/orden', id]);
 }
 // ✅ CORREGIDO: Ahora recarga la lista de para llevar después de confirmar
 confirmarEntrega(p: any) { 
-  // ✅ Solo actualizar los ÍTEMS a ENTREGADA, NO la orden
-  if (p.items && p.items.length > 0) {
-    p.items.forEach((item: any) => {
-      if (item.estado === 'LISTA') {
-        this.pedidosService.actualizarEstadoItem(item.id, 'ENTREGADA').subscribe();
-      }
-    });
-  }
-
-  // ✅ Quitar de la lista de notificaciones (campanita)
+  // ✅ NO actualizar estados en backend
+  // Solo remover de la lista de notificaciones localmente
+  
   const idx = this.pedidosListos.indexOf(p); 
   if(idx > -1) { 
     this.pedidosListos.splice(idx, 1); 
     this.contadorNotificaciones = Math.max(0, this.contadorNotificaciones - 1); 
   } 
   
-  // ✅ NO cambiar el estado de la orden a ENTREGADA
-  // La orden sigue ACTIVA hasta que se pague
+  // ✅ La orden permanece en estado LISTA hasta que se pague
+  // No hacemos ninguna llamada al backend
   
   this.verificarNotificacionesComida();
-  // ✅ NO recargar órdenes para llevar porque el pedido sigue activo
 }
 marcarComoVista(p: any) {
 this.confirmarEntrega(p);
