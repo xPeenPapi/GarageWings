@@ -357,7 +357,8 @@ export class AdminDashboardComponent implements OnInit {
       next: (data) => {
         console.log('📥 Personal recibido del backend:', data);
         console.log('📊 Cantidad de empleados:', data.length);
-        this.personal = data;
+        // ✅ Filtrar ADMIN_EMPRESA de la lista visible
+        this.personal = data.filter(emp => emp.rol !== 'ADMIN_EMPRESA');
         this.calcularEstadisticasPersonal();
         this.generarGraficasPersonal();
         console.log('📈 Estadísticas calculadas:', this.personalPorRol);
