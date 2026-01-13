@@ -107,7 +107,13 @@
 
     <div class="titulo-seccion">
       <h1>Control Total del Sistema</h1>
-      <p>Gestión completa de sucursales, personal, menú y operaciones</p>
+      <p *ngIf="sucursalSeleccionada === 'todas'">Gestión completa de sucursales, personal, menú y operaciones</p>
+      <p *ngIf="sucursalSeleccionada !== 'todas'">
+        <i class="fas fa-filter"></i> Mostrando datos de: <strong>{{ sucursalSeleccionada }}</strong>
+        <button class="btn-limpiar-filtro" (click)="seleccionarSucursal('todas')" style="margin-left: 10px; padding: 4px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+          <i class="fas fa-times"></i> Ver todas
+        </button>
+      </p>
     </div>
 
     <div class="tarjetas-estadisticas">
@@ -118,7 +124,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Ventas Totales</p>
-          <h2 class="tarjeta-valor">{{ estadisticas.ventasTotales | currency }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticasFiltradas.ventasTotales | currency }}</h2>
         </div>
       </div>
 
@@ -128,7 +134,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Órdenes del Día</p>
-          <h2 class="tarjeta-valor">{{ estadisticas.ordenesDelDia }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticasFiltradas.ordenesDelDia }}</h2>
         </div>
       </div>
 
@@ -138,7 +144,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Personal Activo</p>
-          <h2 class="tarjeta-valor">{{ estadisticas.personalActivo }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticasFiltradas.personalActivo }}</h2>
         </div>
       </div>
 
@@ -148,7 +154,7 @@
         </div>
         <div class="tarjeta-info">
           <p class="tarjeta-label">Sucursales Activas</p>
-          <h2 class="tarjeta-valor">{{ estadisticas.sucursalesActivas }}</h2>
+          <h2 class="tarjeta-valor">{{ estadisticasFiltradas.sucursalesActivas }}</h2>
         </div>
       </div>
 
@@ -263,7 +269,7 @@
           </div>
           
           <div class="lista-sucursales">
-            <div class="sucursal-card" *ngFor="let sucursal of sucursales" [class.inactiva]="!sucursal.activa">
+            <div class="sucursal-card" *ngFor="let sucursal of sucursalesFiltradas" [class.inactiva]="!sucursal.activa">
               
               <div class="sucursal-icono">
                 <i class="fas" [class.fa-building]="sucursal.activa" [class.fa-ban]="!sucursal.activa"></i>
@@ -485,7 +491,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let producto of productos">
+              <tr *ngFor="let producto of productosFiltrados">
                 <td>
                   <strong>{{ producto.nombre }}</strong>
                   <small *ngIf="producto.descripcion">{{ producto.descripcion }}</small>
@@ -519,7 +525,7 @@
             </tbody>
           </table>
 
-          <div class="contenido-vacio" *ngIf="productos.length === 0">
+          <div class="contenido-vacio" *ngIf="productosFiltrados.length === 0">
             <i class="fas fa-utensils"></i>
             <h3>No hay productos registrados</h3>
             <p>Comienza agregando productos a tu menú</p>
@@ -712,7 +718,7 @@
   <div class="modal-backdrop" *ngIf="mostrarModalEmpleado">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>{{ esSucursalFija ? 'Registrar Personal en ' + nombreSucursalFija : 'Registrar Nuevo Personal' }}</h3>
+        <h3>{{ esEdicionEmpleado ? 'Editar Empleado' : (esSucursalFija ? 'Registrar Personal en ' + nombreSucursalFija : 'Registrar Nuevo Personal') }}</h3>
         <button class="btn-close" (click)="cerrarModalEmpleado()">&times;</button>
       </div>
       
@@ -778,32 +784,34 @@
 
       <div class="modal-body">
         <div class="form-group">
-          <label>Número de Mesa</label>
-          <input type="text" [(ngModel)]="mesaForm.numero" placeholder="M1">
-        </div>
-
-        <div class="form-group">
-          <label>Capacidad (personas)</label>
-          <input type="number" [(ngModel)]="mesaForm.capacidad" min="1" max="20">
-        </div>
-
-        <div class="form-group">
-          <label>Tipo de Mesa</label>
-          <select [(ngModel)]="mesaForm.tipo">
-            <option value="cuadrada">Cuadrada</option>
-            <option value="rectangular">Rectangular</option>
-            <option value="circular">Circular</option>
-          </select>
-        </div>
-
-        <div class="form-group">
           <label>Sucursal</label>
-          <select [(ngModel)]="mesaForm.sucursalId" required>
+          <select [(ngModel)]="mesaForm.sucursalId" (change)="onCambioSucursalMesa()" required>
             <option [ngValue]="null">Selecciona una sucursal</option>
             <option *ngFor="let sucursal of sucursalesActivas" [value]="sucursal.id">
               {{ sucursal.nombre }}
             </option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label>Número de Mesa</label>
+          <input type="text" [(ngModel)]="mesaForm.numero" placeholder="M1" readonly>
+          <small style="color: #6b7280; font-size: 0.85rem;">Se genera automáticamente según la sucursal</small>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Mesa</label>
+          <select [(ngModel)]="mesaForm.tipo" (change)="onCambioTipoMesa()">
+            <option value="cuadrada">Cuadrada (4 personas)</option>
+            <option value="rectangular">Rectangular (2 personas)</option>
+            <option value="circular">Circular (6 personas)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Capacidad (personas)</label>
+          <input type="number" [(ngModel)]="mesaForm.capacidad" min="1" max="20" readonly>
+          <small style="color: #6b7280; font-size: 0.85rem;">Se ajusta según el tipo de mesa</small>
         </div>
       </div>
 

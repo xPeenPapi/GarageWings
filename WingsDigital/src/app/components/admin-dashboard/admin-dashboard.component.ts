@@ -51,16 +51,57 @@ export class AdminDashboardComponent implements OnInit {
   public pieChartRol: string = 'conic-gradient(#ccc 0% 100%)';
   public pieChartEstado: string = 'conic-gradient(#ccc 0% 100%)';
 
+  // ✅ FILTROS DE SUCURSAL
+  public sucursalSeleccionada: string = 'todas'; // 'todas' o el nombre de la sucursal
+
   // ✅ Propiedades computadas para filtros
   get sucursalesActivas(): Sucursal[] {
     return this.sucursales.filter(s => s.activa);
+  }
+
+  get sucursalesFiltradas(): Sucursal[] {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.sucursalesActivas;
+    }
+    return this.sucursalesActivas.filter(s => s.nombre === this.sucursalSeleccionada);
+  }
+
+  get personalFiltrado(): any[] {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.personal;
+    }
+    const sucursal = this.sucursales.find(s => s.nombre === this.sucursalSeleccionada);
+    if (!sucursal) return [];
+    return this.personal.filter(emp => Number(emp.sucursalId) === Number(sucursal.id));
+  }
+
+  get productosFiltrados(): any[] {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.productos;
+    }
+    const sucursal = this.sucursales.find(s => s.nombre === this.sucursalSeleccionada);
+    if (!sucursal) return [];
+    return this.productos.filter(p => p.destino === 'sucursal' || Number(p.sucursalId) === Number(sucursal.id));
+  }
+
+  get mesasFiltradas(): any[] {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.mesas;
+    }
+    const sucursal = this.sucursales.find(s => s.nombre === this.sucursalSeleccionada);
+    if (!sucursal) return [];
+    return this.mesas.filter(m => Number(m.sucursalId) === Number(sucursal.id));
   }
 
   get sucursalesConEmpleados(): any[] {
     console.log('🔍 Personal completo:', this.personal);
     console.log('🏢 Sucursales activas:', this.sucursalesActivas);
     
-    return this.sucursalesActivas.map(sucursal => {
+    const sucursalesParaMostrar = this.sucursalSeleccionada === 'todas' 
+      ? this.sucursalesActivas 
+      : this.sucursalesActivas.filter(s => s.nombre === this.sucursalSeleccionada);
+    
+    return sucursalesParaMostrar.map(sucursal => {
       const empleadosDeSucursal = this.personal.filter(emp => {
         const empSucursalId = Number(emp.sucursalId);
         const sucId = Number(sucursal.id);
@@ -94,6 +135,9 @@ export class AdminDashboardComponent implements OnInit {
 
   // Modal Personal
   public mostrarModalEmpleado: boolean = false;
+  public esEdicionEmpleado: boolean = false;
+  public empleadoEnEdicion: number | null = null;
+  public empleadoOriginal: any = null;
   // Variables para controlar si la sucursal está fija (desde la tarjeta)
   public esSucursalFija: boolean = false; 
   public nombreSucursalFija: string = '';
@@ -160,6 +204,34 @@ export class AdminDashboardComponent implements OnInit {
     personalActivo: 0,
     sucursalesActivas: 0
   };
+
+  // Estadísticas filtradas según sucursal seleccionada
+  get estadisticasFiltradas() {
+    if (this.sucursalSeleccionada === 'todas') {
+      return this.estadisticas;
+    }
+    
+    const sucursal = this.sucursales.find(s => s.nombre === this.sucursalSeleccionada);
+    if (!sucursal) {
+      return {
+        ventasTotales: 0,
+        ordenesDelDia: 0,
+        personalActivo: 0,
+        sucursalesActivas: 0
+      };
+    }
+
+    const personalDeSucursal = this.personal.filter(emp => 
+      Number(emp.sucursalId) === Number(sucursal.id) && emp.activo && !emp.enVacaciones
+    );
+
+    return {
+      ventasTotales: sucursal.ventas || 0,
+      ordenesDelDia: sucursal.ordenes || 0,
+      personalActivo: personalDeSucursal.length,
+      sucursalesActivas: 1 // Solo 1 sucursal cuando se filtra
+    };
+  }
 
   public resumenGeneral = {
     efectivo: 0,
@@ -384,17 +456,100 @@ export class AdminDashboardComponent implements OnInit {
 
   cerrarModalEmpleado(): void {
     this.mostrarModalEmpleado = false;
+    this.esEdicionEmpleado = false;
+    this.empleadoEnEdicion = null;
+    this.empleadoOriginal = null;
+    this.esSucursalFija = false;
+  }
+
+  actualizarEmpleado(): void {
+    const datosActualizacion: any = {
+      nombre: this.empleadoForm.nombre,
+      email: this.empleadoForm.email,
+      rol: this.empleadoForm.rol,
+      sucursalId: Number(this.empleadoForm.sucursalId)
+    };
+
+    // Solo incluir contraseña si se proporcionó una nueva
+    if (this.empleadoForm.password && this.empleadoForm.password.trim() !== '') {
+      datosActualizacion.password = this.empleadoForm.password;
+    }
+
+    this.adminService.editarEmpleado(this.empleadoEnEdicion!, datosActualizacion).subscribe({
+      next: () => {
+        Swal.fire({
+          icon: 'success',
+          title: '¡Actualizado!',
+          text: 'Los datos del empleado se actualizaron correctamente.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        this.cerrarModalEmpleado();
+        this.cargarDatosDelSistema();
+      },
+      error: (err) => {
+        console.error('❌ Error actualizando empleado:', err);
+        Swal.fire('Error', err.error?.message || 'No se pudo actualizar', 'error');
+      }
+    });
   }
 
 guardarEmpleado(): void {
   // 1. Validaciones básicas
-  if (!this.empleadoForm.nombre || !this.empleadoForm.email || !this.empleadoForm.password) {
-    Swal.fire('Datos Incompletos', 'Por favor completa todos los campos obligatorios.', 'warning');
+  if (!this.empleadoForm.nombre || !this.empleadoForm.email) {
+    Swal.fire('Datos Incompletos', 'Por favor completa nombre y email.', 'warning');
     return;
   }
 
   if (!this.empleadoForm.sucursalId) {
     Swal.fire('Falta Sucursal', 'Debes asignar el empleado a una sucursal.', 'warning');
+    return;
+  }
+
+  // ✅ MODO EDICIÓN
+  if (this.esEdicionEmpleado && this.empleadoEnEdicion) {
+    // Detectar si hay cambio de sucursal
+    const cambioSucursal = this.empleadoOriginal.sucursalId !== Number(this.empleadoForm.sucursalId);
+    
+    if (cambioSucursal) {
+      const sucursalAnterior = this.sucursales.find(s => s.id === this.empleadoOriginal.sucursalId)?.nombre;
+      const sucursalNueva = this.sucursales.find(s => s.id === Number(this.empleadoForm.sucursalId))?.nombre;
+      
+      Swal.fire({
+        title: '🚚 Transferencia de Empleado',
+        html: `
+          <div style="text-align: left; padding: 20px;">
+            <p><strong>Empleado:</strong> ${this.empleadoForm.nombre}</p>
+            <p><strong>Rol:</strong> ${this.empleadoForm.rol}</p>
+            <hr style="margin: 15px 0;">
+            <p><i class="fas fa-arrow-right" style="color: #ef4444;"></i> <strong>De:</strong> ${sucursalAnterior}</p>
+            <p><i class="fas fa-arrow-right" style="color: #10b981;"></i> <strong>A:</strong> ${sucursalNueva}</p>
+            <hr style="margin: 15px 0;">
+            <p style="color: #6b7280; font-size: 0.9rem;">
+              <i class="fas fa-info-circle"></i> Esta transferencia actualizará toda la información del empleado incluyendo historial de turnos y accesos.
+            </p>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, transferir',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.actualizarEmpleado();
+        }
+      });
+    } else {
+      // No hay cambio de sucursal, actualizar directamente
+      this.actualizarEmpleado();
+    }
+    return;
+  }
+
+  // ✅ MODO CREACIÓN (lógica existente)
+  if (!this.empleadoForm.password) {
+    Swal.fire('Datos Incompletos', 'La contraseña es requerida al crear un empleado.', 'warning');
     return;
   }
 
@@ -484,6 +639,12 @@ guardarEmpleado(): void {
   // ==========================================
 
   editarEmpleado(empleado: any): void {
+    // Guardar datos originales para comparar
+    this.empleadoOriginal = { ...empleado };
+    this.empleadoEnEdicion = empleado.id;
+    this.esEdicionEmpleado = true;
+    this.esSucursalFija = false;
+    
     // Prellenar el formulario con los datos del empleado
     this.empleadoForm = {
       nombre: empleado.nombre,
@@ -493,11 +654,7 @@ guardarEmpleado(): void {
       sucursalId: empleado.sucursalId
     };
     
-    // Abrir el modal en modo edición (podrías agregar una variable esEdicionEmpleado si quieres)
     this.mostrarModalEmpleado = true;
-    
-    // Opcional: Guardar el ID del empleado para actualizar en lugar de crear
-    // this.empleadoEnEdicion = empleado.id;
   }
 
   ponerEnVacaciones(empleado: any): void {
@@ -720,7 +877,61 @@ guardarEmpleado(): void {
       tipo: 'cuadrada', 
       sucursalId: sucursalId || null 
     };
+    
+    // Si ya tiene sucursal preseleccionada, calcular el siguiente número
+    if (sucursalId) {
+      this.calcularSiguienteNumeroMesa(sucursalId);
+    }
+    
     this.mostrarModalMesa = true;
+  }
+
+  onCambioSucursalMesa(): void {
+    if (this.mesaForm.sucursalId) {
+      this.calcularSiguienteNumeroMesa(Number(this.mesaForm.sucursalId));
+    }
+  }
+
+  onCambioTipoMesa(): void {
+    // Asignar capacidad según el tipo de mesa
+    switch (this.mesaForm.tipo) {
+      case 'cuadrada':
+        this.mesaForm.capacidad = 4;
+        break;
+      case 'rectangular':
+        this.mesaForm.capacidad = 2;
+        break;
+      case 'circular':
+        this.mesaForm.capacidad = 6;
+        break;
+      default:
+        this.mesaForm.capacidad = 4;
+    }
+  }
+
+  calcularSiguienteNumeroMesa(sucursalId: number): void {
+    // Filtrar mesas de esa sucursal
+    const mesasDeSucursal = this.mesas.filter(m => m.sucursalId === sucursalId);
+    
+    if (mesasDeSucursal.length === 0) {
+      this.mesaForm.numero = 'M1';
+      return;
+    }
+
+    // Extraer los números (M1 -> 1, M2 -> 2, etc.)
+    const numeros = mesasDeSucursal
+      .map(m => {
+        const match = m.numero.match(/\d+/); // Extrae los dígitos
+        return match ? parseInt(match[0]) : 0;
+      })
+      .filter(n => n > 0);
+
+    // Encontrar el máximo número
+    const maxNumero = Math.max(...numeros, 0);
+    
+    // Asignar el siguiente
+    this.mesaForm.numero = `M${maxNumero + 1}`;
+    console.log(`📍 Siguiente mesa para sucursal ${sucursalId}: ${this.mesaForm.numero}`);
   }
 
   editarMesa(mesa: any): void {
@@ -811,7 +1022,9 @@ guardarEmpleado(): void {
 
   get mesasPorSucursalArray(): Array<{ nombre: string; mesas: any[] }> {
     const agrupadas: any = {};
-    this.mesas.forEach(mesa => {
+    const mesasParaAgrupar = this.mesasFiltradas; // Usar mesas filtradas
+    
+    mesasParaAgrupar.forEach(mesa => {
       const sucursal = this.sucursales.find(s => s.id === mesa.sucursalId);
       const nombreSucursal = sucursal?.nombre || 'Sin sucursal';
       
