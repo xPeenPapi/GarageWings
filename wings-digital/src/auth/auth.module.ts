@@ -5,6 +5,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module'; // Importante para la BD
 import { JwtStrategy } from './jwt.strategy'; // ✅ AGREGADO
+import dotenv from 'dotenv';
+dotenv.config();
 
 @Module({
   imports: [
